@@ -36,6 +36,9 @@
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Conversation ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Conversation ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Conversation)">
                         <Icon Name="book" Size="20" /> <span>Conversación</span>
                     </button>
+                    <button type="button" class="journal-tab @(_section == WorkspaceSection.Calendar ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Calendar ? "page" : null)" @onclick="OpenCalendarAsync">
+                        <Icon Name="calendar" Size="20" /> <span>Calendario</span>
+                    </button>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Notes ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Notes ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Notes)">
                         <Icon Name="note" Size="20" /> <span>Notitas</span>
                         @if (_notes.Count > 0) { <span class="tab-count">@_notes.Count</span> }
@@ -76,6 +79,12 @@
                         </a>
                     </header>
 
+                    <button type="button" class="journal-streak" @onclick="OpenCalendarAsync" disabled="@(!RendererInfo.IsInteractive)">
+                        <span class="journal-streak-icon"><Icon Name="leaf" Size="21" /></span>
+                        <span class="journal-streak-label"><span>Racha actual</span><strong>@StreakLabel</strong></span>
+                        <span class="journal-streak-link">Ver calendario <Icon Name="arrow" Size="17" /></span>
+                    </button>
+
                     @if (_entries.Count == 0)
                     {
                         <section class="blank-journal">
@@ -85,7 +94,7 @@
                             <p class="eyebrow">TU PRIMERA PÁGINA</p>
                             <h2>¿Qué tenés en la cabeza?</h2>
                             <p>Podés empezar con una frase, una foto o algo que quieras mirar con más calma.</p>
-                            <button type="button" class="btn btn-outline example-button" @onclick="AddExampleAsync" disabled="@(!RendererInfo.IsInteractive || _busy || !string.IsNullOrWhiteSpace(_draft))">
+                            <button type="button" class="btn btn-outline example-button" @onclick="AddExample" disabled="@(!RendererInfo.IsInteractive || _busy || !string.IsNullOrWhiteSpace(_draft))">
                                 <Icon Name="spark" Size="17" /> Probar con un ejemplo
                             </button>
                         </section>
@@ -99,14 +108,14 @@
                                     <Icon Name="clock" Size="16" /> @(_readingEarlier ? "Cargando…" : "Ver entradas anteriores")
                                 </button>
                             }
-                            @{ string? lastDate = null; }
+                            @{ DateOnly? lastDate = null; }
                             @foreach (var entry in _entries)
                             {
-                                var date = LocalDate(entry.CreatedUtc);
-                                if (date != lastDate)
+                                var day = EntryDay(entry.CreatedUtc);
+                                if (day != lastDate)
                                 {
-                                    <div class="timeline-date"><span></span><time datetime="@entry.CreatedUtc.ToString("yyyy-MM-dd")">@date</time><span></span></div>
-                                    lastDate = date;
+                                    <div class="timeline-date"><span></span><time datetime="@day.ToString("yyyy-MM-dd")">@LocalDate(entry.CreatedUtc)</time><span></span></div>
+                                    lastDate = day;
                                 }
 
                                 <div class="journal-turn" @key="entry.Id">
@@ -213,6 +222,18 @@
                         </div>
                         <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>Hasta 4 archivos · 8 MB c/u</span></div>
                     </section>
+                }
+                else if (_section == WorkspaceSection.Calendar)
+                {
+                    <header class="workspace-heading">
+                        <div>
+                            <p class="eyebrow">TU CUADERNO EN EL TIEMPO</p>
+                            <h1 @ref="_sectionHeading" tabindex="-1">Calendario<span class="brand-period">.</span></h1>
+                            <p>Volvé a lo que escribiste, día por día.</p>
+                        </div>
+                    </header>
+                    <JournalCalendar EntryDays="_entryDays" Today="_today" Streak="_currentStreak"
+                                     TimeZone="JournalTimeZone" LoadEntries="LoadCalendarEntriesAsync" WriteEntry="FocusComposer" />
                 }
                 else if (_section == WorkspaceSection.Notes)
                 {

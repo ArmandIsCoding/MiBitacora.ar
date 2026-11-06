@@ -1,0 +1,332 @@
+@using System.Globalization
+@implements IDisposable
+@inject ILogger<JournalCalendar> Logger
+
+<div class="journal-calendar">
+    <div class="calendar-streak">
+        <span class="calendar-leaf"><Icon Name="leaf" Size="25" /></span>
+        <div>
+            <p class="eyebrow">TU RITMO DE ESCRITURA</p>
+            <p class="calendar-streak-title">@StreakTitle</p>
+            <p class="calendar-streak-hint">Cada día con entradas cuenta una vez. Si escribiste ayer, tu racha sigue vigente hoy.</p>
+        </div>
+    </div>
+
+    <section class="calendar-paper" aria-label="Calendario de entradas">
+        <header class="calendar-month-header">
+            <div>
+                <p class="eyebrow">TUS DÍAS DE ESCRITURA</p>
+                <h2 id="calendar-month-heading" aria-live="polite" aria-atomic="true">@MonthLabel</h2>
+            </div>
+            <div class="calendar-controls">
+                <button class="calendar-control calendar-previous" type="button" aria-label="Mes anterior" disabled="@(_month <= _earliestMonth)" @onclick="() => ChangeMonthAsync(-1)">
+                    <Icon Name="arrow" Size="18" />
+                </button>
+                <button class="calendar-control calendar-today" type="button" @onclick="GoToTodayAsync">Hoy</button>
+                <button class="calendar-control" type="button" aria-label="Mes siguiente" disabled="@(_month >= _currentMonth)" @onclick="() => ChangeMonthAsync(1)">
+                    <Icon Name="arrow" Size="18" />
+                </button>
+            </div>
+        </header>
+
+        <table class="calendar-month" aria-labelledby="calendar-month-heading">
+            <thead>
+                <tr>
+                    @foreach (var day in Weekdays)
+                    {
+                        <th scope="col" abbr="@day.Name">@day.Abbreviation</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (var row = 0; row < WeekCount; row++)
+                {
+                    <tr>
+                        @for (var column = 0; column < Weekdays.Length; column++)
+                        {
+                            var dayNumber = row * Weekdays.Length + column - FirstDayOffset + 1;
+                            if (dayNumber < 1 || dayNumber > DaysInMonth)
+                            {
+                                <td></td>
+                                continue;
+                            }
+
+                            var date = _month.AddDays(dayNumber - 1);
+                            var count = EntryCount(date);
+                            var isToday = date == Today;
+                            var isSelected = date == _selected;
+                            <td @key="date">
+                                @if (count > 0 || isToday)
+                                {
+                                    <button type="button"
+                                            class="calendar-day @(count > 0 ? "is-marked" : null) @(isToday ? "is-current" : null) @(isSelected ? "is-selected" : null)"
+                                            aria-label="@DayLabel(date, count)"
+                                            aria-pressed="@(isSelected ? "true" : "false")"
+                                            aria-current="@(isToday ? "date" : null)"
+                                            aria-controls="calendar-day-detail"
+                                            @onclick="() => SelectDayAsync(date)">
+                                        <span>@dayNumber</span>
+                                        @if (count > 0)
+                                        {
+                                            <span class="calendar-day-dot" aria-hidden="true"></span>
+                                        }
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="calendar-day calendar-day-empty">@dayNumber</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="calendar-footer">
+            <ul class="calendar-legend" aria-label="Referencias">
+                <li><span class="calendar-key calendar-key-marked" aria-hidden="true"></span>Con entradas</li>
+                <li><span class="calendar-key calendar-key-current" aria-hidden="true"></span>Hoy</li>
+                <li><span class="calendar-key calendar-key-selected" aria-hidden="true"></span>Fecha elegida</li>
+            </ul>
+            @if (_selectedCount > 0)
+            {
+                <a class="calendar-detail-link" href="bitacora#calendar-day-detail" data-enhance-nav="false">
+                    Ver @EntryLabel(_selectedCount) <Icon Name="chevron" Size="15" />
+                </a>
+            }
+        </div>
+    </section>
+
+    <section class="calendar-detail" id="calendar-day-detail" tabindex="-1" aria-labelledby="calendar-detail-heading" aria-busy="@(_loading ? "true" : "false")">
+        <header class="calendar-detail-heading">
+            <span class="calendar-detail-icon"><Icon Name="book" Size="20" /></span>
+            <div>
+                <p class="eyebrow">PÁGINAS DEL DÍA</p>
+                <h2 id="calendar-detail-heading" aria-live="polite">
+                    @if (_selected is { } detailDate)
+                    {
+                        <time datetime="@detailDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)">@FormatDate(detailDate)</time>
+                    }
+                    else
+                    {
+                        <span>Un mes sin entradas</span>
+                    }
+                </h2>
+            </div>
+        </header>
+
+        @if (_loading)
+        {
+            <p class="calendar-detail-message" role="status">Abriendo las entradas de este día…</p>
+        }
+        else if (_loadFailed)
+        {
+            <div class="calendar-detail-message calendar-load-error" role="alert">
+                <p>No pudimos abrir estas entradas.</p>
+                <button type="button" class="btn btn-outline" @onclick="ReloadDayAsync">Volver a intentar</button>
+            </div>
+        }
+        else if (_entries.Count == 0)
+        {
+            <div class="calendar-detail-message calendar-empty">
+                <p>@(_selected == Today ? "Todavía no hay entradas de hoy." : _selected is null ? "Podés volver a otro mes para leer lo que escribiste." : "No hay entradas para esta fecha.")</p>
+                <button type="button" class="btn btn-outline" @onclick="WriteEntry"><Icon Name="pen" Size="17" /> Escribir hoy</button>
+            </div>
+        }
+        else
+        {
+            <p class="calendar-detail-count">@EntryLabel(_entries.Count)</p>
+            <div class="calendar-entries">
+                @foreach (var entry in _entries)
+                {
+                    var utc = DateTime.SpecifyKind(entry.CreatedUtc, DateTimeKind.Utc);
+                    var local = TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZone);
+                    <article class="calendar-entry" aria-label="@($"Entrada de las {local:HH:mm}")" @key="entry.Id">
+                        <header class="calendar-entry-meta">
+                            <Icon Name="clock" Size="17" />
+                            <time datetime="@utc.ToString("O", CultureInfo.InvariantCulture)">@local.ToString("HH:mm", Spanish)</time>
+                        </header>
+                        @if (!string.IsNullOrWhiteSpace(entry.Text))
+                        {
+                            <p class="calendar-entry-text">@entry.Text</p>
+                        }
+                        @if (entry.Attachments.Count > 0)
+                        {
+                            <ul class="calendar-files" aria-label="Adjuntos">
+                                @foreach (var attachment in entry.Attachments)
+                                {
+                                    <li @key="attachment.Id">
+                                        <a href="@($"/adjuntos/{attachment.Id}")" download aria-label="@($"Descargar {attachment.FileName}")">
+                                            <Icon Name="paperclip" Size="16" /><span>@attachment.FileName</span><Icon Name="download" Size="16" />
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        @if (entry.Reflection is { } reflection)
+                        {
+                            <details class="calendar-reflection">
+                                <summary><Icon Name="spark" Size="16" /> <span>Resumen de la devolución</span>
+                                    @if (reflection.IsDemo)
+                                    {
+                                        <small class="calendar-demo">Muestra</small>
+                                    }
+                                    <Icon Name="chevron" Size="16" />
+                                </summary>
+                                <div class="calendar-reflection-body">
+                                    <h3>@reflection.Title</h3>
+                                    <p>@reflection.Overview</p>
+                                </div>
+                            </details>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
+    private static readonly (string Abbreviation, string Name)[] Weekdays =
+    [
+        ("Lun", "lunes"), ("Mar", "martes"), ("Mié", "miércoles"), ("Jue", "jueves"),
+        ("Vie", "viernes"), ("Sáb", "sábado"), ("Dom", "domingo")
+    ];
+
+    [Parameter, EditorRequired] public IReadOnlyDictionary<DateOnly, int> EntryDays { get; set; } = new Dictionary<DateOnly, int>();
+    [Parameter, EditorRequired] public DateOnly Today { get; set; }
+    [Parameter, EditorRequired] public int Streak { get; set; }
+    [Parameter, EditorRequired] public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
+    [Parameter, EditorRequired] public Func<DateOnly, Task<IReadOnlyList<JournalEntry>>> LoadEntries { get; set; } = default!;
+    [Parameter, EditorRequired] public EventCallback WriteEntry { get; set; }
+
+    private IReadOnlyDictionary<DateOnly, int>? _lastEntryDays;
+    private IReadOnlyList<JournalEntry> _entries = [];
+    private DateOnly _month;
+    private DateOnly _currentMonth;
+    private DateOnly _earliestMonth;
+    private DateOnly? _selected;
+    private int _selectedCount;
+    private long _loadVersion;
+    private bool _loading;
+    private bool _loadFailed;
+
+    private string MonthLabel => Capitalize(_month.ToString("MMMM 'de' yyyy", Spanish));
+    private int DaysInMonth => DateTime.DaysInMonth(_month.Year, _month.Month);
+    private int FirstDayOffset => ((int)_month.DayOfWeek + 6) % 7;
+    private int WeekCount => (FirstDayOffset + DaysInMonth + 6) / 7;
+    private string StreakTitle => Streak switch
+    {
+        0 => "Volvé cuando tengas ganas.",
+        1 => "1 día seguido",
+        _ => $"{Streak} días seguidos"
+    };
+
+    protected override Task OnParametersSetAsync()
+    {
+        var firstLoad = _lastEntryDays is null;
+        var mapChanged = !ReferenceEquals(_lastEntryDays, EntryDays);
+        _lastEntryDays = EntryDays;
+        _currentMonth = MonthOf(Today);
+        _earliestMonth = MonthOf(EntryDays.Where(pair => pair.Value > 0 && pair.Key <= Today)
+            .Select(pair => pair.Key).DefaultIfEmpty(Today).Min());
+
+        if (firstLoad || _month > _currentMonth)
+        {
+            _month = _currentMonth;
+        }
+        else if (_month < _earliestMonth)
+        {
+            _month = _earliestMonth;
+        }
+
+        var selected = _selected is { } date && MonthOf(date) == _month && (date == Today || EntryCount(date) > 0)
+            ? date
+            : PreferredDate();
+        var count = selected is { } day ? EntryCount(day) : 0;
+        return mapChanged || selected != _selected || count != _selectedCount ? SelectDayAsync(selected) : Task.CompletedTask;
+    }
+
+    private async Task ChangeMonthAsync(int step)
+    {
+        if (step < 0 && _month <= _earliestMonth || step > 0 && _month >= _currentMonth)
+        {
+            return;
+        }
+
+        _month = _month.AddMonths(step);
+        await SelectDayAsync(PreferredDate());
+    }
+
+    private Task GoToTodayAsync()
+    {
+        _month = _currentMonth;
+        return SelectDayAsync(Today);
+    }
+
+    private Task ReloadDayAsync() => SelectDayAsync(_selected);
+
+    private async Task SelectDayAsync(DateOnly? selected)
+    {
+        var version = ++_loadVersion;
+        _selected = selected;
+        _selectedCount = selected is { } day ? EntryCount(day) : 0;
+        _entries = [];
+        _loadFailed = false;
+        _loading = _selectedCount > 0;
+        if (!_loading || selected is not { } date)
+        {
+            return;
+        }
+
+        try
+        {
+            var entries = await LoadEntries(date);
+            if (version == _loadVersion)
+            {
+                _entries = entries;
+            }
+        }
+        catch (Exception exception)
+        {
+            if (version == _loadVersion)
+            {
+                Logger.LogWarning(exception, "No se pudieron cargar las entradas del calendario.");
+                _loadFailed = true;
+            }
+        }
+        finally
+        {
+            if (version == _loadVersion)
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private DateOnly? PreferredDate()
+    {
+        var currentMonth = _month == _currentMonth;
+        if (currentMonth && EntryCount(Today) > 0)
+        {
+            return Today;
+        }
+
+        var latestMarked = EntryDays.Where(pair => pair.Value > 0 && pair.Key <= Today && MonthOf(pair.Key) == _month)
+            .Select(pair => (DateOnly?)pair.Key).Max();
+        return latestMarked ?? (currentMonth ? Today : null);
+    }
+
+    private int EntryCount(DateOnly date) => date <= Today && EntryDays.TryGetValue(date, out var count) ? Math.Max(0, count) : 0;
+
+    private string DayLabel(DateOnly date, int count) => $"{FormatDate(date)}, {EntryLabel(count)}";
+
+    private static string EntryLabel(int count) => count == 1 ? "1 entrada" : $"{count} entradas";
+    private static string FormatDate(DateOnly date) => Capitalize(date.ToString("dddd d 'de' MMMM 'de' yyyy", Spanish));
+    private static string Capitalize(string value) => char.ToUpper(value[0], Spanish) + value[1..];
+    private static DateOnly MonthOf(DateOnly date) => new(date.Year, date.Month, 1);
+
+    public void Dispose() => _loadVersion++;
+}

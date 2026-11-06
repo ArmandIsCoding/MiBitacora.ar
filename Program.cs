@@ -36,6 +36,8 @@ sqlite.ForeignKeys = true;
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options => options.UseSqlite(sqlite.ConnectionString));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(
+    builder.Configuration["Journal:TimeZone"] ?? "America/Argentina/Buenos_Aires"));
 builder.Services.AddHttpClient<IJournalReflector, GeminiJournalService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
     .RedactLoggedHeaders(["x-goog-api-key"]);

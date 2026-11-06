@@ -46,6 +46,7 @@ public partial class Bitacora : IAsyncDisposable
     private bool _readingEarlier;
     private bool _scrollToEnd;
     private bool _focusSection;
+    private bool _focusComposer;
     private bool _disposed;
     private int _pickerVersion;
     private WorkspaceSection _section = WorkspaceSection.Conversation;
@@ -79,12 +80,15 @@ public partial class Bitacora : IAsyncDisposable
             var entries = Store.GetEntriesAsync(_userId, PageSize, cancellationToken: Lifetime);
             var notes = Store.GetNotesAsync(_userId, Lifetime);
             var selected = Store.GetSessionEntriesAsync(_userId, Lifetime);
-            await Task.WhenAll(profile, entries, notes, selected);
+            var entryDays = Store.GetEntryDaysAsync(_userId, JournalTimeZone, Lifetime);
+            await Task.WhenAll(profile, entries, notes, selected, entryDays);
 
             _profile = await profile;
             _entries.AddRange(await entries);
             _notes.AddRange(await notes);
             _sessionEntries.AddRange(await selected);
+            _entryDays = await entryDays;
+            UpdateCalendarDay();
             _hasEarlier = _entries.Count == PageSize;
             _ready = true;
             _scrollToEnd = _entries.Count > 0;
@@ -101,6 +105,11 @@ public partial class Bitacora : IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_ready)
+        {
+            _calendarDayWatcher ??= WatchCalendarDayAsync();
+        }
+
         try
         {
             if (_dialogKind != DialogKind.None)
@@ -114,6 +123,13 @@ public partial class Bitacora : IAsyncDisposable
                 _focusSection = false;
                 var module = await GetModuleAsync();
                 await module.InvokeVoidAsync("focusSection", Lifetime, _sectionHeading);
+            }
+
+            if (_focusComposer && _section == WorkspaceSection.Conversation)
+            {
+                _focusComposer = false;
+                var module = await GetModuleAsync();
+                await module.InvokeVoidAsync("focusComposer", Lifetime, _composerInput);
             }
 
             if (_scrollToEnd && _section == WorkspaceSection.Conversation)
@@ -143,6 +159,7 @@ public partial class Bitacora : IAsyncDisposable
 
         _section = section;
         _scrollToEnd = false;
+        _focusComposer = false;
         _focusSection = true;
         _notice = null;
         _error = null;
@@ -173,7 +190,7 @@ public partial class Bitacora : IAsyncDisposable
         }
     }
 
-    private async Task AddExampleAsync()
+    private void AddExample()
     {
         if (!string.IsNullOrWhiteSpace(_draft))
         {
@@ -181,21 +198,15 @@ public partial class Bitacora : IAsyncDisposable
         }
 
         _draft = "Esta semana acepté tres tareas más en el trabajo. Me entusiasma el proyecto y al mismo tiempo me cuesta decir que no. El jueves cancelé un plan que tenía ganas de hacer y me quedé pensando si puedo poner un límite sin quedar mal. Quiero hablar de esto en mi próxima sesión.";
-        await FocusComposerAsync();
+        FocusComposer();
     }
 
-    private async Task FocusComposerAsync()
+    private void FocusComposer()
     {
-        _section = WorkspaceSection.Conversation;
-        await InvokeAsync(StateHasChanged);
-        try
-        {
-            var module = await GetModuleAsync();
-            await module.InvokeVoidAsync("focusComposer", Lifetime, _composerInput);
-        }
-        catch (JSDisconnectedException)
-        {
-        }
+        ShowSection(WorkspaceSection.Conversation);
+        _focusSection = false;
+        _scrollToEnd = false;
+        _focusComposer = true;
     }
 
     private async Task PickFilesAsync(InputFileChangeEventArgs args)
@@ -306,6 +317,7 @@ public partial class Bitacora : IAsyncDisposable
                 _draft = "";
                 _files.Clear();
                 entryId = entry.Id;
+                await RefreshEntryDaysAsync();
             }
 
             _scrollToEnd = true;
@@ -324,6 +336,11 @@ public partial class Bitacora : IAsyncDisposable
             await Store.SaveReflectionAsync(_userId, entryId.Value, reflection, Lifetime);
 
             ReplaceEntry(context.Current with { Reflection = reflection });
+            if (_section == WorkspaceSection.Calendar)
+            {
+                await RefreshEntryDaysAsync();
+            }
+
             _sessionDraft = null;
             _scrollToEnd = true;
         }
@@ -463,6 +480,7 @@ public partial class Bitacora : IAsyncDisposable
                 _sessionEntries.RemoveAll(item => item.Id == id);
                 _entryErrors.Remove(id);
                 _notice = "Entrada y adjuntos eliminados.";
+                await RefreshEntryDaysAsync();
             }
 
             _sessionDraft = null;
@@ -599,10 +617,10 @@ public partial class Bitacora : IAsyncDisposable
         await module.InvokeVoidAsync("printSheet", Lifetime);
     }
 
-    private static string LocalDate(DateTime utc) =>
-        utc.ToLocalTime().ToString("d 'de' MMMM", Spanish);
+    private string LocalDate(DateTime utc) =>
+        JournalLocalTime(utc).ToString("d 'de' MMMM", Spanish);
 
-    private static string LocalTime(DateTime utc) => utc.ToLocalTime().ToString("HH:mm", Spanish);
+    private string LocalTime(DateTime utc) => JournalLocalTime(utc).ToString("HH:mm", Spanish);
 
     private static string SizeLabel(long bytes) =>
         bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.0} MB" : $"{Math.Max(1, bytes / 1024d):0} KB";
@@ -616,6 +634,11 @@ public partial class Bitacora : IAsyncDisposable
     {
         _disposed = true;
         await _lifetime.CancelAsync();
+        if (_calendarDayWatcher is not null)
+        {
+            await _calendarDayWatcher;
+        }
+
         if (_module is not null)
         {
             try
@@ -630,6 +653,6 @@ public partial class Bitacora : IAsyncDisposable
         _lifetime.Dispose();
     }
 
-    private enum WorkspaceSection { Conversation, Notes, Session }
+    private enum WorkspaceSection { Conversation, Calendar, Notes, Session }
     private enum DialogKind { None, Gemini, Note, DeleteNote, DeleteEntry }
 }

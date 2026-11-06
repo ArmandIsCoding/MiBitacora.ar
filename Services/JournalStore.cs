@@ -76,6 +76,31 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         return page;
     }
 
+    public async Task<IReadOnlyDictionary<DateOnly, int>> GetEntryDaysAsync(string userId, TimeZoneInfo timeZone,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var timestamps = db.JournalEntries.Where(row => row.UserId == userId).Select(row => row.CreatedUtc);
+        var counts = new Dictionary<DateOnly, int>();
+
+        await foreach (var createdUtc in timestamps.AsAsyncEnumerable().WithCancellation(cancellationToken))
+        {
+            var day = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(AsUtc(createdUtc), timeZone));
+            counts[day] = counts.GetValueOrDefault(day) + 1;
+        }
+
+        return counts;
+    }
+
+    public async Task<IReadOnlyList<JournalEntry>> GetEntriesInRangeAsync(string userId, DateTime fromUtc, DateTime untilUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await ReadEntriesAsync(db.JournalEntries
+            .Where(row => row.UserId == userId && row.CreatedUtc >= fromUtc && row.CreatedUtc < untilUtc)
+            .OrderBy(row => row.CreatedUtc), cancellationToken);
+    }
+
     public async Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files,
         CancellationToken cancellationToken = default)
     {

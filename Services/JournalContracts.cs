@@ -61,6 +61,8 @@ public interface IJournalStore
     Task<JournalProfile> GetProfileAsync(string userId, CancellationToken cancellationToken = default);
     Task SaveProfileAsync(string userId, JournalProfile profile, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalEntry>> GetEntriesAsync(string userId, int take = 40, DateTime? beforeUtc = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<DateOnly, int>> GetEntryDaysAsync(string userId, TimeZoneInfo timeZone, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JournalEntry>> GetEntriesInRangeAsync(string userId, DateTime fromUtc, DateTime untilUtc, CancellationToken cancellationToken = default);
     Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files, CancellationToken cancellationToken = default);
     Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default);
     Task SetEntryForSessionAsync(string userId, Guid entryId, bool selected, CancellationToken cancellationToken = default);
