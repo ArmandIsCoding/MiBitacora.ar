@@ -1,0 +1,17 @@
+@inherits LayoutComponentBase
+@layout MiBitacora.Components.Layout.MainLayout
+
+<AccountHeader SignedIn="true" />
+<main class="account-manage">
+    <div class="account-manage-heading">
+        <p class="account-kicker">Preferencias</p>
+        <h1>Tu cuenta</h1>
+        <p class="account-intro">Administrá tu perfil, el acceso a tu bitácora y tus datos.</p>
+    </div>
+    <div class="account-manage-grid">
+        <ManageNavMenu />
+        <section class="account-card account-manage-card">
+            @Body
+        </section>
+    </div>
+</main>

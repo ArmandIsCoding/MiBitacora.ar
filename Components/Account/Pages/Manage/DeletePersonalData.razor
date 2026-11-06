@@ -1,0 +1,73 @@
+@page "/Account/Manage/DeletePersonalData"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using MiBitacora.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Borrar cuenta | Mi Bitácora</PageTitle>
+
+<h2>Borrá tu cuenta</h2>
+<p class="account-intro">Esta acción es permanente. Se borrarán tu perfil, tus entradas, tus devoluciones, tus adjuntos y tus notitas de Mi Bitácora. El contenido que hayas enviado a Gemini se rige por los términos de Google.</p>
+<StatusMessage Message="@errorMessage" IsError="true" />
+
+<EditForm Model="Input" FormName="delete-user" OnValidSubmit="DeleteAccountAsync" method="post" class="account-form">
+    <DataAnnotationsValidator />
+
+    <div class="account-field">
+        <label for="delete-password">Ingresá tu contraseña para confirmar</label>
+        <input type="password" name="Input.Password" id="delete-password" autocomplete="current-password" required />
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+    <div class="account-actions">
+        <a href="Account/Manage/PersonalData" class="account-button account-button-secondary">Cancelar</a>
+        <button type="submit" class="account-button account-button-danger">Borrar cuenta y datos</button>
+    </div>
+</EditForm>
+
+@code {
+    private string? errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task DeleteAccountAsync()
+    {
+        var user = await UserManager.GetUserAsync(HttpContext.User);
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(HttpContext);
+            return;
+        }
+
+        if (!await UserManager.CheckPasswordAsync(user, Input.Password))
+        {
+            errorMessage = "La contraseña es incorrecta. Revisala e intentá de nuevo.";
+            return;
+        }
+
+        var result = await UserManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            errorMessage = AccountText.DescribeErrors(result);
+            return;
+        }
+
+        await SignInManager.SignOutAsync();
+        RedirectManager.RedirectToWithStatus("Account/Login", "Borramos tu cuenta y tus datos de Mi Bitácora.", HttpContext);
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Ingresá tu contraseña para confirmar.")]
+        public string Password { get; set; } = "";
+    }
+}

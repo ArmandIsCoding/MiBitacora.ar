@@ -1,0 +1,27 @@
+<header class="account-topbar">
+    <div class="account-topbar-inner">
+        <a class="account-brand" href="@(SignedIn ? "bitacora" : "/")">
+            <img src="marca.svg" alt="" width="34" height="34" />
+            Mi Bitácora
+        </a>
+        <nav aria-label="Cuenta" class="account-topbar-nav">
+            @if (SignedIn)
+            {
+                <a href="bitacora">Ir a mi bitácora</a>
+                <form action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <button type="submit" class="account-logout">Cerrar sesión</button>
+                </form>
+            }
+            else
+            {
+                <a href="/">Volver al inicio</a>
+            }
+        </nav>
+    </div>
+</header>
+
+@code {
+    [Parameter]
+    public bool SignedIn { get; set; }
+}

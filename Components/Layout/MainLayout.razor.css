@@ -1,0 +1,26 @@
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    z-index: 10;
+    inset: auto 1rem 1rem;
+    padding: 1rem 3rem 1rem 1.25rem;
+    border-radius: 1rem;
+    background: #342e27;
+    color: #fffaf1;
+    box-shadow: 0 8px 28px #31291d26;
+}
+
+#blazor-error-ui .reload {
+    color: inherit;
+    margin-inline-start: .5rem;
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    right: .8rem;
+    top: .65rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1.4rem;
+}

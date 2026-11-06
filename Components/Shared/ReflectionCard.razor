@@ -1,0 +1,79 @@
+<article class="reflection-card" aria-label="Devolución de Mi Bitácora">
+    <header class="reflection-meta">
+        <span class="reflection-mark"><Icon Name="spark" Size="19" /></span>
+        <span class="eyebrow">TUS IDEAS, EN ORDEN</span>
+        @if (Reflection.IsDemo)
+        {
+            <span class="soft-badge">Muestra</span>
+        }
+    </header>
+
+    <h3>@Reflection.Title</h3>
+    <p class="reflection-overview">@Reflection.Overview</p>
+
+    @if (Reflection.Themes.Count > 0)
+    {
+        <div class="reflection-themes">
+            @foreach (var theme in Reflection.Themes)
+            {
+                <section class="reflection-theme">
+                    <h4>@theme.Title</h4>
+                    <p>@theme.Detail</p>
+                    @if (!string.IsNullOrWhiteSpace(theme.Quote))
+                    {
+                        <blockquote><Icon Name="quote" Size="17" /><span>«@theme.Quote»</span></blockquote>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(theme.Source))
+                    {
+                        <small>@theme.Source</small>
+                    }
+                </section>
+            }
+        </div>
+    }
+
+    @if (Reflection.OpenQuestions.Count > 0)
+    {
+        <details class="reflection-details">
+            <summary>Preguntas para explorar <Icon Name="chevron" Size="16" /></summary>
+            <ul>
+                @foreach (var question in Reflection.OpenQuestions)
+                {
+                    <li>@question</li>
+                }
+            </ul>
+        </details>
+    }
+
+    @if (Reflection.SessionTopics.Count > 0)
+    {
+        <details class="reflection-details">
+            <summary>Temas para conversar <Icon Name="chevron" Size="16" /></summary>
+            <ul>
+                @foreach (var topic in Reflection.SessionTopics)
+                {
+                    <li>@topic</li>
+                }
+            </ul>
+        </details>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Reflection.NextStep))
+    {
+        <p class="reflection-next"><Icon Name="leaf" Size="19" /> <span>@Reflection.NextStep</span></p>
+    }
+    <footer class="reflection-actions">
+        <button class="quiet-action" type="button" @onclick="SaveAsNote" disabled="@Busy"><Icon Name="note" Size="17" /> Hacer una notita</button>
+        <button class="quiet-action" type="button" @onclick="ToggleSession" aria-pressed="@Selected" disabled="@Busy">
+            <Icon Name="@(Selected ? "check" : "bookmark")" Size="17" /> @(Selected ? "En tu hoja" : "Marcar para retomar")
+        </button>
+    </footer>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public JournalReflection Reflection { get; set; } = default!;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback SaveAsNote { get; set; }
+    [Parameter] public EventCallback ToggleSession { get; set; }
+}

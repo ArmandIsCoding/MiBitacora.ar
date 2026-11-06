@@ -1,0 +1,119 @@
+@page "/Account/Manage"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using MiBitacora.Data
+@using MiBitacora.Services
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IJournalStore Store
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Tu perfil | Mi Bitácora</PageTitle>
+
+<h2>Tu perfil</h2>
+<p class="account-intro">Elegí cómo querés que te llamemos y agregá contexto si te sirve.</p>
+<StatusMessage Message="@errorMessage" IsError="@(errorMessage is not null)" />
+
+<EditForm Model="Input" FormName="profile" OnValidSubmit="SaveProfileAsync" method="post" class="account-form">
+    <DataAnnotationsValidator />
+
+    <div class="account-field">
+        <span class="account-field-label">Correo electrónico</span>
+        <p class="account-readonly">@email</p>
+    </div>
+    <div class="account-field">
+        <label for="profile-name">¿Cómo querés que te llamemos? <small>(opcional)</small></label>
+        <InputText @bind-Value="Input.DisplayName" id="profile-name" maxlength="@JournalStore.MaxDisplayNameLength" autocomplete="given-name" />
+        <ValidationMessage For="() => Input.DisplayName" />
+    </div>
+    <div class="account-field">
+        <label for="profile-context">Contexto personal o cultural <small>(opcional)</small></label>
+        <InputTextArea @bind-Value="Input.PersonalContext" id="profile-context" maxlength="@JournalStore.MaxPersonalContextLength" rows="4" aria-describedby="profile-context-hint" />
+        <small id="profile-context-hint">Por ejemplo, expresiones de tu región o referencias culturales que quieras tener en cuenta. Si usás Gemini, este campo debe contener solo material ficticio.</small>
+        <ValidationMessage For="() => Input.PersonalContext" />
+    </div>
+
+    <fieldset class="account-consent">
+        <legend>Devoluciones con Gemini</legend>
+        <p id="profile-consent-hint">Cuando confirmes un envío con el plan gratuito de Gemini, Google recibirá tu entrada y puede recibir fragmentos de tu contexto, tu historial y tus notitas, además de texto extraído de adjuntos. En algunos casos, puede recibir imágenes o PDF completos.</p>
+        <p id="profile-consent-limits">Google puede usar lo enviado y las respuestas para mejorar sus servicios, y sus revisores pueden acceder al contenido. Usá esta opción solo con material ficticio, sin datos personales, sensibles ni confidenciales.</p>
+        <label class="account-check">
+            <InputCheckbox @bind-Value="Input.GeminiConsent" aria-describedby="profile-consent-hint profile-consent-limits profile-consent-revoke" />
+            <span>Tengo 18 años o más y autorizo el uso de Gemini con material ficticio.</span>
+        </label>
+        <small id="profile-consent-revoke">Podés revocar el permiso desmarcando esta casilla y guardando los cambios. <a href="privacidad">Privacidad del piloto</a>.</small>
+    </fieldset>
+
+    <button type="submit" class="account-button">Guardar cambios</button>
+</EditForm>
+
+@code {
+    private string? userId;
+    private string? email;
+    private string? errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        var user = await UserManager.GetUserAsync(HttpContext.User);
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(HttpContext);
+            return;
+        }
+
+        userId = user.Id;
+        email = user.Email;
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            var profile = await Store.GetProfileAsync(userId, HttpContext.RequestAborted);
+            Input = new InputModel
+            {
+                DisplayName = profile.DisplayName,
+                PersonalContext = profile.PersonalContext,
+                GeminiConsent = profile.GeminiConsent
+            };
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (userId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Store.SaveProfileAsync(
+                userId,
+                new JournalProfile(Input.DisplayName ?? "", Input.PersonalContext ?? "", Input.GeminiConsent),
+                HttpContext.RequestAborted);
+        }
+        catch (JournalInputException ex)
+        {
+            errorMessage = ex.Message;
+            return;
+        }
+
+        RedirectManager.RedirectToWithStatus("Account/Manage", "Guardamos los cambios en tu perfil.", HttpContext);
+    }
+
+    private sealed class InputModel
+    {
+        [StringLength(JournalStore.MaxDisplayNameLength, ErrorMessage = "El nombre puede tener hasta {1} caracteres.")]
+        public string? DisplayName { get; set; }
+
+        [StringLength(JournalStore.MaxPersonalContextLength, ErrorMessage = "El contexto puede tener hasta {1} caracteres.")]
+        public string? PersonalContext { get; set; }
+
+        public bool GeminiConsent { get; set; }
+    }
+}

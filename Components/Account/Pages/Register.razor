@@ -1,0 +1,92 @@
+@page "/Account/Register"
+@layout AccessLayout
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using MiBitacora.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Crear cuenta | Mi Bitácora</PageTitle>
+
+<p class="account-kicker">Empezá a escribir</p>
+<h1>Creá tu cuenta</h1>
+<p class="account-intro">Este piloto es para personas de 18 años o más. Probalo con material ficticio. <a href="privacidad">Privacidad del piloto</a>.</p>
+
+<StatusMessage Message="@errorMessage" IsError="@(errorMessage is not null)" />
+<EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register" class="account-form">
+    <DataAnnotationsValidator />
+
+    <div class="account-field">
+        <label for="register-email">Correo electrónico</label>
+        <InputText type="email" @bind-Value="Input.Email" id="register-email" autocomplete="username" maxlength="254" required />
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+    <div class="account-field">
+        <label for="register-password">Contraseña</label>
+        <input type="password" name="Input.Password" id="register-password" autocomplete="new-password" minlength="@AccountText.MinimumPasswordLength" maxlength="@AccountText.MaximumPasswordLength" aria-describedby="register-password-hint" required />
+        <small id="register-password-hint">Usá al menos @AccountText.MinimumPasswordLength caracteres.</small>
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+    <div class="account-field">
+        <label for="register-confirmation">Repetí la contraseña</label>
+        <input type="password" name="Input.ConfirmPassword" id="register-confirmation" autocomplete="new-password" maxlength="@AccountText.MaximumPasswordLength" required />
+        <ValidationMessage For="() => Input.ConfirmPassword" />
+    </div>
+    <button type="submit" class="account-button">Crear mi cuenta</button>
+</EditForm>
+
+<p class="account-switch">¿Ya tenés cuenta? <a href="@LoginUrl">Ingresá</a>.</p>
+
+@code {
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string LoginUrl => NavigationManager.GetUriWithQueryParameters(
+        "Account/Login", new Dictionary<string, object?> { ["returnUrl"] = ReturnUrl });
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task RegisterUser()
+    {
+        var email = Input.Email.Trim();
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email
+        };
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            errorMessage = AccountText.DescribeErrors(result);
+            return;
+        }
+
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectToLocal(ReturnUrl, "bitacora");
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Ingresá tu correo electrónico.")]
+        [EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido.")]
+        [StringLength(254, ErrorMessage = "El correo es demasiado largo.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Elegí una contraseña.")]
+        [StringLength(AccountText.MaximumPasswordLength, MinimumLength = AccountText.MinimumPasswordLength, ErrorMessage = AccountText.PasswordLengthMessage)]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Repetí tu contraseña.")]
+        [Compare(nameof(Password), ErrorMessage = "Las contraseñas tienen que coincidir.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

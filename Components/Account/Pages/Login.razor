@@ -1,0 +1,81 @@
+@page "/Account/Login"
+@layout AccessLayout
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using MiBitacora.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Ingresar | Mi Bitácora</PageTitle>
+
+<p class="account-kicker">Tu cuenta</p>
+<h1>Ingresá a tu bitácora</h1>
+<p class="account-intro">Volvé a tus entradas y seguí escribiendo a tu ritmo.</p>
+
+<StatusMessage Message="@errorMessage" IsError="@(errorMessage is not null)" />
+<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login" class="account-form">
+    <DataAnnotationsValidator />
+
+    <div class="account-field">
+        <label for="login-email">Correo electrónico</label>
+        <InputText type="email" @bind-Value="Input.Email" id="login-email" autocomplete="username" maxlength="254" required />
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+    <div class="account-field">
+        <label for="login-password">Contraseña</label>
+        <input type="password" name="Input.Password" id="login-password" autocomplete="current-password" required />
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+    <label class="account-check">
+        <InputCheckbox @bind-Value="Input.RememberMe" />
+        <span>Mantener la sesión iniciada en este dispositivo</span>
+    </label>
+    <button type="submit" class="account-button">Ingresar</button>
+</EditForm>
+
+<p class="account-switch">¿Primera vez? <a href="@RegisterUrl">Creá tu cuenta</a>.</p>
+
+@code {
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string RegisterUrl => NavigationManager.GetUriWithQueryParameters(
+        "Account/Register", new Dictionary<string, object?> { ["returnUrl"] = ReturnUrl });
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task LoginUser()
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input.Email.Trim(), Input.Password, Input.RememberMe, lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            RedirectManager.RedirectToLocal(ReturnUrl, "bitacora");
+        }
+        else
+        {
+            errorMessage = "Revisá el correo y la contraseña e intentá de nuevo. Si ya hiciste varios intentos, esperá unos minutos.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Ingresá tu correo electrónico.")]
+        [EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido.")]
+        [StringLength(254, ErrorMessage = "El correo es demasiado largo.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Ingresá tu contraseña.")]
+        public string Password { get; set; } = "";
+
+        public bool RememberMe { get; set; }
+    }
+}

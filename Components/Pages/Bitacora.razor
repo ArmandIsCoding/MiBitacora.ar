@@ -1,0 +1,367 @@
+@page "/bitacora"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Mi Bitácora · Tu cuaderno</PageTitle>
+
+<div class="journal-app">
+    <header class="journal-top">
+        <div class="journal-top-inner">
+            <Brand Href="/bitacora" />
+            <div class="journal-top-actions">
+                <a href="/privacidad" class="top-pilot"><span class="status-dot"></span> Piloto privado</a>
+                <a class="account-link" href="/Account/Manage">
+                    <span class="avatar" aria-hidden="true">@Initial</span>
+                    <span>Mi cuenta</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    @if (_fatalError is not null)
+    {
+        <main class="reading-paper"><h1>Tu cuaderno</h1><p role="alert">@_fatalError</p><a class="btn btn-primary" href="/bitacora">Volver a intentar</a></main>
+    }
+    else if (!_ready)
+    {
+        <main class="reading-paper" aria-busy="true"><h1>Tu cuaderno</h1><p role="status">Abriendo tu bitácora…</p></main>
+    }
+    else
+    {
+        <div class="journal-grid">
+            <aside class="journal-sidebar">
+                <div class="sidebar-heading"><span class="eyebrow">TU ESPACIO</span><p>@DisplayName<span class="brand-period">.</span></p></div>
+                <nav class="journal-nav" aria-label="Secciones del cuaderno">
+                    <button type="button" class="journal-tab @(_section == WorkspaceSection.Conversation ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Conversation ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Conversation)">
+                        <Icon Name="book" Size="20" /> <span>Conversación</span>
+                    </button>
+                    <button type="button" class="journal-tab @(_section == WorkspaceSection.Notes ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Notes ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Notes)">
+                        <Icon Name="note" Size="20" /> <span>Notitas</span>
+                        @if (_notes.Count > 0) { <span class="tab-count">@_notes.Count</span> }
+                    </button>
+                    <button type="button" class="journal-tab @(_section == WorkspaceSection.Session ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Session ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Session)">
+                        <Icon Name="bookmark" Size="20" /> <span>Para retomar</span>
+                        @if (SessionCount > 0) { <span class="tab-count">@SessionCount</span> }
+                    </button>
+                </nav>
+
+                <div class="sidebar-reminder">
+                    <Icon Name="leaf" Size="23" />
+                    <p>No hace falta tenerlo todo claro para empezar.</p>
+                </div>
+                <a href="/privacidad" class="sidebar-privacy"><Icon Name="lock" Size="15" /> Privacidad del piloto</a>
+            </aside>
+
+            <main class="journal-main">
+                @if (_error is not null)
+                {
+                    <div class="journal-alert" role="alert"><Icon Name="info" Size="19" /><span>@_error</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _error = null"><Icon Name="x" Size="17" /></button></div>
+                }
+                @if (_notice is not null)
+                {
+                    <div class="journal-notice" role="status"><Icon Name="check" Size="19" /><span>@_notice</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _notice = null"><Icon Name="x" Size="17" /></button></div>
+                }
+
+                @if (_section == WorkspaceSection.Conversation)
+                {
+                    <header class="workspace-heading">
+                        <div>
+                            <p class="eyebrow">PÁGINAS ABIERTAS</p>
+                            <h1 @ref="_sectionHeading" tabindex="-1">Tu bitácora<span class="brand-period">.</span></h1>
+                            <p>Un mismo hilo, cada vez que vuelvas.</p>
+                        </div>
+                        <a class="mode-pill" href="/Account/Manage" title="Configurar el modo de devolución">
+                            <span class="status-dot"></span> @(IsGeminiReady ? "Gemini disponible" : "Modo de muestra")
+                        </a>
+                    </header>
+
+                    @if (_entries.Count == 0)
+                    {
+                        <section class="blank-journal">
+                            <div class="blank-illustration">
+                                <img src="cuaderno.svg" width="266" height="208" alt="" />
+                            </div>
+                            <p class="eyebrow">TU PRIMERA PÁGINA</p>
+                            <h2>¿Qué tenés en la cabeza?</h2>
+                            <p>Podés empezar con una frase, una foto o algo que quieras mirar con más calma.</p>
+                            <button type="button" class="btn btn-outline example-button" @onclick="AddExampleAsync" disabled="@(!RendererInfo.IsInteractive || _busy || !string.IsNullOrWhiteSpace(_draft))">
+                                <Icon Name="spark" Size="17" /> Probar con un ejemplo
+                            </button>
+                        </section>
+                    }
+                    else
+                    {
+                        <div class="journal-timeline" aria-label="Conversación continua">
+                            @if (_hasEarlier)
+                            {
+                                <button type="button" class="btn btn-outline load-earlier" @onclick="LoadEarlierAsync" disabled="@_readingEarlier">
+                                    <Icon Name="clock" Size="16" /> @(_readingEarlier ? "Cargando…" : "Ver entradas anteriores")
+                                </button>
+                            }
+                            @{ string? lastDate = null; }
+                            @foreach (var entry in _entries)
+                            {
+                                var date = LocalDate(entry.CreatedUtc);
+                                if (date != lastDate)
+                                {
+                                    <div class="timeline-date"><span></span><time datetime="@entry.CreatedUtc.ToString("yyyy-MM-dd")">@date</time><span></span></div>
+                                    lastDate = date;
+                                }
+
+                                <div class="journal-turn" @key="entry.Id">
+                                    <article class="entry-card" aria-label="Tu entrada">
+                                        <header class="entry-meta">
+                                            <div><Icon Name="pen" Size="17" /> <strong>Vos</strong> <time datetime="@entry.CreatedUtc.ToString("O")">@LocalTime(entry.CreatedUtc)</time></div>
+                                            <button type="button" class="icon-button" aria-label="Eliminar entrada" title="Eliminar entrada" disabled="@_busy" @onclick="() => OpenDialog(DialogKind.DeleteEntry, entry.Id)"><Icon Name="trash" Size="17" /></button>
+                                        </header>
+                                        @if (!string.IsNullOrWhiteSpace(entry.Text))
+                                        {
+                                            <p class="preserved-text">@entry.Text</p>
+                                        }
+                                        @if (entry.Attachments.Count > 0)
+                                        {
+                                            <div class="attachment-list" aria-label="Archivos adjuntos">
+                                                @foreach (var attachment in entry.Attachments)
+                                                {
+                                                    <a class="attachment-card @(HasPreview(attachment) ? "attachment-image" : "")" href="@AttachmentUrl(attachment.Id)" download title="@($"Descargar {attachment.FileName}")">
+                                                        @if (HasPreview(attachment))
+                                                        {
+                                                            <img src="@($"{AttachmentUrl(attachment.Id)}/vista")" alt="" loading="lazy" />
+                                                        }
+                                                        <span class="attachment-caption">
+                                                            <span class="attachment-file-icon"><Icon Name="file" Size="19" /></span>
+                                                            <span class="attachment-label">
+                                                                <strong>@attachment.FileName</strong>
+                                                                <small>@SizeLabel(attachment.Size) · @attachment.ExtractionStatus</small>
+                                                            </span>
+                                                            <Icon Name="download" Size="17" />
+                                                        </span>
+                                                    </a>
+                                                }
+                                            </div>
+                                        }
+                                        @if (entry.Reflection is null && _workingEntry != entry.Id)
+                                        {
+                                            <div class="entry-actions">
+                                                <button type="button" class="quiet-action" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="17" /> @(_entryErrors.ContainsKey(entry.Id) ? "Reintentar devolución" : "Ordenar esta entrada")</button>
+                                                <button type="button" class="quiet-action" @onclick="() => ToggleEntryAsync(entry)" aria-pressed="@entry.ForSession" disabled="@_busy"><Icon Name="@(entry.ForSession ? "check" : "bookmark")" Size="17" /> @(entry.ForSession ? "En tu hoja" : "Marcar para retomar")</button>
+                                            </div>
+                                        }
+                                    </article>
+
+                                    @if (_workingEntry == entry.Id)
+                                    {
+                                        <div class="organizing" role="status"><span class="spinner"></span> Ordenando tus ideas…</div>
+                                    }
+                                    else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
+                                    {
+                                        <p class="entry-error" role="alert"><Icon Name="info" Size="17" /> @entryError</p>
+                                    }
+                                    @if (entry.Reflection is { } reflection)
+                                    {
+                                        <ReflectionCard Reflection="reflection"
+                                                        Selected="entry.ForSession"
+                                                        Busy="_busy"
+                                                        SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
+                                                        ToggleSession="() => ToggleEntryAsync(entry)" />
+                                        @if (reflection.IsDemo && IsGeminiReady && _workingEntry != entry.Id)
+                                        {
+                                            <button type="button" class="quiet-action reflection-retry" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="16" /> Pedir devolución con Gemini</button>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="journal-end" @ref="_end"></div>
+                    <section class="composer-wrap" aria-label="Nueva entrada">
+                        <div class="composer">
+                            <label class="visually-hidden" for="entry-text">Escribí una entrada</label>
+                            <textarea id="entry-text" @ref="_composerInput" @bind="_draft" @bind:event="oninput" maxlength="@JournalStore.MaxTextLength" rows="3"
+                                      placeholder="@(RendererInfo.IsInteractive ? "Escribí como salga…" : "Abriendo tu cuaderno…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
+                            @if (_files.Count > 0)
+                            {
+                                <div class="draft-files">
+                                    @foreach (var file in _files)
+                                    {
+                                        <span class="file-chip" @key="file">
+                                            <Icon Name="file" Size="16" /><span title="@file.FileName">@file.FileName</span>
+                                            <button type="button" class="icon-button" aria-label="@($"Quitar {file.FileName}")" @onclick="() => RemoveFile(file)" disabled="@(_busy || _uploading)"><Icon Name="x" Size="15" /></button>
+                                        </span>
+                                    }
+                                </div>
+                            }
+                            @if (_uploading)
+                            {
+                                <p class="uploading" role="status"><span class="spinner"></span> Preparando tus adjuntos…</p>
+                            }
+                            <div class="composer-toolbar">
+                                <div class="composer-tools">
+                                    <InputFile @key="(0, _pickerVersion)" id="file-picker" aria-label="Adjuntar fotos o archivos" class="visually-hidden file-input" OnChange="PickFilesAsync" multiple disabled="@(!RendererInfo.IsInteractive || _busy || _uploading || _files.Count >= JournalStore.MaxFilesPerEntry)" />
+                                    <label for="file-picker" class="composer-tool" title="Adjuntar fotos y archivos"><Icon Name="paperclip" Size="19" /><span>Adjuntar</span></label>
+                                    <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading || _files.Count >= JournalStore.MaxFilesPerEntry)" />
+                                    <label for="camera-picker" class="composer-tool camera-tool" title="Sacar una foto"><Icon Name="camera" Size="19" /><span>Foto</span></label>
+                                    <button class="composer-tool" type="button" aria-label="Escribir una notita" @onclick="() => StartNote()" disabled="@(!RendererInfo.IsInteractive || _busy)"><Icon Name="note" Size="19" /><span>Notita</span></button>
+                                </div>
+                                <div class="composer-submit">
+                                    <button type="button" class="quiet-action save-only" @onclick="() => SaveOrReflectAsync(null, false, false)" disabled="@(!HasDraft || _busy || _uploading)">Solo guardar</button>
+                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading)"><Icon Name="spark" Size="18" /> Ordenar <span class="send-extra">mis ideas</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>Hasta 4 archivos · 8 MB c/u</span></div>
+                    </section>
+                }
+                else if (_section == WorkspaceSection.Notes)
+                {
+                    <header class="workspace-heading">
+                        <div><p class="eyebrow">PAPELITOS SUELTOS</p><h1 @ref="_sectionHeading" tabindex="-1">Tus notitas<span class="brand-period">.</span></h1><p>Ideas chiquitas que quedan a mano y se suman a tu hilo.</p></div>
+                        <button type="button" class="btn btn-primary" @onclick="() => StartNote()" disabled="@_busy"><Icon Name="plus" Size="19" /> Nueva notita</button>
+                    </header>
+
+                    @if (_notes.Count == 0)
+                    {
+                        <div class="blank-journal blank-small">
+                            <span class="empty-note-icon"><Icon Name="note" Size="44" /></span>
+                            <h2>Dejá un papelito acá.</h2>
+                            <p>Una frase, una duda o algo que no querés olvidar.</p>
+                            <button type="button" class="btn btn-outline" @onclick="() => StartNote()" disabled="@_busy"><Icon Name="plus" Size="17" /> Escribir una notita</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="notes-grid">
+                            @foreach (var note in _notes)
+                            {
+                                <article class="paper-note" @key="note.Id">
+                                    <div class="note-tape" aria-hidden="true"></div>
+                                    <header><time datetime="@note.CreatedUtc.ToString("O")">@LocalDate(note.CreatedUtc)</time><button type="button" class="icon-button" title="Eliminar notita" aria-label="Eliminar notita" @onclick="() => OpenDialog(DialogKind.DeleteNote, note.Id)" disabled="@_busy"><Icon Name="trash" Size="16" /></button></header>
+                                    <p class="preserved-text">@note.Text</p>
+                                    <footer>
+                                        <button type="button" class="quiet-action" @onclick="() => StartNote(note)" disabled="@_busy"><Icon Name="pen" Size="15" /> Editar</button>
+                                        <button type="button" class="quiet-action" @onclick="() => ToggleNoteAsync(note)" aria-pressed="@note.ForSession" disabled="@_busy"><Icon Name="@(note.ForSession ? "check" : "bookmark")" Size="16" /> @(note.ForSession ? "En tu hoja" : "Para retomar")</button>
+                                    </footer>
+                                </article>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <header class="workspace-heading">
+                        <div><p class="eyebrow">LO QUE QUERÉS LLEVARTE</p><h1 @ref="_sectionHeading" tabindex="-1">Para retomar<span class="brand-period">.</span></h1><p>Una hoja para vos o para llevar a una conversación.</p></div>
+                        <span class="mode-pill">@SessionCount seleccionado@(SessionCount == 1 ? "" : "s")</span>
+                    </header>
+
+                    @if (SessionCount == 0)
+                    {
+                        <div class="blank-journal blank-small">
+                            <span class="empty-note-icon sage"><Icon Name="bookmark" Size="44" /></span>
+                            <h2>¿Qué querés retomar?</h2>
+                            <p>Marcá entradas y notitas para armar tu hoja. Podés revisar su contenido antes de compartirlo.</p>
+                            <button class="btn btn-outline" type="button" @onclick="() => ShowSection(WorkspaceSection.Conversation)"><Icon Name="book" Size="18" /> Volver a la conversación</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <section class="session-paper">
+                            <div class="sheet-title"><Icon Name="bookmark" Size="24" /><div><h2>Ideas para retomar</h2><p>Ajustá el texto antes de copiarlo o imprimirlo.</p></div></div>
+                            <label class="visually-hidden" for="session-text">Texto editable de tu hoja</label>
+                            <textarea id="session-text" value="@(_sessionDraft ?? BuildSessionSheet())" @oninput="e => _sessionDraft = e.Value?.ToString()" rows="14"></textarea>
+                            <div class="sheet-actions">
+                                <button type="button" class="btn btn-outline" @onclick="PrintSheetAsync"><Icon Name="print" Size="19" /> Imprimir o guardar PDF</button>
+                                <button type="button" class="btn btn-primary" @onclick="CopySheetAsync"><Icon Name="copy" Size="18" /> Copiar hoja</button>
+                            </div>
+                            <p class="sheet-foot"><Icon Name="lock" Size="15" /> Vos elegís con quién compartirla.</p>
+                        </section>
+                        <details class="session-selection">
+                            <summary>Revisar selección <Icon Name="chevron" Size="16" /></summary>
+                            <ul>
+                                @foreach (var entry in _sessionEntries)
+                                {
+                                    <li><span>@(entry.Reflection?.Title ?? $"Entrada del {LocalDate(entry.CreatedUtc)}")</span><button type="button" class="quiet-action" @onclick="() => ToggleEntryAsync(entry)" disabled="@_busy">Quitar</button></li>
+                                }
+                                @foreach (var note in _notes.Where(note => note.ForSession))
+                                {
+                                    <li><span>Notita del @LocalDate(note.CreatedUtc)</span><button type="button" class="quiet-action" @onclick="() => ToggleNoteAsync(note)" disabled="@_busy">Quitar</button></li>
+                                }
+                            </ul>
+                        </details>
+                        <div class="print-sheet preserved-text">@(_sessionDraft ?? BuildSessionSheet())</div>
+                    }
+                }
+            </main>
+
+            <aside class="journal-context" aria-label="Tu hilo">
+                <div class="context-heading"><Icon Name="leaf" Size="19" /><span class="eyebrow">TU HILO</span></div>
+                <p>Lo que vas dejando acá le da continuidad a tu cuaderno.</p>
+                <button class="context-link" type="button" @onclick="() => ShowSection(WorkspaceSection.Notes)"><span><Icon Name="note" Size="19" /> Notitas</span><strong>@_notes.Count</strong></button>
+                <button class="context-link" type="button" @onclick="() => ShowSection(WorkspaceSection.Session)"><span><Icon Name="bookmark" Size="18" /> Para retomar</span><strong>@SessionCount</strong></button>
+                <div class="context-tiles">
+                    @if (_notes.Count == 0)
+                    {
+                        <button class="context-note context-note-empty" type="button" @onclick="() => StartNote()" disabled="@_busy"><Icon Name="plus" Size="19" /> Pegá una notita</button>
+                    }
+                    else
+                    {
+                        @foreach (var note in _notes.Take(2))
+                        {
+                            <button class="context-note" type="button" @onclick="() => StartNote(note)" disabled="@_busy"><span>@note.Text</span></button>
+                        }
+                        <button class="quiet-action add-note-link" type="button" @onclick="() => StartNote()" disabled="@_busy"><Icon Name="plus" Size="16" /> Nueva notita</button>
+                    }
+                </div>
+                <a class="context-profile" href="/Account/Manage"><Icon Name="settings" Size="18" /><span>Editar mi contexto</span><Icon Name="arrow" Size="15" /></a>
+            </aside>
+        </div>
+    }
+</div>
+
+<dialog class="journal-dialog @(_dialogKind == DialogKind.Note ? "note-dialog" : "")" @ref="_dialog" aria-labelledby="dialog-title" @onkeydown="OnDialogKeyAsync">
+    @if (_dialogKind != DialogKind.None)
+    {
+        <div class="dialog-inner">
+            <button class="icon-button dialog-close" type="button" aria-label="Cerrar" @onclick="CloseDialogAsync" disabled="@_busy"><Icon Name="x" Size="21" /></button>
+            @if (_dialogKind == DialogKind.Note)
+            {
+                <span class="note-tape" aria-hidden="true"></span>
+                <p class="eyebrow"><Icon Name="note" Size="17" /> PAPELITO</p>
+                <h2 id="dialog-title">@(_noteId is null ? "Una notita." : "Editá tu notita.")</h2>
+                <p>Una idea concreta para guardar y retomar.</p>
+                <label class="visually-hidden" for="note-text">Texto de la notita</label>
+                <textarea id="note-text" rows="5" maxlength="@JournalStore.MaxNoteLength" placeholder="Quiero acordarme de…" @bind="_noteDraft" @bind:event="oninput" autofocus disabled="@_busy"></textarea>
+                <div class="dialog-actions">
+                    <small>@_noteDraft.Length / @JournalStore.MaxNoteLength</small>
+                    <button class="btn btn-primary" type="button" @onclick="SaveNoteAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_noteDraft))"><Icon Name="check" Size="19" /> Guardar notita</button>
+                </div>
+            }
+            else if (_dialogKind == DialogKind.Gemini)
+            {
+                <p class="eyebrow"><Icon Name="spark" Size="18" /> DEVOLUCIÓN CON GEMINI</p>
+                <h2 id="dialog-title">¿Enviar a Gemini?</h2>
+                <p>Para ordenar esta entrada, Gemini puede recibir partes de tu historial, tu contexto y tus notitas, texto extraído de adjuntos y, cuando corresponda, imágenes o PDF completos.</p>
+                <p class="dialog-callout"><Icon Name="info" Size="19" /><span>En el plan gratuito, Google puede usar y revisar lo enviado. Confirmá solo si todo el material de tu cuaderno es ficticio y está libre de datos personales o confidenciales.</span></p>
+                <div class="dialog-actions consent-actions">
+                    <button type="button" class="btn btn-outline" @onclick="() => ConfirmReflectionAsync(false)" autofocus>Usar muestra</button>
+                    <button type="button" class="btn btn-primary" @onclick="() => ConfirmReflectionAsync(true)"><Icon Name="spark" Size="19" /> Confirmo y envío</button>
+                </div>
+            }
+            else
+            {
+                <p class="eyebrow"><Icon Name="trash" Size="17" /> ELIMINAR</p>
+                <h2 id="dialog-title">@(_dialogKind == DialogKind.DeleteNote ? "¿Eliminar esta notita?" : "¿Eliminar esta entrada?")</h2>
+                <p>@(_dialogKind == DialogKind.DeleteNote ? "La notita se va a quitar del cuaderno y de tu hoja." : "Se van a eliminar tu texto, sus adjuntos y la devolución de esta entrada.")</p>
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-outline" @onclick="CloseDialogAsync" disabled="@_busy" autofocus>Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteSelectedAsync" disabled="@_busy">Eliminar</button>
+                </div>
+            }
+            @if (_dialogError is not null)
+            {
+                <p class="entry-error" role="alert">@_dialogError</p>
+            }
+        </div>
+    }
+</dialog>

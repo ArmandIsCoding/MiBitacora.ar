@@ -1,0 +1,22 @@
+@page "/Account/Manage/PersonalData"
+
+<PageTitle>Mis datos | Mi Bitácora</PageTitle>
+
+<h2>Mis datos</h2>
+<p class="account-intro">Descargá una copia de tu bitácora o borrá tu cuenta.</p>
+
+<div class="account-data-actions">
+    <section aria-labelledby="export-heading">
+        <h3 id="export-heading">Descargar mis datos</h3>
+        <p>El archivo JSON incluye tu perfil, tus entradas, tus devoluciones, tus notitas e información de los adjuntos. Para guardar los archivos originales, descargalos desde cada entrada.</p>
+        <form action="Account/Manage/DownloadPersonalData" method="post">
+            <AntiforgeryToken />
+            <button type="submit" class="account-button account-button-secondary">Descargar copia</button>
+        </form>
+    </section>
+    <section class="account-data-danger" aria-labelledby="delete-heading">
+        <h3 id="delete-heading">Borrar mi cuenta</h3>
+        <p>Se borrarán de forma permanente tu perfil, tus entradas, tus devoluciones, tus adjuntos y tus notitas.</p>
+        <a href="Account/Manage/DeletePersonalData" class="account-button account-button-danger-outline">Borrar cuenta</a>
+    </section>
+</div>

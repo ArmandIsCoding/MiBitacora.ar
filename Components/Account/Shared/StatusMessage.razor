@@ -1,0 +1,32 @@
+@if (!string.IsNullOrEmpty(DisplayMessage))
+{
+    var isError = IsError || DisplayMessage.StartsWith("Error", StringComparison.Ordinal);
+    <div class="account-status @(isError ? "account-status-error" : "")" role="@(isError ? "alert" : "status")">
+        @DisplayMessage
+    </div>
+}
+
+@code {
+    private string? messageFromCookie;
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public bool IsError { get; set; }
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private string? DisplayMessage => Message ?? messageFromCookie;
+
+    protected override void OnInitialized()
+    {
+        messageFromCookie = HttpContext.Request.Cookies[IdentityRedirectManager.StatusCookieName];
+
+        if (messageFromCookie is not null)
+        {
+            HttpContext.Response.Cookies.Delete(IdentityRedirectManager.StatusCookieName);
+        }
+    }
+}
