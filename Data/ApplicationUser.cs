@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace MiBitacora.Data;
 
-// Add profile data for application users by adding properties to the ApplicationUser class
 public class ApplicationUser : IdentityUser
 {
+    public DateTime? RegisteredUtc { get; set; }
 }

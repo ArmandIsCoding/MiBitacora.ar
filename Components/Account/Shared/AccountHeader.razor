@@ -8,6 +8,11 @@
             @if (SignedIn)
             {
                 <a href="bitacora">Ir a mi bitácora</a>
+                <AuthorizeView Policy="@AdminAccess.Policy">
+                    <Authorized>
+                        <a href="admin">Administración</a>
+                    </Authorized>
+                </AuthorizeView>
                 <form action="Account/Logout" method="post">
                     <AntiforgeryToken />
                     <button type="submit" class="account-logout">Cerrar sesión</button>

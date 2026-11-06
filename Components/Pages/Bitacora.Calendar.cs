@@ -87,24 +87,9 @@ public partial class Bitacora
         }
     }
 
-    private DateOnly EntryDay(DateTime utc) => DateOnly.FromDateTime(JournalLocalTime(utc));
+    private DateOnly EntryDay(DateTime utc) => JournalDates.ToLocalDate(utc, JournalTimeZone);
 
-    private DateTime JournalLocalTime(DateTime utc) =>
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), JournalTimeZone);
+    private DateTime JournalLocalTime(DateTime utc) => JournalDates.ToLocalTime(utc, JournalTimeZone);
 
-    private DateTime DayStartUtc(DateOnly day)
-    {
-        var local = day.ToDateTime(TimeOnly.MinValue);
-
-        // Some time zones advance their clocks at midnight.
-        while (JournalTimeZone.IsInvalidTime(local))
-        {
-            local = local.AddMinutes(1);
-        }
-
-        var offset = JournalTimeZone.IsAmbiguousTime(local)
-            ? JournalTimeZone.GetAmbiguousTimeOffsets(local).Max()
-            : JournalTimeZone.GetUtcOffset(local);
-        return new DateTimeOffset(local, offset).UtcDateTime;
-    }
+    private DateTime DayStartUtc(DateOnly day) => JournalDates.StartOfDayUtc(day, JournalTimeZone);
 }

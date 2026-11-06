@@ -14,7 +14,16 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
-builder.Services.AddAuthorization();
+var administratorIds = (builder.Configuration.GetSection("Administration:UserIds").Get<string[]>() ?? [])
+    .Where(id => !string.IsNullOrWhiteSpace(id))
+    .Select(id => id.Trim())
+    .ToHashSet(StringComparer.Ordinal);
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AdminAccess.Policy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context =>
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } userId && administratorIds.Contains(userId)));
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -36,6 +45,7 @@ sqlite.ForeignKeys = true;
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options => options.UseSqlite(sqlite.ConnectionString));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddScoped<AdminDashboardService>();
 builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(
     builder.Configuration["Journal:TimeZone"] ?? "America/Argentina/Buenos_Aires"));
 builder.Services.AddHttpClient<IJournalReflector, GeminiJournalService>()
@@ -87,6 +97,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     if (context.Request.Path.StartsWithSegments("/bitacora")
         || context.Request.Path.StartsWithSegments("/Account")
+        || context.Request.Path.StartsWithSegments("/admin")
         || context.Request.Path.StartsWithSegments("/adjuntos"))
     {
         context.Response.Headers.CacheControl = "private, no-store";

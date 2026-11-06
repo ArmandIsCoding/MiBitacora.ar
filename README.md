@@ -43,3 +43,17 @@ El piloto con Gemini está pensado para mayores de 18 años y material ficticio,
 - **Mi cuenta.** Perfil y contexto, contraseña, consentimiento revocable, exportación en JSON y borrado de la cuenta y su cuaderno. Descargá los archivos originales desde las entradas. Las cuentas del piloto son locales y el alta se completa en el momento.
 
 Para probar desde un teléfono, el dispositivo necesita poder acceder a la instancia. El arranque anterior escucha en el equipo local. Para abrir el piloto a amigos, servilo por HTTPS y mantené `App_Data` en almacenamiento persistente del servidor. La app aplica las migraciones de SQLite al arrancar.
+
+## Panel de administración
+
+El panel muestra cuentas por código, actividad diaria y recuentos de entradas, notitas y adjuntos que siguen guardados. Podés elegir períodos de 7, 30 o 90 días. La fecha de alta se registra para las cuentas nuevas a partir de esta versión.
+
+1. Iniciá sesión con tu cuenta y copiá el **Código de cuenta** desde **Mi cuenta → Tu perfil**.
+2. En el servidor, configurá `Administration__UserIds__0` con ese código y reiniciá la aplicación. Para habilitar más cuentas, usá `Administration__UserIds__1`, `Administration__UserIds__2` y así sucesivamente.
+3. Abrí **Mi cuenta → Administración** o ingresá a `/admin`.
+
+Para habilitar el panel en desarrollo local, guardá el código con el administrador de secretos y reiniciá la app:
+
+```powershell
+dotnet user-secrets set 'Administration:UserIds:0' '<tu código de cuenta>'
+```

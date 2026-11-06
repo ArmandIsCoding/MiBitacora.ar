@@ -23,6 +23,11 @@
         <p class="account-readonly">@email</p>
     </div>
     <div class="account-field">
+        <label for="profile-account-code">Código de cuenta</label>
+        <input id="profile-account-code" type="text" value="@userId" readonly spellcheck="false" aria-describedby="profile-account-code-hint" />
+        <small id="profile-account-code-hint">Podés copiar y compartir este código con administración para que identifique tu actividad.</small>
+    </div>
+    <div class="account-field">
         <label for="profile-name">¿Cómo querés que te llamemos? <small>(opcional)</small></label>
         <InputText @bind-Value="Input.DisplayName" id="profile-name" maxlength="@JournalStore.MaxDisplayNameLength" autocomplete="given-name" />
         <ValidationMessage For="() => Input.DisplayName" />

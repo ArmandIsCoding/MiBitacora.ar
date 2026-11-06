@@ -1,0 +1,321 @@
+@page "/admin"
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@attribute [Authorize(Policy = AdminAccess.Policy)]
+@attribute [ExcludeFromInteractiveRouting]
+@inject AdminDashboardService Dashboard
+@inject AuthenticationStateProvider Authentication
+@inject ILogger<AdminDashboard> Logger
+
+<PageTitle>Administración · Mi Bitácora</PageTitle>
+
+<div class="admin-page">
+    <header class="admin-top">
+        <div class="admin-wrap admin-top-inner">
+            <Brand Href="/bitacora" />
+            <a href="/bitacora" class="text-link admin-return"><Icon Name="book" Size="17" /> Mi bitácora</a>
+        </div>
+    </header>
+
+    <main class="admin-wrap admin-main">
+        <header class="admin-intro">
+            <div>
+                <p class="eyebrow"><Icon Name="lock" Size="15" /> ADMINISTRACIÓN</p>
+                <h1>Pulso del piloto<span class="brand-period">.</span></h1>
+                <p>Revisá cuántas cuentas usan Mi Bitácora y qué volumen de escritura sigue guardado.</p>
+            </div>
+            <aside class="admin-privacy" aria-label="Alcance del panel">
+                <span class="admin-privacy-icon"><Icon Name="lock" Size="21" /></span>
+                <div>
+                    <strong>Solo lectura</strong>
+                    <p>Ves códigos de cuenta y métricas de uso.</p>
+                </div>
+            </aside>
+        </header>
+
+        @if (_accessDenied)
+        {
+            <section class="admin-paper admin-error" aria-labelledby="admin-error-title">
+                <span class="admin-privacy-icon"><Icon Name="lock" Size="21" /></span>
+                <div>
+                    <h2 id="admin-error-title">Acceso restringido</h2>
+                    <p>Tu cuenta no tiene acceso a este panel.</p>
+                    <a href="/bitacora" class="btn btn-outline">Volver a mi bitácora</a>
+                </div>
+            </section>
+        }
+        else if (_retryUrl is not null)
+        {
+            <section class="admin-paper admin-error" aria-labelledby="admin-error-title">
+                <span class="admin-privacy-icon"><Icon Name="info" Size="21" /></span>
+                <div>
+                    <h2 id="admin-error-title">No pudimos abrir el panel</h2>
+                    <p>Volvé a intentar para cargar las métricas.</p>
+                    <a href="@_retryUrl" class="btn btn-outline" data-enhance-nav="false">Volver a intentar</a>
+                </div>
+            </section>
+        }
+        else if (_snapshot is { } snapshot)
+        {
+            <section class="admin-paper admin-filters" aria-labelledby="admin-filters-title">
+                <header class="admin-section-heading">
+                    <h2 id="admin-filters-title">Elegí qué ver</h2>
+                    <p>El período define las métricas. La búsqueda y el filtro de actividad ajustan la lista de cuentas.</p>
+                </header>
+                <form method="get" action="/admin" class="admin-filter-form">
+                    <div class="admin-field">
+                        <label for="admin-period">Período</label>
+                        <select id="admin-period" name="days">
+                            @foreach (var days in Periods)
+                            {
+                                <option value="@days" selected="@(days == snapshot.Days)">Últimos @days días</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="admin-field admin-search-field">
+                        <label for="admin-search">Código de cuenta</label>
+                        <input type="search" id="admin-search" name="search" value="@SearchValue" maxlength="80" placeholder="Buscá por código" autocomplete="off" spellcheck="false" />
+                    </div>
+                    <label class="admin-check">
+                        <input type="checkbox" name="activeOnly" value="true" checked="@ActiveOnly" />
+                        Solo cuentas activas
+                    </label>
+                    <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+                    @if (snapshot.Days != DefaultDays || SearchValue.Length > 0 || ActiveOnly)
+                    {
+                        <a href="/admin" class="text-link admin-reset">Limpiar</a>
+                    }
+                </form>
+            </section>
+
+            <section aria-labelledby="admin-metrics-title">
+                <div class="admin-section-heading admin-metrics-heading">
+                    <h2 id="admin-metrics-title">Uso del cuaderno</h2>
+                    <span class="admin-period-badge">Últimos @snapshot.Days días</span>
+                </div>
+                <dl class="admin-metrics">
+                    <div class="admin-metric admin-metric-sand">
+                        <dt><span class="admin-metric-icon"><Icon Name="book" Size="20" /></span> Cuentas registradas</dt>
+                        <dd><span class="admin-metric-count">@FormatNumber(snapshot.RegisteredAccounts)</span><small>Cuentas actuales</small></dd>
+                    </div>
+                    <div class="admin-metric admin-metric-sage">
+                        <dt><span class="admin-metric-icon"><Icon Name="leaf" Size="20" /></span> Cuentas activas</dt>
+                        <dd><span class="admin-metric-count">@FormatNumber(snapshot.ActiveAccounts)</span><small>En el período</small></dd>
+                    </div>
+                    <div class="admin-metric">
+                        <dt><span class="admin-metric-icon"><Icon Name="pen" Size="20" /></span> Entradas guardadas</dt>
+                        <dd><span class="admin-metric-count">@FormatNumber(snapshot.Entries)</span><small>En el período</small></dd>
+                    </div>
+                    <div class="admin-metric">
+                        <dt><span class="admin-metric-icon"><Icon Name="note" Size="20" /></span> Notitas creadas</dt>
+                        <dd><span class="admin-metric-count">@FormatNumber(snapshot.Notes)</span><small>En el período</small></dd>
+                    </div>
+                    <div class="admin-metric">
+                        <dt><span class="admin-metric-icon"><Icon Name="paperclip" Size="20" /></span> Adjuntos guardados</dt>
+                        <dd><span class="admin-metric-count">@FormatNumber(snapshot.Attachments)</span><small>En el período</small></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-paper admin-activity" aria-labelledby="admin-activity-title">
+                <header class="admin-section-heading admin-activity-heading">
+                    <div>
+                        <p class="eyebrow">DÍA POR DÍA</p>
+                        <h2 id="admin-activity-title">Actividad diaria</h2>
+                        <p>Una cuenta se considera activa si guardó al menos una entrada o creó una notita ese día. Solo cuenta el contenido que sigue guardado. Los inicios de sesión quedan fuera del cálculo.</p>
+                    </div>
+                    <div class="admin-peak">
+                        <span>Pico diario</span>
+                        <strong>@FormatNumber(_peak) @(_peak == 1 ? "cuenta" : "cuentas")</strong>
+                    </div>
+                </header>
+                @if (snapshot.Activity.Count > 0)
+                {
+                    <div class="admin-chart" aria-hidden="true">
+                        <div class="admin-chart-axis"><span>@FormatNumber(_peak)</span><span>0</span></div>
+                        <div class="admin-chart-bands">
+                            <div class="admin-chart-bars">
+                                @foreach (var day in snapshot.Activity)
+                                {
+                                    <div class="admin-chart-track" title="@($"{FormatDate(day.Date)}, {day.ActiveAccounts} cuentas activas")">
+                                        <span class="admin-chart-bar" style="@BarHeight(day.ActiveAccounts)"></span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="admin-chart-dates"><span>@FormatShortDate(snapshot.Activity[0].Date)</span><span>@FormatShortDate(snapshot.Activity[^1].Date)</span></div>
+                        </div>
+                    </div>
+                    @if (_peak == 0)
+                    {
+                        <p class="admin-chart-empty">Todavía no hay actividad guardada en este período.</p>
+                    }
+                    <details class="admin-activity-data">
+                        <summary>Ver valores por día <Icon Name="chevron" Size="16" /></summary>
+                        <ul class="admin-activity-list" tabindex="0" aria-label="Cuentas activas por fecha">
+                            @foreach (var day in snapshot.Activity)
+                            {
+                                <li><time datetime="@IsoDate(day.Date)">@FormatDate(day.Date)</time><strong>@FormatNumber(day.ActiveAccounts) @(day.ActiveAccounts == 1 ? "cuenta" : "cuentas")</strong></li>
+                            }
+                        </ul>
+                    </details>
+                }
+            </section>
+
+            <section class="admin-paper admin-accounts" aria-labelledby="admin-accounts-title">
+                <header class="admin-section-heading admin-accounts-heading">
+                    <div>
+                        <p class="eyebrow">USO POR CUENTA</p>
+                        <h2 id="admin-accounts-title">Cuentas del piloto</h2>
+                        <p>Los días activos y recuentos corresponden al período elegido. La última actividad se calcula sobre todo el historial guardado.</p>
+                    </div>
+                    <span class="admin-period-badge">@FormatNumber(snapshot.MatchingAccounts) @(snapshot.MatchingAccounts == 1 ? "cuenta" : "cuentas")</span>
+                </header>
+
+                @if (snapshot.Accounts.Count == 0)
+                {
+                    <div class="admin-empty">
+                        <Icon Name="book" Size="27" />
+                        <h3>No hay cuentas para mostrar</h3>
+                        <p>Probá con otro período, otro código o sin el filtro de actividad.</p>
+                    </div>
+                }
+                else
+                {
+                    <table class="admin-table" role="table" aria-label="Métricas por cuenta">
+                        <thead role="rowgroup">
+                            <tr role="row">
+                                <th role="columnheader" scope="col">Código de cuenta</th>
+                                <th role="columnheader" scope="col">Alta</th>
+                                <th role="columnheader" scope="col">Última actividad</th>
+                                <th role="columnheader" scope="col" class="admin-number">Días activos</th>
+                                <th role="columnheader" scope="col" class="admin-number">Entradas</th>
+                                <th role="columnheader" scope="col" class="admin-number">Notitas</th>
+                                <th role="columnheader" scope="col" class="admin-number">Adjuntos</th>
+                            </tr>
+                        </thead>
+                        <tbody role="rowgroup">
+                            @foreach (var account in snapshot.Accounts)
+                            {
+                                <tr role="row" @key="account.AccountId">
+                                    <th scope="row" role="rowheader" class="admin-account-code"><span class="admin-mobile-label" aria-hidden="true">Código de cuenta</span><code>@account.AccountId</code></th>
+                                    <td role="cell">
+                                        <span class="admin-mobile-label" aria-hidden="true">Alta</span>
+                                        @if (account.RegisteredDate is { } registered)
+                                        {
+                                            <time datetime="@IsoDate(registered)">@FormatDate(registered)</time>
+                                        }
+                                        else
+                                        {
+                                            <span class="admin-date-empty">Sin dato</span>
+                                        }
+                                    </td>
+                                    <td role="cell">
+                                        <span class="admin-mobile-label" aria-hidden="true">Última actividad</span>
+                                        @if (account.LastActiveDate is { } active)
+                                        {
+                                            <time datetime="@IsoDate(active)">@FormatDate(active)</time>
+                                        }
+                                        else
+                                        {
+                                            <span class="admin-date-empty">Sin actividad</span>
+                                        }
+                                    </td>
+                                    <td role="cell" class="admin-number"><span class="admin-mobile-label" aria-hidden="true">Días activos</span>@FormatNumber(account.ActiveDays)</td>
+                                    <td role="cell" class="admin-number"><span class="admin-mobile-label" aria-hidden="true">Entradas</span>@FormatNumber(account.Entries)</td>
+                                    <td role="cell" class="admin-number"><span class="admin-mobile-label" aria-hidden="true">Notitas</span>@FormatNumber(account.Notes)</td>
+                                    <td role="cell" class="admin-number"><span class="admin-mobile-label" aria-hidden="true">Adjuntos</span>@FormatNumber(account.Attachments)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+
+                @if (snapshot.PageCount > 1)
+                {
+                    <nav class="admin-pagination" aria-label="Páginas de cuentas">
+                        @if (snapshot.Page > 1)
+                        {
+                            <a href="@PageUrl(snapshot.Days, snapshot.Page - 1)" class="btn btn-outline admin-page-previous"><Icon Name="arrow" Size="16" /> Anterior</a>
+                        }
+                        <span>Página @snapshot.Page de @snapshot.PageCount</span>
+                        @if (snapshot.Page < snapshot.PageCount)
+                        {
+                            <a href="@PageUrl(snapshot.Days, snapshot.Page + 1)" class="btn btn-outline">Siguiente <Icon Name="arrow" Size="16" /></a>
+                        }
+                    </nav>
+                }
+            </section>
+        }
+    </main>
+</div>
+
+@code {
+    private const int DefaultDays = 30;
+    private static readonly int[] Periods = [7, DefaultDays, 90];
+    private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
+
+    [SupplyParameterFromQuery(Name = "days")] private string? DaysQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "search")] private string? SearchQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "activeOnly")] private string? ActiveOnlyQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] private string? PageQuery { get; set; }
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private AdminDashboardSnapshot? _snapshot;
+    private int _peak;
+    private bool _accessDenied;
+    private string? _retryUrl;
+
+    private string SearchValue => SearchQuery?.Trim() ?? "";
+    private bool ActiveOnly => bool.TryParse(ActiveOnlyQuery, out var activeOnly) && activeOnly;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var days = int.TryParse(DaysQuery, CultureInfo.InvariantCulture, out var requestedDays) && Periods.Contains(requestedDays)
+            ? requestedDays
+            : DefaultDays;
+        var page = int.TryParse(PageQuery, CultureInfo.InvariantCulture, out var requestedPage) ? Math.Max(1, requestedPage) : 1;
+        var principal = HttpContext?.User ?? (await Authentication.GetAuthenticationStateAsync()).User;
+        _snapshot = null;
+        _accessDenied = false;
+        _retryUrl = null;
+        try
+        {
+            _snapshot = await Dashboard.GetAsync(principal, days, SearchValue, ActiveOnly, page, HttpContext?.RequestAborted ?? default);
+            _peak = _snapshot.Activity.Select(day => day.ActiveAccounts).DefaultIfEmpty().Max();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _accessDenied = true;
+            SetStatusCode(StatusCodes.Status403Forbidden);
+        }
+        catch (Exception exception) when (HttpContext?.RequestAborted.IsCancellationRequested != true)
+        {
+            Logger.LogWarning("No se pudo cargar el panel de administración ({ExceptionType}).", exception.GetType().Name);
+            _retryUrl = PageUrl(days, page);
+            SetStatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private void SetStatusCode(int statusCode)
+    {
+        if (HttpContext is not null && !HttpContext.Response.HasStarted)
+        {
+            HttpContext.Response.StatusCode = statusCode;
+        }
+    }
+
+    private string PageUrl(int days, int page) => QueryHelpers.AddQueryString("/admin", new Dictionary<string, string?>
+    {
+        ["days"] = days.ToString(CultureInfo.InvariantCulture),
+        ["search"] = SearchValue.Length > 0 ? SearchValue : null,
+        ["activeOnly"] = ActiveOnly ? "true" : null,
+        ["page"] = page.ToString(CultureInfo.InvariantCulture)
+    });
+
+    private string BarHeight(int count) => FormattableString.Invariant($"height:{100d * count / Math.Max(1, _peak):0.###}%");
+    private static string FormatNumber(int value) => value.ToString("N0", Spanish);
+    private static string FormatDate(DateOnly date) => date.ToString("d MMM yyyy", Spanish);
+    private static string FormatShortDate(DateOnly date) => date.ToString("d MMM", Spanish);
+    private static string IsoDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+}
