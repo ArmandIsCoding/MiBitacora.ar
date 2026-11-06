@@ -2,6 +2,8 @@
 
 Piloto local de un cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite.
 
+![Inicio de Mi Bitácora, con un cuaderno ilustrado y una vista de cómo funciona el piloto](docs/inicio-mi-bitacora.png)
+
 ## Abrir el piloto
 
 Con el SDK de .NET 10 instalado, abrí PowerShell y ejecutá:
