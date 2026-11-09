@@ -202,8 +202,12 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var files = await db.JournalAttachments.Where(row => row.EntryId == entryId && row.Entry.UserId == userId)
             .Select(row => row.Id).ToListAsync(cancellationToken);
-        await db.JournalEntries.Where(row => row.Id == entryId && row.UserId == userId)
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var deleted = await db.JournalEntries.Where(row => row.Id == entryId && row.UserId == userId)
             .ExecuteDeleteAsync(cancellationToken);
+        if (deleted > 0)
+            await db.JournalTopicOverviews.Where(row => row.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         uploads.Delete(userId, files);
     }
 

@@ -99,6 +99,7 @@ await first;
 await Service(queueClient, queueGate).ReflectAsync(context, true);
 Check(calls == 2, "La cancelación libera correctamente la cola");
 
+await TopicChecks.RunAsync(Check, args.Contains("--live-topics"));
 var heicContext = await StorageChecks.RunAsync(image, Check);
 await service.ReflectAsync(heicContext, true);
 Check(requestBody!.Value.GetProperty("messages")[1].GetProperty("images")[0].GetString()

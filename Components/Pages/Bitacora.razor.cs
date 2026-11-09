@@ -639,6 +639,6 @@ public partial class Bitacora : IAsyncDisposable
         _lifetime.Dispose();
     }
 
-    private enum WorkspaceSection { Conversation, Calendar, Notes, Session }
+    private enum WorkspaceSection { Conversation, Calendar, Topics, Notes, Session }
     private enum DialogKind { None, Note, DeleteNote, DeleteEntry }
 }

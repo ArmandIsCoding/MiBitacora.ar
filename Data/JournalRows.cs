@@ -1,5 +1,12 @@
 namespace MiBitacora.Data;
 
+internal sealed class JournalTopicOverviewRow
+{
+    public string UserId { get; set; } = "";
+    public string Fingerprint { get; set; } = "";
+    public string SnapshotJson { get; set; } = "";
+}
+
 internal sealed class JournalProfileRow
 {
     public string UserId { get; set; } = "";

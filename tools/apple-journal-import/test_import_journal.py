@@ -117,6 +117,14 @@ class ImportTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database)) as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM JournalEntries WHERE Id='old'").fetchone()[0], 1)
 
+    def test_replacement_removes_only_own_topic_overview(self):
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("CREATE TABLE JournalTopicOverviews (UserId TEXT PRIMARY KEY, SnapshotJson TEXT)")
+            db.executemany("INSERT INTO JournalTopicOverviews VALUES (?, '{}')", [(self.account,), (self.other,)])
+        replace_journal(inspect_export(self.source), self.database, self.uploads, self.account, self.root / "backups")
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute("SELECT UserId FROM JournalTopicOverviews").fetchall(), [(self.other,)])
+
     def test_paths_and_duplicate_index(self):
         (self.source / "index.html").write_text('<a href="Entries/../../outside.html">x</a>', encoding="utf-8")
         with self.assertRaises(ValueError):

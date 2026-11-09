@@ -258,6 +258,8 @@ def replace_journal(plan, database, uploads, account, backups):
         db.execute("BEGIN IMMEDIATE")
         db.execute("DELETE FROM JournalEntries WHERE UserId=?", (account,))
         db.execute("DELETE FROM JournalNotes WHERE UserId=?", (account,))
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='JournalTopicOverviews'").fetchone():
+            db.execute("DELETE FROM JournalTopicOverviews WHERE UserId=?", (account,))
         for entry in plan["entries"]:
             entry_id = str(uuid.uuid4()).upper()
             db.execute("INSERT INTO JournalEntries (Id,UserId,Text,SearchText,CreatedUtc,ReflectionJson,ForSession,IsDateOnly) VALUES (?,?,?,?,?,NULL,0,1)",

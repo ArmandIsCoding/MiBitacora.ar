@@ -53,7 +53,11 @@ public sealed partial class OllamaJournalService(
     private const string InvalidReply =
         "La IA local devolvió una respuesta incompleta. Tu entrada está guardada y podés reintentar.";
 
-    private async Task<string> CallOllamaAsync(OllamaEvidence evidence, CancellationToken cancellationToken)
+    private Task<string> CallOllamaAsync(OllamaEvidence evidence, CancellationToken cancellationToken) =>
+        CallOllamaAsync(SystemInstruction, evidence.Prompt, ReflectionSchema, evidence.Images, cancellationToken);
+
+    private async Task<string> CallOllamaAsync(string instruction, string prompt, JsonElement schema,
+        IReadOnlyList<string> images, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         // Also enforce this boundary if the service is constructed outside dependency injection.
@@ -75,10 +79,10 @@ public sealed partial class OllamaJournalService(
                 model = settings.Model,
                 messages = new object[]
                 {
-                    new { role = "system", content = SystemInstruction },
-                    new { role = "user", content = evidence.Prompt, images = evidence.Images }
+                    new { role = "system", content = instruction },
+                    new { role = "user", content = prompt, images }
                 },
-                format = ReflectionSchema,
+                format = schema,
                 think = false,
                 stream = false,
                 keep_alive = "5m",

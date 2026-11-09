@@ -213,6 +213,24 @@ namespace MiBitacora.Migrations
                     b.ToTable("JournalProfiles");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.JournalTopicOverviewRow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("JournalTopicOverviews");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -396,6 +414,15 @@ namespace MiBitacora.Migrations
                     b.HasOne("MiBitacora.Data.ApplicationUser", null)
                         .WithOne()
                         .HasForeignKey("MiBitacora.Data.JournalProfileRow", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalTopicOverviewRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("MiBitacora.Data.JournalTopicOverviewRow", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

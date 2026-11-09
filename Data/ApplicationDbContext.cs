@@ -6,6 +6,7 @@ namespace MiBitacora.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     internal DbSet<JournalProfileRow> JournalProfiles => Set<JournalProfileRow>();
+    internal DbSet<JournalTopicOverviewRow> JournalTopicOverviews => Set<JournalTopicOverviewRow>();
     internal DbSet<JournalEntryRow> JournalEntries => Set<JournalEntryRow>();
     internal DbSet<JournalNoteRow> JournalNotes => Set<JournalNoteRow>();
     internal DbSet<JournalAttachmentRow> JournalAttachments => Set<JournalAttachmentRow>();
@@ -13,6 +14,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<JournalTopicOverviewRow>(entity =>
+        {
+            entity.HasKey(row => row.UserId);
+            entity.HasOne<ApplicationUser>().WithOne()
+                .HasForeignKey<JournalTopicOverviewRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<JournalProfileRow>(entity =>
         {

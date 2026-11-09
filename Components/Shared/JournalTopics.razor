@@ -1,0 +1,138 @@
+@implements IAsyncDisposable
+@inject JournalTopicService Topics
+@inject IJournalTopicAnalyzer Analyzer
+@inject TimeZoneInfo TimeZone
+@inject ILogger<JournalTopics> Logger
+
+<div class="topic-workspace">
+    <div class="topic-toolbar">
+        <p>Una devolución por tema, conectando lo que aparece en tus entradas.</p>
+        <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@(_busy || _loading || !Analyzer.IsConfigured || !RendererInfo.IsInteractive)">
+            <Icon Name="spark" Size="18" /> @(_state.Snapshot is null ? "Generar devolución" : "Actualizar devolución")
+        </button>
+    </div>
+    <p class="topic-scope">Usa los textos de todas tus entradas y el texto disponible de los documentos. Las fotos se analizan al pedir una devolución individual.</p>
+    @if (!Analyzer.IsConfigured)
+    {
+        <p class="journal-alert" role="status">La IA local está desactivada. Podés consultar la última devolución guardada.</p>
+    }
+    @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
+    @if (_message is not null) { <p class="journal-notice" role="status">@_message</p> }
+    @if (_loading) { <p class="organizing" role="status"><span class="spinner"></span> Abriendo tus temas…</p> }
+    @if (_busy)
+    {
+        <div class="topic-progress">
+            <p class="organizing" role="status" aria-live="polite"><span class="spinner"></span> @_progress</p>
+            <p>Puede llevar varios minutos. Podés recorrer el cuaderno; mantené la página abierta hasta que termine.</p>
+            <button type="button" class="quiet-action" @onclick="Cancel">Cancelar actualización</button>
+        </div>
+    }
+    @if (_state.Snapshot is { } snapshot)
+    {
+        <div class="topic-summary">
+            <p><strong>@snapshot.Topics.Count @(snapshot.Topics.Count == 1 ? "tema" : "temas")</strong> · Actualizado el @Date(snapshot.GeneratedUtc), @Local(snapshot.GeneratedUtc).ToString("HH:mm")</p>
+            <p>Texto disponible en @snapshot.TextEntryCount de @snapshot.EntryCount entradas · @snapshot.DocumentCount @(snapshot.DocumentCount == 1 ? "documento" : "documentos") con texto.</p>
+            @if (snapshot.UnreadAttachmentCount > 0) { <p>@snapshot.UnreadAttachmentCount adjuntos sin texto disponible no participaron de este análisis.</p> }
+            @if (_state.IsOutdated) { <p class="topic-outdated"><Icon Name="info" Size="16" /> Hay cambios en tu cuaderno desde esta devolución. Actualizala para incluirlos.</p> }
+        </div>
+        @if (snapshot.Topics.Count == 0)
+        {
+            <div class="blank-journal blank-small"><h2>Todavía no surgieron temas claros.</h2><p>Podés seguir escribiendo y volver a intentarlo más adelante.</p></div>
+        }
+        else
+        {
+            <nav class="topic-index" aria-label="Temas de tu devolución">
+                @foreach (var topic in snapshot.Topics) { <a href="@($"#tema-{topic.Id}")">@topic.Title</a> }
+            </nav>
+            <p class="topic-scope">Una lectura posible, para revisar y completar con tu mirada.</p>
+            <div class="topic-list">
+                @foreach (var topic in snapshot.Topics)
+                {
+                    var entryCount = topic.Evidence.Select(e => e.EntryId).Distinct().Count();
+                    <article class="topic-card" id="@($"tema-{topic.Id}")" @key="topic.Id">
+                        <header><span class="eyebrow"><Icon Name="spark" Size="15" /> UN TEMA DE TU CUADERNO</span><h2>@topic.Title</h2><p>@entryCount @(entryCount == 1 ? "entrada relacionada" : "entradas relacionadas")</p></header>
+                        <p class="preserved-text">@topic.Overview</p>
+                        @if (topic.Questions.Count > 0)
+                        {
+                            <div class="topic-questions"><h3>Para seguir pensando</h3><ul>@foreach (var question in topic.Questions) { <li>@question</li> }</ul></div>
+                        }
+                        <details class="topic-evidence">
+                            <summary>Ver fragmentos de apoyo (@topic.Evidence.Count)</summary>
+                            @foreach (var evidence in topic.Evidence)
+                            {
+                                <figure><figcaption><time datetime="@evidence.CreatedUtc.ToString("O")">@Date(evidence.CreatedUtc)</time> · @evidence.Label</figcaption><blockquote class="preserved-text">@evidence.Excerpt</blockquote></figure>
+                            }
+                        </details>
+                    </article>
+                }
+            </div>
+        }
+    }
+    else if (!_loading && !_busy)
+    {
+        <div class="blank-journal blank-small topic-empty"><span class="empty-note-icon sage"><Icon Name="spark" Size="40" /></span><h2>Mirar el cuaderno en conjunto.</h2><p>Generá tu primera devolución para encontrar temas entre tus entradas. Quedarán organizados acá para volver cuando quieras.</p><p>Se genera en este servidor, con la IA local.</p></div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string UserId { get; set; } = "";
+    [Parameter] public bool Active { get; set; }
+    private JournalTopicState _state = new(null, false);
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _generation;
+    private bool _wasActive, _busy, _loading, _disposed;
+    private string? _error, _message;
+    private string _progress = "Preparando el cuaderno…";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var opening = Active && !_wasActive;
+        _wasActive = Active;
+        if (!opening || _busy) return;
+        _loading = true;
+        try { _state = await Topics.GetAsync(UserId, _lifetime.Token); _error = null; }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (Exception ex) { _state = new(null, false); Logger.LogWarning(ex, "No se pudo leer la devolución por temas."); _error = "No pudimos abrir la devolución. Volvé a entrar a esta pestaña para reintentar."; }
+        finally { _loading = false; }
+    }
+
+    private async Task GenerateAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = _message = null;
+        _progress = "Preparando el cuaderno…";
+        using var generation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _generation = generation;
+        try
+        {
+            var progress = new TopicProgress(value =>
+            {
+                if (!_disposed) _ = InvokeAsync(() => { _progress = value; StateHasChanged(); });
+            });
+            var snapshot = await Topics.GenerateAsync(UserId, progress, generation.Token);
+            _state = new(snapshot, false);
+            _message = "Tu devolución por temas quedó guardada.";
+        }
+        catch (OperationCanceledException) { _message = "Actualización cancelada. La última devolución guardada se conserva."; }
+        catch (JournalInputException ex) { _error = ex.Message; }
+        catch (JournalReflectionException) { _error = "No pudimos completar la devolución con la IA local. La versión anterior se conserva; podés reintentar."; }
+        catch (Exception ex) { Logger.LogWarning(ex, "No se pudo generar la devolución por temas."); _error = "No pudimos guardar la devolución. Podés reintentar; tus entradas siguen guardadas."; }
+        finally
+        {
+            _generation = null;
+            _busy = false;
+            if (!_disposed)
+            {
+                try { _state = await Topics.GetAsync(UserId, _lifetime.Token); }
+                catch { _state = new(null, false); }
+            }
+        }
+    }
+
+    private void Cancel() => _generation?.Cancel();
+    private DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZone);
+    private string Date(DateTime utc) => Local(utc).ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+    public async ValueTask DisposeAsync() { _disposed = true; await _lifetime.CancelAsync(); _lifetime.Dispose(); }
+    private sealed class TopicProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
+}

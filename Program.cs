@@ -64,6 +64,15 @@ builder.Services.AddOptions<OllamaOptions>()
     .Validate(options => options.IsValid(), "Ollama requiere una URL HTTP de loopback, un modelo local y límites válidos.")
     .ValidateOnStart();
 builder.Services.AddSingleton<LocalInferenceGate>();
+builder.Services.AddSingleton<JournalTopicJobs>();
+builder.Services.AddScoped<JournalTopicService>();
+builder.Services.AddHttpClient<IJournalTopicAnalyzer, OllamaJournalService>(client =>
+    client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AllowAutoRedirect = false,
+        UseProxy = false
+    });
 builder.Services.AddHttpClient<IJournalReflector, OllamaJournalService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler

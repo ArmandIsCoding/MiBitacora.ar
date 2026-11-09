@@ -63,6 +63,8 @@ El campo histórico `GeminiConsent` se conserva para mantener compatibles las ba
 
 ## Verificación
 
+La pestaña **Devolución** usa el mismo modelo y la misma cola local para analizar los textos del cuaderno completo por partes. Sus prompts están en `Services/OllamaTopics.cs`; los de una entrada individual siguen en `Services/OllamaReflection.cs`. El análisis por temas se inicia únicamente con el botón y guarda una versión por cuenta. Ver [la guía de devolución por temas](devolucion-por-temas.md). Para probarlo con textos inventados: `dotnet run --project tests/MiBitacora.Checks -- --live-topics`.
+
 ```powershell
 dotnet build MiBitacora.csproj
 dotnet run --project tests/MiBitacora.Checks

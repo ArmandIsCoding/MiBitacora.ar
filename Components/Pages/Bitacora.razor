@@ -39,6 +39,9 @@
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Calendar ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Calendar ? "page" : null)" @onclick="OpenCalendarAsync">
                         <Icon Name="calendar" Size="20" /> <span>Calendario</span>
                     </button>
+                    <button type="button" class="journal-tab @(_section == WorkspaceSection.Topics ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Topics ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Topics)">
+                        <Icon Name="spark" Size="20" /> <span>Devolución</span>
+                    </button>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Notes ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Notes ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Notes)">
                         <Icon Name="note" Size="20" /> <span>Notitas</span>
                         @if (_notes.Count > 0) { <span class="tab-count">@_notes.Count</span> }
@@ -244,6 +247,13 @@
                     <JournalCalendar EntryDays="_entryDays" Today="_today" Streak="_currentStreak"
                                      TimeZone="JournalTimeZone" LoadEntries="LoadCalendarEntriesAsync" WriteEntry="FocusComposer" />
                 }
+                else if (_section == WorkspaceSection.Topics)
+                {
+                    <header class="workspace-heading">
+                        <div><p class="eyebrow">LOS TEMAS QUE VAN APARECIENDO</p><h1 @ref="_sectionHeading" tabindex="-1">Devolución<span class="brand-period">.</span></h1><p>Otra forma de volver a lo que escribiste.</p></div>
+                        <span class="mode-pill"><Icon Name="lock" Size="15" /> IA local</span>
+                    </header>
+                }
                 else if (_section == WorkspaceSection.Notes)
                 {
                     <header class="workspace-heading">
@@ -322,6 +332,9 @@
                         <div class="print-sheet preserved-text">@(_sessionDraft ?? BuildSessionSheet())</div>
                     }
                 }
+                <section hidden="@(_section != WorkspaceSection.Topics)" aria-label="Devolución por temas">
+                    <JournalTopics UserId="_userId" Active="@(_section == WorkspaceSection.Topics)" />
+                </section>
             </main>
 
             <aside class="journal-context" aria-label="Tu hilo">
