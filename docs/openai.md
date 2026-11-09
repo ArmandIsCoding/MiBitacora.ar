@@ -33,7 +33,7 @@ Nunca incluir este archivo en un paquete de publicación. Los respaldos de `App_
 ## Qué se envía
 
 - Devolución individual: la misma selección acotada de entrada, contexto, historial, notitas, documentos y hasta dos imágenes que usa Ollama. Los HEIC se convierten a JPG localmente antes del envío. `Solo guardar` no llama a la API.
-- Devolución por temas: los textos de todas las entradas y documentos, divididos en partes; no incluye fotos. La generación se inicia a demanda y guarda el resultado completo solo si termina correctamente y las fuentes siguen vigentes.
+- Devolución por temas: los textos de todas las entradas y documentos, todas las notitas y el contexto personal del perfil, divididos en partes; no incluye fotos. Las notitas y el perfil se usan como contexto transversal para todos los temas, sin asociarlos a una entrada. El contexto largo se sintetiza antes de acompañar cada lote y devolución final. La generación se inicia a demanda y guarda el resultado completo solo si termina correctamente y las fuentes, incluidas notas y perfil, siguen vigentes.
 - Se envían los contenidos necesarios directamente en cada solicitud. No se crean archivos, conversaciones o herramientas en OpenAI ni se reutilizan respuestas de otra cuenta. Se usa `store: false`. Las respuestas y fuentes se validan antes de guardarlas en SQLite.
 - Las claves, cuerpos HTTP, textos, imágenes, respuestas y errores crudos del proveedor no se registran. La interfaz informa OpenAI como proveedor y enlaza la política de privacidad actualizada.
 

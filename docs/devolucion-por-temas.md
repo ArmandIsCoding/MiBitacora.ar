@@ -6,12 +6,14 @@ Cada tarjeta muestra una síntesis, preguntas para seguir escribiendo y fragment
 
 ## Alcance de esta versión
 
-- Usa todas las entradas de la cuenta, sin depender de las 30 entradas cargadas en Conversación, y el texto que ya se pudo extraer de sus documentos. No vuelve a extraer archivos ni hace OCR. No usa notitas, contexto personal ni devoluciones anteriores como evidencia.
+- Usa todas las entradas de la cuenta, sin depender de las 30 entradas cargadas en Conversación, el texto extraído de sus documentos, todas las notitas y el contexto personal del perfil. No vuelve a extraer archivos ni hace OCR. Las devoluciones anteriores no son evidencia.
+- Las notitas y el perfil son contexto transversal: se consideran en cada lote y en cada devolución final para reconocer preocupaciones o emociones de fondo cuando resulten pertinentes. También pueden dar lugar a un tema sin entradas. No se les asigna una entrada ficticia: las fuentes distinguen entrada, documento, notita y perfil; este último no tiene fecha de episodio. Una frase como «siempre me pasa lo mismo, estoy cansado» puede sugerir frustración, pero no demuestra frecuencia ni permite atribuir enojo a todas las vivencias.
+- El contexto extenso se sintetiza por partes, sin descartar notas ni recortar su texto original antes del análisis, hasta obtener un bloque de hasta 2400 caracteres que acompaña cada lote y lectura final. La síntesis puede perder matices: la pantalla conserva fragmentos originales identificados como contexto adicional y separa las citas propias de cada tema. Repetir el mismo contexto en distintas solicitudes no cuenta como nuevos episodios.
 - Las fotos, videos y adjuntos sin texto extraído no participan. La pantalla informa cuántas entradas tienen texto y cuántos documentos y adjuntos sin texto hay. Las imágenes siguen disponibles en la devolución individual.
 - El procesamiento usa el proveedor configurado en `AI:Provider`: Ollama local u OpenAI. Comparte la cola de inferencia con las devoluciones individuales. Con OpenAI se envían los textos a su API; ver [configuración y privacidad](openai.md).
 - El botón trabaja a demanda y puede tardar varios minutos. Se puede recorrer el resto del cuaderno mientras trabaja. Cancelar o cerrar la página detiene el trabajo asociado al componente; no hay un trabajo durable ni un proceso programado todavía. Una desconexión breve puede conservar el circuito hasta su expiración.
 - Se conserva la última versión completa. Un error o cancelación no publica resultados parciales. Si cambia el cuaderno durante la generación, se pide volver a generarla. Entradas nuevas posteriores marcan la versión como desactualizada.
-- Eliminar una entrada retira la devolución general para no conservar fragmentos borrados. La importación con reemplazo hace lo mismo para esa cuenta. Eliminar la cuenta elimina sus devoluciones en cascada. La descarga de datos personales incluye la devolución guardada y su vigencia.
+- Agregar o editar una notita o modificar el contexto del perfil marca la devolución como desactualizada. Marcar una nota para sesión o cambiar el nombre del perfil no altera la huella. Eliminar una entrada o una notita, o vaciar el contexto del perfil, retira la devolución general para no conservar fragmentos borrados. La importación con reemplazo hace lo mismo para esa cuenta. Eliminar la cuenta elimina sus devoluciones en cascada. La descarga de datos personales incluye la devolución guardada y su vigencia.
 
 ## Implementación y prompts
 
@@ -29,14 +31,20 @@ Los textos se dividen en fragmentos contiguos de hasta 2400 caracteres y lotes d
 
 Las observaciones de cada tema se sintetizan por partes cuando exceden el contexto, conservando todas las observaciones como entrada a esa etapa. Después se genera la devolución final. Los fragmentos originales de apoyo se guardan por separado de los resúmenes del modelo.
 
-La tabla `JournalTopicOverviews` guarda un JSON por cuenta y una huella SHA-256 del contenido fuente. El guardado compara nuevamente esa huella dentro de una transacción antes de reemplazar el resultado. La migración agrega la tabla sin modificar entradas ni archivos. Los originales siguen en `uploads/<cuenta>`.
+La tabla `JournalTopicOverviews` guarda un JSON por cuenta y una huella SHA-256 del contenido fuente, incluidas las notitas y el contexto personal. El guardado compara nuevamente esa huella dentro de una transacción antes de reemplazar el resultado. La versión 2 de la huella marca los resultados anteriores como desactualizados. Los nuevos campos de fuente y contexto son opcionales al leer JSON anterior: este cambio no necesita migración de base de datos. Los originales siguen en `uploads/<cuenta>`.
 
 ## Verificación
 
 ```powershell
-dotnet build
-dotnet run --project tests/MiBitacora.Checks
-dotnet run --project tests/MiBitacora.Checks -- --live-topics
+dotnet build tests/MiBitacora.Checks -p:UseAppHost=false
+dotnet tests/MiBitacora.Checks/bin/Debug/net10.0/MiBitacora.Checks.dll
+dotnet tests/MiBitacora.Checks/bin/Debug/net10.0/MiBitacora.Checks.dll --live-topics
 ```
 
 Las comprobaciones usan una base temporal y datos sintéticos. Cubren lectura de más de una página, textos largos sin recortes, documentos, síntesis intermedia, persistencia, aislamiento por cuenta, citas, errores, cancelación, concurrencia, invalidación al borrar y renderizado de tarjetas con HTML escapado. También renderizan la página Bitácora completa para comprobar que entrega al componente de temas el identificador de la cuenta autenticada, no un texto literal. `--live-topics` agrega llamadas reales a Ollama con textos inventados; no lee el cuaderno del usuario.
+
+Las pruebas de contexto comprueban que llega a todos los lotes y lecturas finales, conserva la procedencia sin inflar el contador de entradas, permite analizar un cuaderno con solo notitas o perfil, procesa contexto extenso completo antes de sintetizarlo, detecta cambios concurrentes, elimina citas al borrar fuentes y sigue leyendo JSON de versiones anteriores.
+
+El diálogo de Bitácora se monta solo cuando hay una acción abierta y se retira completo al cerrar, guardar o eliminar. Antes, cerrar el diálogo por JavaScript antes de limpiar el estado permitía que otro render lo reabriera vacío, dejando el fondo bloqueado. El módulo además ignora referencias a diálogos ya retirados y se importa con su nombre versionado para evitar usar JavaScript antiguo tras publicar.
+
+Verificación del 9/11/2026: 109 comprobaciones automáticas correctas; prueba completa con OpenAI y un cuaderno ficticio (dos entradas, tres notitas y perfil), con cuatro temas que identifican sus fuentes y conservan tanto el cansancio como la alegría. En navegador, sobre una base aislada, se verificaron el aviso de desactualización al editar una nota, el guardado, la eliminación consecutiva de tres notas y la reapertura y cancelación del diálogo con Escape, sin refrescar la página.

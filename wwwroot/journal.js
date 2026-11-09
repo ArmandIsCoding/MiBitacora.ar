@@ -1,15 +1,11 @@
 export function showDialog(dialog) {
-    if (!dialog.open) {
+    if (dialog?.isConnected && !dialog.open) {
         if (!dialog.dataset.cancelBound) {
             dialog.addEventListener("cancel", event => event.preventDefault());
             dialog.dataset.cancelBound = "true";
         }
         dialog.showModal();
     }
-}
-
-export function closeDialog(dialog) {
-    if (dialog.open) dialog.close();
 }
 
 export function reveal(element) {

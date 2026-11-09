@@ -21,6 +21,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const int SourceLength = 2400;
     private const int BatchLength = 6500;
+    private const int ContextLength = 2400;
 
     public async Task<JournalTopicState> GetAsync(string userId, CancellationToken ct = default)
     {
@@ -46,9 +47,14 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 input = await ReadInputAsync(db, userId, ct);
             }
             if (input.Sources.Count == 0)
-                throw new JournalInputException("Todavía no hay texto para analizar. Escribí una entrada o adjuntá un documento con texto legible.");
+                throw new JournalInputException("Todavía no hay texto para analizar. Escribí una entrada, una notita o tu contexto personal, o adjuntá un documento con texto legible.");
 
             var topics = new List<WorkingTopic>();
+            var contextSources = input.Sources.Where(s => s.Kind is TopicSourceKind.Note or TopicSourceKind.Profile).ToArray();
+            progress?.Report("Preparando notitas y contexto personal…");
+            var context = await CompressAsync("Contexto transversal: notitas y perfil",
+                contextSources.Select(s => JsonSerializer.Serialize(new { source = SourceLabel(s), text = s.Text }, Json)).ToList(),
+                ContextLength, ct);
             var batches = Batches(input.Sources, s => s.Text.Length, BatchLength, 4).ToList();
             for (var i = 0; i < batches.Count; i++)
             {
@@ -58,7 +64,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 // Reject oversized context explicitly rather than silently ignoring older themes/text.
                 if (JsonSerializer.Serialize(catalog, Json).Length > 6500)
                     throw new JournalInputException("Se detectaron demasiados temas para el contexto configurado para el análisis. La devolución anterior se conserva.");
-                var detected = await analyzer.DetectAsync(batches[i], catalog, ct);
+                var detected = await analyzer.DetectAsync(batches[i], catalog, ct, context);
                 foreach (var item in detected)
                 {
                     var topic = item.TopicId == "nuevo"
@@ -70,11 +76,11 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                         topics.Add(topic);
                     }
                     var sources = item.Evidence.Select(e => batches[i].Single(s => s.Id == e.SourceId)).ToList();
-                    topic.Observations.Add($"{sources.Min(s => s.CreatedUtc):yyyy-MM-dd} a {sources.Max(s => s.CreatedUtc):yyyy-MM-dd}: {item.Observation}");
+                    topic.Observations.Add($"{string.Join("; ", sources.Select(SourceLabel))}: {item.Observation}");
                     foreach (var evidence in item.Evidence)
                     {
                         var source = batches[i].Single(s => s.Id == evidence.SourceId);
-                        topic.Evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, evidence.Quote));
+                        topic.Evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, evidence.Quote, source.Kind, source.NoteId));
                     }
                 }
             }
@@ -83,22 +89,22 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
             foreach (var topic in topics)
             {
                 progress?.Report($"Preparando devoluciones · tema {results.Count + 1} de {topics.Count}");
-                var observations = topic.Observations;
-                // Hierarchical summaries include every observation, even for very long-lived topics.
-                while (string.Join("\n", observations).Length > BatchLength)
-                {
-                    var summaries = new List<string>();
-                    foreach (var batch in Batches(observations, s => s.Length + 1, BatchLength))
-                        summaries.Add((await analyzer.ReadAsync(topic.Title, string.Join("\n", batch), ct, summarizeOnly: true)).Overview);
-                    observations = summaries;
-                }
-                var reading = await analyzer.ReadAsync(topic.Title, string.Join("\n", observations), ct);
+                var observations = await CompressAsync(topic.Title, topic.Observations, BatchLength, ct);
+                var reading = await analyzer.ReadAsync(topic.Title, observations, ct, additionalContext: context);
                 results.Add(new(topic.Id, topic.Title, reading.Overview, reading.Questions,
                     topic.Evidence.Distinct().OrderBy(e => e.CreatedUtc).ToArray()));
             }
             ct.ThrowIfCancellationRequested();
             var snapshot = new JournalTopicSnapshot(DateTime.UtcNow, input.EntryCount, input.TextEntryCount,
-                input.DocumentCount, input.UnreadAttachmentCount, results);
+                input.DocumentCount, input.UnreadAttachmentCount, results, input.NoteCount, input.HasPersonalContext,
+                contextSources.GroupBy(s => (s.Kind, s.NoteId)).Select(g =>
+                {
+                    var s = g.First();
+                    var text = string.Concat(g.Select(part => part.Text));
+                    var end = Math.Min(220, text.Length);
+                    if (end < text.Length && char.IsHighSurrogate(text[end - 1])) end--;
+                    return new TopicEvidence(null, s.CreatedUtc, s.Label, text[..end], s.Kind, s.NoteId);
+                }).ToArray());
             await using (var db = await factory.CreateDbContextAsync(ct))
             {
                 await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -123,42 +129,77 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
             .Select(e => new { e.Id, e.Text, e.CreatedUtc, e.IsDateOnly,
                 Files = e.Attachments.OrderBy(a => a.Position).Select(a => new { a.Id, a.FileName, a.ExtractedText }).ToList() })
             .ToListAsync(ct);
+        var notes = await db.JournalNotes.AsNoTracking().Where(n => n.UserId == userId)
+            .OrderBy(n => n.CreatedUtc).ThenBy(n => n.Id)
+            .Select(n => new { n.Id, n.Text, n.CreatedUtc }).ToListAsync(ct);
+        var personalContext = await db.JournalProfiles.AsNoTracking().Where(p => p.UserId == userId)
+            .Select(p => p.PersonalContext).SingleOrDefaultAsync(ct) ?? "";
         var sources = new List<TopicSource>();
         var documents = 0;
         var unread = 0;
         var textEntries = 0;
+        // Context has its own sources; it never borrows an entry ID or an invented date.
+        Add(personalContext, "Contexto personal del perfil", TopicSourceKind.Profile, null, null);
+        foreach (var note in notes)
+            Add(note.Text, "Notita · contexto transversal", TopicSourceKind.Note, null, note.CreatedUtc, note.Id);
         foreach (var entry in entries)
         {
             var hasText = !string.IsNullOrWhiteSpace(entry.Text);
-            Add(entry.Text, "Entrada");
+            Add(entry.Text, "Entrada", TopicSourceKind.Entry, entry.Id, entry.CreatedUtc);
             foreach (var file in entry.Files)
             {
                 if (string.IsNullOrWhiteSpace(file.ExtractedText)) { unread++; continue; }
                 documents++;
                 hasText = true;
-                Add(file.ExtractedText, $"Documento: {file.FileName}");
+                Add(file.ExtractedText, $"Documento: {file.FileName}", TopicSourceKind.Document, entry.Id, entry.CreatedUtc);
             }
             if (hasText) textEntries++;
-            void Add(string text, string label)
+        }
+        // The version also marks pre-context snapshots as outdated, without a database migration.
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new { version = 2, entries, notes, personalContext }, Json))));
+        return new(sources, fingerprint, entries.Count, textEntries, documents, unread,
+            notes.Count(n => !string.IsNullOrWhiteSpace(n.Text)), !string.IsNullOrWhiteSpace(personalContext));
+
+        void Add(string text, string label, TopicSourceKind kind, Guid? entryId, DateTime? createdUtc, Guid? noteId = null)
+        {
+            // No clipping: split every original text into bounded, contiguous parts.
+            for (var start = 0; start < text.Length;)
             {
-                // No clipping: split every original text into bounded, contiguous parts.
-                for (var start = 0; start < text.Length;)
+                var end = Math.Min(start + SourceLength, text.Length);
+                if (end < text.Length)
                 {
-                    var end = Math.Min(start + SourceLength, text.Length);
-                    if (end < text.Length)
-                    {
-                        var boundary = text.LastIndexOfAny([' ', '\n'], end - 1, end - start);
-                        if (boundary > start + SourceLength / 2) end = boundary + 1;
-                        if (char.IsHighSurrogate(text[end - 1])) end--;
-                    }
-                    var chunk = text[start..end];
-                    if (!string.IsNullOrWhiteSpace(chunk)) sources.Add(new($"s{sources.Count + 1}", entry.Id, entry.CreatedUtc, label, chunk));
-                    start = end;
+                    var boundary = text.LastIndexOfAny([' ', '\n'], end - 1, end - start);
+                    if (boundary > start + SourceLength / 2) end = boundary + 1;
+                    if (char.IsHighSurrogate(text[end - 1])) end--;
                 }
+                var chunk = text[start..end];
+                if (!string.IsNullOrWhiteSpace(chunk)) sources.Add(new($"s{sources.Count + 1}", entryId, createdUtc, label, chunk, kind, noteId));
+                start = end;
             }
         }
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entries, Json))));
-        return new(sources, fingerprint, entries.Count, textEntries, documents, unread);
+    }
+
+    private static string SourceLabel(TopicSource source) =>
+        $"{source.Id} · {source.Label} · " + (source.CreatedUtc is { } date ? $"registrado el {date:yyyy-MM-dd}" : "sin fecha de episodio");
+
+    private async Task<string> CompressAsync(string title, List<string> parts, int limit, CancellationToken ct)
+    {
+        // Every part participates; only model summaries, never silent truncation, reduce long context.
+        var text = string.Join("\n", parts);
+        while (text.Length > limit)
+        {
+            ct.ThrowIfCancellationRequested();
+            var summaries = new List<string>();
+            foreach (var batch in Batches(parts, s => s.Length + 1, BatchLength))
+                summaries.Add((await analyzer.ReadAsync(title, string.Join("\n", batch), ct, summarizeOnly: true)).Overview);
+            var reduced = string.Join("\n", summaries);
+            if (reduced.Length >= text.Length)
+                throw new JournalReflectionException("No se pudo sintetizar el contexto completo. La devolución anterior se conserva; podés reintentar.");
+            parts = summaries;
+            text = reduced;
+        }
+        return text;
     }
 
     private static IEnumerable<List<T>> Batches<T>(IEnumerable<T> source, Func<T, int> size, int budget, int count = int.MaxValue)
@@ -176,7 +217,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
     }
 
     private sealed record Input(List<TopicSource> Sources, string Fingerprint, int EntryCount, int TextEntryCount,
-        int DocumentCount, int UnreadAttachmentCount);
+        int DocumentCount, int UnreadAttachmentCount, int NoteCount, bool HasPersonalContext);
     private sealed class WorkingTopic(string id, string title)
     {
         internal string Id { get; } = id;

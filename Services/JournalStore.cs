@@ -54,10 +54,13 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             db.JournalProfiles.Add(row);
         }
 
+        var clearedContext = !string.IsNullOrWhiteSpace(row.PersonalContext) && context.Length == 0;
         row.DisplayName = displayName;
         row.PersonalContext = context;
         row.GeminiConsent = profile.GeminiConsent;
         await db.SaveChangesAsync(cancellationToken);
+        if (clearedContext)
+            await db.JournalTopicOverviews.Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -262,8 +265,12 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     public async Task DeleteNoteAsync(string userId, Guid noteId, CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        await db.JournalNotes.Where(row => row.Id == noteId && row.UserId == userId)
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var deleted = await db.JournalNotes.Where(row => row.Id == noteId && row.UserId == userId)
             .ExecuteDeleteAsync(cancellationToken);
+        if (deleted > 0)
+            await db.JournalTopicOverviews.Where(row => row.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<JournalEntry>> GetSessionEntriesAsync(string userId,

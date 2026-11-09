@@ -87,6 +87,10 @@ internal static class TopicChecks
         var longEntry = await store.AddEntryAsync(a, longText, []);
         for (var i = 0; i < 42; i++) await store.AddEntryAsync(a, $"Día {i}: un rato de lectura.", []);
         var foreign = await store.AddEntryAsync(b, "SECRETO_DE_OTRA_CUENTA", []);
+        var note = await store.SaveNoteAsync(a, null, "Siempre me pasa lo mismo, estoy cansado. <script>Notita literal</script>");
+        await store.SaveProfileAsync(a, new("Prueba", "Estoy atravesando un cambio laboral y quiero entender mis emociones.", false));
+        var foreignNote = await store.SaveNoteAsync(b, null, "NOTITA_PRIVADA_DE_B");
+        await store.SaveProfileAsync(b, new("Otra cuenta", "PERFIL_PRIVADO_DE_B", false));
         var progress = new List<string>();
         var snapshot = await topics.GenerateAsync(a, new ProgressSink(progress.Add));
         check(snapshot.EntryCount == 44 && snapshot.TextEntryCount == 44 && snapshot.DocumentCount == 1,
@@ -95,8 +99,17 @@ internal static class TopicChecks
             "Temas: una entrada larga se divide sin perder texto");
         check(analyzer.Seen.All(s => s.EntryId != foreign.Id) && (await topics.GetAsync(b)).Snapshot is null,
             "Temas: aislamiento de fuentes y devoluciones por cuenta");
-        check(snapshot.Topics.Count == 1 && snapshot.Topics[0].Evidence.Select(e => e.EntryId).Distinct().Count() == 44 && progress.Count > 1,
+        check(snapshot.Topics.Count == 1 && snapshot.Topics[0].Evidence.Where(e => e.EntryId.HasValue).Select(e => e.EntryId).Distinct().Count() == 44 && progress.Count > 1,
             "Temas: se reúnen las fuentes del mismo tema y se informa el avance");
+        check(snapshot.NoteCount == 1 && snapshot.HasPersonalContext && snapshot.AdditionalContext?.Count == 2 &&
+            analyzer.Seen.Any(s => s.Kind == TopicSourceKind.Note && s.NoteId == note.Id && s.EntryId is null) &&
+            analyzer.Seen.Any(s => s.Kind == TopicSourceKind.Profile && s.EntryId is null && s.CreatedUtc is null),
+            "Temas: notitas y perfil tienen identidad propia, sin entradas ni fechas inventadas");
+        check(analyzer.DetectedContexts.All(c => c.Contains("estoy cansado") && c.Contains("cambio laboral")) &&
+            analyzer.FinalContexts.All(c => c.Contains("estoy cansado") && c.Contains("cambio laboral")),
+            "Temas: el contexto transversal llega a cada lote y a cada devolución final");
+        check(!string.Join(" ", analyzer.Seen.Select(s => s.Text).Concat(analyzer.DetectedContexts)).Contains("PRIVAD"),
+            "Temas: no se incluyen notitas ni perfil de otra cuenta");
         check(!(await topics.GetAsync(a)).IsOutdated, "Temas: la devolución recién guardada está vigente");
         check(analyzer.SummaryCalls > 0, "Temas: se sintetiza toda la evidencia extensa antes de escribir la devolución final");
 
@@ -116,7 +129,30 @@ internal static class TopicChecks
                 ParameterView.FromDictionary(new Dictionary<string, object?> { ["UserId"] = a, ["Active"] = true }))).ToHtmlString());
             check(html.Contains("topic-card") && html.Contains("Ver fragmentos") && html.Contains("Actualizar") && !html.Contains("<script>"),
                 "Temas: se renderizan tarjetas guardadas, preguntas y evidencia con HTML escapado");
+            check(html.Contains("Ver contexto adicional considerado") && html.Contains("44 entradas relacionadas") &&
+                !html.Contains("45 entradas relacionadas") && !html.Contains("0001"),
+                "Temas: el contexto no infla el contador de entradas ni muestra fechas ficticias");
         }
+
+        await store.SaveNoteAsync(a, note.Id, "Cambió mi emoción de fondo.");
+        check((await topics.GetAsync(a)).IsOutdated, "Temas: editar una notita invalida la huella");
+        await store.SaveNoteAsync(a, note.Id, note.Text);
+        await store.SetNoteForSessionAsync(a, note.Id, true);
+        check(!(await topics.GetAsync(a)).IsOutdated, "Temas: marcar para sesión no cambia el contexto del análisis");
+        await store.SaveProfileAsync(a, new("Prueba", "Un contexto diferente", false));
+        check((await topics.GetAsync(a)).IsOutdated, "Temas: editar el perfil invalida la huella");
+        await store.SaveProfileAsync(a, new("Prueba", "Estoy atravesando un cambio laboral y quiero entender mis emociones.", false));
+        await store.DeleteNoteAsync(a, foreignNote.Id);
+        check((await topics.GetAsync(a)).Snapshot is not null && (await store.GetNotesAsync(b)).Any(n => n.Id == foreignNote.Id),
+            "Temas: eliminar una notita ajena no modifica fuentes ni devoluciones");
+        var changedContext = false;
+        analyzer.OnDetect = async _ => { if (!changedContext) { changedContext = true; await store.SaveNoteAsync(a, note.Id, "Contexto editado durante el análisis"); } };
+        try { await topics.GenerateAsync(a); throw new Exception("Se aceptó contexto obsoleto"); }
+        catch (JournalInputException ex) { check(ex.Message.Contains("cambió"), "Temas: editar contexto durante la generación impide publicar el resultado obsoleto"); }
+        analyzer.OnDetect = null;
+        await store.SaveNoteAsync(a, note.Id, note.Text);
+        check((await topics.GetAsync(a)).Snapshot!.GeneratedUtc == snapshot.GeneratedUtc,
+            "Temas: el cambio concurrente conserva la última versión completa");
 
         analyzer.Fail = true;
         try { await topics.GenerateAsync(a); throw new Exception("No falló el analizador"); } catch (JournalReflectionException) { }
@@ -153,6 +189,41 @@ internal static class TopicChecks
             check((await topics.GetAsync(b)).Snapshot is null, "Temas: eliminar una cuenta elimina sus devoluciones");
         }
 
+        var contextOnly = Guid.NewGuid().ToString();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Users.Add(new ApplicationUser { Id = contextOnly, UserName = "synthetic-context" });
+            await db.SaveChangesAsync();
+        }
+        var longNotes = new List<JournalNote>();
+        for (var i = 0; i < 9; i++)
+            longNotes.Add(await store.SaveNoteAsync(contextOnly, null, $"NOTITA_{i}_COMPLETA " + new string('x', 1700)));
+        var profileText = "PERFIL_COMPLETO " + new string('z', 2900);
+        await store.SaveProfileAsync(contextOnly, new("Contexto", profileText, false));
+        analyzer.Seen.Clear(); analyzer.DetectedContexts.Clear(); analyzer.FinalContexts.Clear(); analyzer.SummaryInputs.Clear();
+        var contextSnapshot = await topics.GenerateAsync(contextOnly);
+        check(contextSnapshot.EntryCount == 0 && contextSnapshot.NoteCount == 9 && contextSnapshot.Topics.Count > 0 &&
+            contextSnapshot.Topics.All(t => t.Evidence.All(e => e.EntryId is null)),
+            "Temas: se puede generar solo con notitas y perfil sin crear entradas ficticias");
+        check(longNotes.All(n => string.Concat(analyzer.Seen.Where(s => s.NoteId == n.Id).Select(s => s.Text)) == n.Text) &&
+            string.Concat(analyzer.Seen.Where(s => s.Kind == TopicSourceKind.Profile).Select(s => s.Text)) == profileText,
+            "Temas: todas las notitas y el perfil largo se procesan completos");
+        check(longNotes.All(n => analyzer.SummaryInputs.Any(s => s.Contains(n.Text))) &&
+            analyzer.DetectedContexts.All(c => c.Length is > 0 and <= 2400) && analyzer.FinalContexts.All(c => c.Length is > 0 and <= 2400),
+            "Temas: el contexto extenso se sintetiza completo antes de compartirse con todos los temas");
+        await store.DeleteNoteAsync(contextOnly, longNotes[0].Id);
+        check((await topics.GetAsync(contextOnly)).Snapshot is null, "Temas: borrar una notita retira la devolución que podía conservar su contenido");
+        await topics.GenerateAsync(contextOnly);
+        await store.SaveProfileAsync(contextOnly, new("Contexto", "", false));
+        check((await topics.GetAsync(contextOnly)).Snapshot is null, "Temas: vaciar el perfil retira el contexto guardado en la devolución");
+        var oldSnapshot = JsonSerializer.Deserialize<JournalTopicSnapshot>("""
+            {"generatedUtc":"2026-11-01T00:00:00Z","entryCount":1,"textEntryCount":1,"documentCount":0,"unreadAttachmentCount":0,
+             "topics":[{"id":"t1","title":"Anterior","overview":"Texto anterior","questions":[],"evidence":[
+             {"entryId":"00000000-0000-0000-0000-000000000001","createdUtc":"2026-11-01T00:00:00Z","label":"Entrada","excerpt":"Original"}]}]}
+            """, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        check(oldSnapshot.NoteCount == 0 && oldSnapshot.AdditionalContext is null && oldSnapshot.Topics[0].Evidence[0].EntryId.HasValue,
+            "Temas: las devoluciones anteriores siguen siendo legibles sin migrar la base");
+
         if (live)
         {
             using var client = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan };
@@ -182,18 +253,23 @@ internal static class TopicChecks
         public int SummaryCalls;
         public Func<CancellationToken, Task>? OnDetect;
         public List<TopicSource> Seen { get; } = [];
-        public async Task<IReadOnlyList<TopicObservation>> DetectAsync(IReadOnlyList<TopicSource> sources, IReadOnlyDictionary<string, string> catalog, CancellationToken ct)
+        public List<string> DetectedContexts { get; } = [];
+        public List<string> FinalContexts { get; } = [];
+        public List<string> SummaryInputs { get; } = [];
+        public async Task<IReadOnlyList<TopicObservation>> DetectAsync(IReadOnlyList<TopicSource> sources, IReadOnlyDictionary<string, string> catalog, CancellationToken ct, string additionalContext = "")
         {
             ct.ThrowIfCancellationRequested();
             if (Fail) throw new JournalReflectionException("Fallo simulado");
             if (OnDetect is not null) await OnDetect(ct);
             Seen.AddRange(sources);
+            DetectedContexts.Add(additionalContext);
             return [new(catalog.Count == 0 ? "nuevo" : catalog.Keys.First(), catalog.Count == 0 ? "Lectura" : "", "Aparecen momentos de lectura. " + new string('a', 550),
                 sources.Select(s => new TopicCitation(s.Id, s.Text[..Math.Min(100, s.Text.Length)])).ToArray())];
         }
-        public Task<TopicReading> ReadAsync(string title, string observations, CancellationToken ct, bool summarizeOnly = false)
+        public Task<TopicReading> ReadAsync(string title, string observations, CancellationToken ct, bool summarizeOnly = false, string additionalContext = "")
         {
-            if (summarizeOnly) SummaryCalls++;
+            if (summarizeOnly) { SummaryCalls++; SummaryInputs.Add(observations); }
+            else FinalContexts.Add(additionalContext);
             return Task.FromResult(new TopicReading("La lectura aparece en distintos momentos. <script>Texto literal</script>", summarizeOnly ? [] : ["¿Qué te gustaría retomar?"]));
         }
     }

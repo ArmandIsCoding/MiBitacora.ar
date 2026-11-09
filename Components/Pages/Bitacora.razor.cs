@@ -49,6 +49,7 @@ public partial class Bitacora : IAsyncDisposable
     private bool _focusComposer;
     private bool _disposed;
     private int _pickerVersion;
+    private int _contextRevision;
     private WorkspaceSection _section = WorkspaceSection.Conversation;
     private DialogKind _dialogKind;
     private ElementReference _dialog;
@@ -115,7 +116,8 @@ public partial class Bitacora : IAsyncDisposable
             if (_dialogKind != DialogKind.None)
             {
                 var module = await GetModuleAsync();
-                await module.InvokeVoidAsync("showDialog", Lifetime, _dialog);
+                if (_dialogKind != DialogKind.None)
+                    await module.InvokeVoidAsync("showDialog", Lifetime, _dialog);
             }
 
             if (_focusSection)
@@ -148,7 +150,7 @@ public partial class Bitacora : IAsyncDisposable
     }
 
     private async Task<IJSObjectReference> GetModuleAsync() =>
-        _module ??= await Js.InvokeAsync<IJSObjectReference>("import", Lifetime, "./journal.js");
+        _module ??= await Js.InvokeAsync<IJSObjectReference>("import", Lifetime, "./" + Assets["journal.js"]);
 
     private void ShowSection(WorkspaceSection section)
     {
@@ -424,6 +426,7 @@ public partial class Bitacora : IAsyncDisposable
             var note = await Store.SaveNoteAsync(_userId, _noteId, _noteDraft, Lifetime);
             _notes.RemoveAll(item => item.Id == note.Id);
             _notes.Insert(0, note);
+            _contextRevision++;
             _sessionDraft = null;
             await CloseDialogAsync();
             _notice = "Notita guardada. Ya forma parte de tu cuaderno.";
@@ -457,6 +460,7 @@ public partial class Bitacora : IAsyncDisposable
             {
                 await Store.DeleteNoteAsync(_userId, id, Lifetime);
                 _notes.RemoveAll(item => item.Id == id);
+                _contextRevision++;
                 _notice = "Notita eliminada.";
             }
             else
@@ -513,22 +517,14 @@ public partial class Bitacora : IAsyncDisposable
         _dialogError = null;
     }
 
-    private async Task CloseDialogAsync()
+    private Task CloseDialogAsync()
     {
-        try
-        {
-            var module = await GetModuleAsync();
-            await module.InvokeVoidAsync("closeDialog", Lifetime, _dialog);
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-        finally
-        {
-            _dialogKind = DialogKind.None;
-            _targetId = null;
-            _dialogError = null;
-        }
+        // Removing the dialog also removes its native modal backdrop. Change the state before
+        // yielding so a render during a save/delete cannot reopen an empty dialog after close().
+        _dialogKind = DialogKind.None;
+        _targetId = null;
+        _dialogError = null;
+        return Task.CompletedTask;
     }
 
     private Task OnDialogKeyAsync(KeyboardEventArgs args) =>

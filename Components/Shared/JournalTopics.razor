@@ -6,7 +6,7 @@
 
 <div class="topic-workspace">
     <div class="topic-toolbar">
-        <p>Una devolución por tema, conectando lo que aparece en tus entradas.</p>
+        <p>Una devolución por tema, conectando tus entradas con lo que venís sintiendo.</p>
         <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@(_busy || _loading || !Analyzer.IsConfigured || !RendererInfo.IsInteractive)">
             <Icon Name="spark" Size="18" /> @(_state.Snapshot is null ? "Generar devolución" : "Actualizar devolución")
         </button>
@@ -15,7 +15,7 @@
     {
         <p class="topic-scope">Al generar o actualizar, los textos se envían a OpenAI para preparar la devolución. <a href="privacidad">Ver privacidad</a>.</p>
     }
-    <p class="topic-scope">Usa los textos de todas tus entradas y el texto disponible de los documentos. Las fotos se analizan al pedir una devolución individual.</p>
+    <p class="topic-scope">Incluye tus entradas y documentos, con todas tus notitas y el contexto del perfil como un hilo que puede atravesar distintos temas. Las fotos se analizan al pedir una devolución individual.</p>
     @if (!Analyzer.IsConfigured)
     {
         <p class="journal-alert" role="status">La IA está desactivada. Podés consultar la última devolución guardada.</p>
@@ -36,9 +36,24 @@
         <div class="topic-summary">
             <p><strong>@snapshot.Topics.Count @(snapshot.Topics.Count == 1 ? "tema" : "temas")</strong> · Actualizado el @Date(snapshot.GeneratedUtc), @Local(snapshot.GeneratedUtc).ToString("HH:mm")</p>
             <p>Texto disponible en @snapshot.TextEntryCount de @snapshot.EntryCount entradas · @snapshot.DocumentCount @(snapshot.DocumentCount == 1 ? "documento" : "documentos") con texto.</p>
+            @if (snapshot.NoteCount > 0 || snapshot.HasPersonalContext)
+            {
+                <p>Contexto adicional: @snapshot.NoteCount @(snapshot.NoteCount == 1 ? "notita" : "notitas")@(snapshot.HasPersonalContext ? " y tu contexto personal del perfil" : "").</p>
+            }
             @if (snapshot.UnreadAttachmentCount > 0) { <p>@snapshot.UnreadAttachmentCount adjuntos sin texto disponible no participaron de este análisis.</p> }
-            @if (_state.IsOutdated) { <p class="topic-outdated"><Icon Name="info" Size="16" /> Hay cambios en tu cuaderno desde esta devolución. Actualizala para incluirlos.</p> }
+            @if (_state.IsOutdated) { <p class="topic-outdated"><Icon Name="info" Size="16" /> Hay cambios en tu cuaderno o en el contexto del análisis. Actualizá la devolución para incluirlos.</p> }
         </div>
+        @if (snapshot.AdditionalContext is { Count: > 0 } additionalContext)
+        {
+            <details class="topic-evidence">
+                <summary>Ver contexto adicional considerado</summary>
+                <p class="topic-scope">Estos fragmentos vienen de tus notitas y del perfil. Se consideraron como contexto del conjunto, sin asignarlos a una entrada ni suponer que explican todos los temas.</p>
+                @foreach (var context in additionalContext)
+                {
+                    <figure><figcaption>@context.Label@if (context.CreatedUtc is { } date) { <span> · @Date(date)</span> }</figcaption><blockquote class="preserved-text">@context.Excerpt</blockquote></figure>
+                }
+            </details>
+        }
         @if (snapshot.Topics.Count == 0)
         {
             <div class="blank-journal blank-small"><h2>Todavía no surgieron temas claros.</h2><p>Podés seguir escribiendo y volver a intentarlo más adelante.</p></div>
@@ -52,9 +67,9 @@
             <div class="topic-list">
                 @foreach (var topic in snapshot.Topics)
                 {
-                    var entryCount = topic.Evidence.Select(e => e.EntryId).Distinct().Count();
+                    var entryCount = topic.Evidence.Where(e => e.EntryId.HasValue).Select(e => e.EntryId).Distinct().Count();
                     <article class="topic-card" id="@($"tema-{topic.Id}")" @key="topic.Id">
-                        <header><span class="eyebrow"><Icon Name="spark" Size="15" /> UN TEMA DE TU CUADERNO</span><h2>@topic.Title</h2><p>@entryCount @(entryCount == 1 ? "entrada relacionada" : "entradas relacionadas")</p></header>
+                        <header><span class="eyebrow"><Icon Name="spark" Size="15" /> UN TEMA DE TU CUADERNO</span><h2>@topic.Title</h2><p>@(entryCount > 0 ? $"{entryCount} {(entryCount == 1 ? "entrada relacionada" : "entradas relacionadas")}" : "Desde tus notitas y tu contexto personal")</p></header>
                         <p class="preserved-text">@topic.Overview</p>
                         @if (topic.Questions.Count > 0)
                         {
@@ -64,7 +79,7 @@
                             <summary>Ver fragmentos de apoyo (@topic.Evidence.Count)</summary>
                             @foreach (var evidence in topic.Evidence)
                             {
-                                <figure><figcaption><time datetime="@evidence.CreatedUtc.ToString("O")">@Date(evidence.CreatedUtc)</time> · @evidence.Label</figcaption><blockquote class="preserved-text">@evidence.Excerpt</blockquote></figure>
+                                <figure><figcaption>@evidence.Label@if (evidence.CreatedUtc is { } date) { <span> · <time datetime="@date.ToString("O")">@Date(date)</time></span> }</figcaption><blockquote class="preserved-text">@evidence.Excerpt</blockquote></figure>
                             }
                         </details>
                     </article>
@@ -81,10 +96,12 @@
 @code {
     [Parameter, EditorRequired] public string UserId { get; set; } = "";
     [Parameter] public bool Active { get; set; }
+    [Parameter] public int ContextRevision { get; set; }
     private JournalTopicState _state = new(null, false);
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _generation;
     private bool _wasActive, _busy, _loading, _disposed;
+    private int _seenContextRevision = -1;
     private string? _error, _message;
     private string _progress = "Preparando el cuaderno…";
 
@@ -92,7 +109,8 @@
     {
         var opening = Active && !_wasActive;
         _wasActive = Active;
-        if (!opening || _busy) return;
+        if (!Active || (!opening && ContextRevision == _seenContextRevision) || _busy) return;
+        _seenContextRevision = ContextRevision;
         _loading = true;
         try { _state = await Topics.GetAsync(UserId, _lifetime.Token); _error = null; }
         catch (OperationCanceledException) when (_disposed) { }

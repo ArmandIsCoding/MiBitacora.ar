@@ -337,7 +337,7 @@
                     }
                 }
                 <section hidden="@(_section != WorkspaceSection.Topics)" aria-label="Devolución por temas">
-                    <JournalTopics UserId="@_userId" Active="@(_section == WorkspaceSection.Topics)" />
+                    <JournalTopics UserId="@_userId" Active="@(_section == WorkspaceSection.Topics)" ContextRevision="@_contextRevision" />
                 </section>
             </main>
 
@@ -366,9 +366,9 @@
     }
 </div>
 
-<dialog class="journal-dialog @(_dialogKind == DialogKind.Note ? "note-dialog" : "")" @ref="_dialog" aria-labelledby="dialog-title" @onkeydown="OnDialogKeyAsync">
-    @if (_dialogKind != DialogKind.None)
-    {
+@if (_dialogKind != DialogKind.None)
+{
+    <dialog class="journal-dialog @(_dialogKind == DialogKind.Note ? "note-dialog" : "")" @ref="_dialog" aria-labelledby="dialog-title" @onkeydown="OnDialogKeyAsync">
         <div class="dialog-inner">
             <button class="icon-button dialog-close" type="button" aria-label="Cerrar" @onclick="CloseDialogAsync" disabled="@_busy"><Icon Name="x" Size="21" /></button>
             @if (_dialogKind == DialogKind.Note)
@@ -399,5 +399,5 @@
                 <p class="entry-error" role="alert">@_dialogError</p>
             }
         </div>
-    }
-</dialog>
+    </dialog>
+}
