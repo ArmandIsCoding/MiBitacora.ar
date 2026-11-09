@@ -44,7 +44,7 @@ internal static class AttachmentExtractor
     }
 
     public static bool CanAnalyzeLocally(string type) =>
-        type is "image/jpeg" or "image/png" or "image/webp";
+        type is "image/jpeg" or "image/png" or "image/webp" or "image/heic" or "image/heif";
 
     public static AttachmentAnalysis Analyze(string name, byte[] content, CancellationToken cancellationToken)
     {

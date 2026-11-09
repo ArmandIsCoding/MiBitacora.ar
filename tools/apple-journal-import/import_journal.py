@@ -288,6 +288,7 @@ def replace_journal(plan, database, uploads, account, backups):
         committed = True
         for identifier in old_ids:
             confined(account_dir, account_dir / (str(uuid.UUID(identifier)) + ".bin")).unlink(missing_ok=True)
+            confined(account_dir, account_dir / (str(uuid.UUID(identifier)) + ".jpg")).unlink(missing_ok=True)
         return {**summary(plan), "replacedEntries": old_entries, "replacedNotes": old_notes,
                 "backup": str(backup_dir), "verified": True}
     finally:

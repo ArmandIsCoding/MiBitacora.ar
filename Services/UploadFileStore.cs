@@ -26,9 +26,9 @@ public sealed class UploadFileStore(string rootPath, ILogger<UploadFileStore> lo
         return path;
     }
 
-    private string FilePath(string userId, Guid attachmentId)
+    private string FilePath(string userId, Guid attachmentId, string extension = ".bin")
     {
-        var path = Path.Combine(AccountPath(userId), $"{attachmentId:D}.bin");
+        var path = Path.Combine(AccountPath(userId), $"{attachmentId:D}{extension}");
         RejectLink(path);
         return path;
     }
@@ -40,10 +40,16 @@ public sealed class UploadFileStore(string rootPath, ILogger<UploadFileStore> lo
             throw new IOException("La carpeta de uploads no admite enlaces simbólicos.");
     }
 
-    public async Task WriteAsync(string userId, Guid attachmentId, byte[] content,
-        CancellationToken cancellationToken = default)
+    public Task WriteAsync(string userId, Guid attachmentId, byte[] content,
+        CancellationToken cancellationToken = default) =>
+        WriteFileAsync(FilePath(userId, attachmentId), content, cancellationToken);
+
+    public Task WriteJpegAsync(string userId, Guid attachmentId, byte[] content,
+        CancellationToken cancellationToken = default) =>
+        WriteFileAsync(FilePath(userId, attachmentId, ".jpg"), content, cancellationToken);
+
+    private async Task WriteFileAsync(string path, byte[] content, CancellationToken cancellationToken)
     {
-        var path = FilePath(userId, attachmentId);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temporary = path + ".tmp";
         TryDelete(temporary); // Retry a write interrupted before the atomic rename.
@@ -63,11 +69,15 @@ public sealed class UploadFileStore(string rootPath, ILogger<UploadFileStore> lo
         }
     }
 
-    public FileStream? OpenRead(string userId, Guid attachmentId)
+    public FileStream? OpenRead(string userId, Guid attachmentId) => OpenFile(FilePath(userId, attachmentId));
+
+    public FileStream? OpenJpeg(string userId, Guid attachmentId) => OpenFile(FilePath(userId, attachmentId, ".jpg"));
+
+    private static FileStream? OpenFile(string path)
     {
         try
         {
-            return new FileStream(FilePath(userId, attachmentId), FileMode.Open, FileAccess.Read,
+            return new FileStream(path, FileMode.Open, FileAccess.Read,
                 FileShare.Read | FileShare.Delete, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
         }
         catch (FileNotFoundException) { return null; }
@@ -76,7 +86,11 @@ public sealed class UploadFileStore(string rootPath, ILogger<UploadFileStore> lo
 
     public void Delete(string userId, IEnumerable<Guid> attachmentIds)
     {
-        foreach (var id in attachmentIds) TryDelete(FilePath(userId, id));
+        foreach (var id in attachmentIds)
+        {
+            TryDelete(FilePath(userId, id));
+            TryDelete(FilePath(userId, id, ".jpg"));
+        }
         DeleteEmptyDirectory(AccountPath(userId));
     }
 
@@ -97,7 +111,7 @@ public sealed class UploadFileStore(string rootPath, ILogger<UploadFileStore> lo
         RejectLink(root);
         var originals = await db.JournalAttachments
             .Select(row => new { row.Id, row.Entry.UserId }).ToListAsync(cancellationToken);
-        var keep = originals.Select(row => FilePath(row.UserId, row.Id))
+        var keep = originals.SelectMany(row => new[] { FilePath(row.UserId, row.Id), FilePath(row.UserId, row.Id, ".jpg") })
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var directory in Directory.EnumerateDirectories(root))
         {
@@ -108,9 +122,9 @@ public sealed class UploadFileStore(string rootPath, ILogger<UploadFileStore> lo
             {
                 // Only remove names created by this store.
                 var name = Path.GetFileName(path);
-                if (name.EndsWith(".bin.tmp", StringComparison.Ordinal)
+                if ((name.EndsWith(".bin.tmp", StringComparison.Ordinal) || name.EndsWith(".jpg.tmp", StringComparison.Ordinal))
                     && Guid.TryParseExact(name[..^8], "D", out _)) TryDelete(path);
-                else if (name.EndsWith(".bin", StringComparison.Ordinal)
+                else if ((name.EndsWith(".bin", StringComparison.Ordinal) || name.EndsWith(".jpg", StringComparison.Ordinal))
                     && Guid.TryParseExact(name[..^4], "D", out _) && !keep.Contains(path)) TryDelete(path);
             }
             DeleteEmptyDirectory(directory);

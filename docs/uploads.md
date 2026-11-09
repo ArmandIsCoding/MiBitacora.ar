@@ -8,11 +8,14 @@ C:\Dev\MiBitacora\
   uploads\
     d2aceee6-64e8-4cb4-89b1-31797ef10478\
       <UUID del adjunto>.bin
+      <UUID del adjunto>.jpg   # Copia de visualización, solo para HEIC/HEIF
 ```
 
 La carpeta de cada cuenta se crea cuando recibe su primer archivo. El nombre físico se genera en el servidor; el nombre original, tipo de contenido, tamaño, orden y texto extraído se conservan en SQLite. Dos archivos con el mismo nombre pueden convivir. `.bin` conserva los bytes originales, sin convertirlos: las descargas recuperan el nombre y el tipo apropiados desde los metadatos.
 
 `uploads` está fuera de `wwwroot`: no es una URL pública ni debe mapearse como contenido estático en IIS o un proxy. Las descargas y vistas previas siguen pasando por `/adjuntos/{id}` y `/adjuntos/{id}/vista`, con autenticación, comprobación de propietario y `private, no-store`. Los archivos se transmiten desde disco; solo se cargan en memoria las imágenes seleccionadas para el contexto de Ollama. El servicio rechaza rutas de cuenta que no sean UUID y enlaces simbólicos en las carpetas de uploads.
+
+Para fotos HEIC/HEIF, la vista previa y Ollama usan [una copia JPG local](heic-jpg.md). La descarga mantiene el original. La copia no agrega otro adjunto a la entrada ni altera el tamaño registrado del original; ocupa espacio adicional en disco y se incluye en los respaldos de `uploads`. Borrar una entrada o cuenta elimina también sus JPG. La limpieza inicial conserva las copias de adjuntos vigentes y borra las huérfanas.
 
 ## Límites y borrado
 

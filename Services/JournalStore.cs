@@ -9,7 +9,7 @@ using MiBitacora.Data;
 namespace MiBitacora.Services;
 
 public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext> factory, UploadFileStore uploads,
-    IOptions<JournalStorageOptions>? storageOptions = null) : IJournalStore
+    IOptions<JournalStorageOptions>? storageOptions = null, HeicImageService? imageService = null) : IJournalStore
 {
     public const int MaxFileBytes = 8 * 1024 * 1024;
     public const int MaxEntryAttachmentBytes = 16 * 1024 * 1024;
@@ -19,6 +19,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     public const int MaxPersonalContextLength = 3_000;
 
     private readonly JournalStorageOptions storage = storageOptions?.Value ?? new();
+    private readonly HeicImageService images = imageService ?? new(uploads);
     private const int MaxNotes = 500;
     private const int ContextAttachmentChars = 24_000;
     private const int ContextMediaBytes = 10 * 1024 * 1024;
@@ -314,6 +315,26 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         return stream is null ? null : new AttachmentContent(metadata.FileName, metadata.ContentType, stream);
     }
 
+    public async Task<AttachmentContent?> GetAttachmentPreviewAsync(string userId, Guid attachmentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var file = await db.JournalAttachments.Where(row => row.Id == attachmentId && row.Entry.UserId == userId)
+            .Select(row => new { row.FileName, row.ContentType }).SingleOrDefaultAsync(cancellationToken);
+        if (file is null || !HeicImageService.HasPreview(file.ContentType)) return null;
+        if (!HeicImageService.IsHeic(file.ContentType))
+        {
+            var original = uploads.OpenRead(userId, attachmentId);
+            return original is null ? null : new AttachmentContent(file.FileName, file.ContentType, original);
+        }
+        try
+        {
+            var jpeg = await images.OpenJpegAsync(userId, attachmentId, cancellationToken);
+            return jpeg is null ? null : new AttachmentContent(Path.ChangeExtension(file.FileName, ".jpg"), "image/jpeg", jpeg);
+        }
+        catch (JournalInputException) { return null; }
+    }
+
     private static async Task<List<JournalEntry>> FindHistoryAsync(IQueryable<JournalEntryRow> earlier, string[] terms,
         CancellationToken cancellationToken)
     {
@@ -349,17 +370,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         IReadOnlyList<JournalAttachment> attachments, CancellationToken cancellationToken)
     {
         var remaining = ContextMediaBytes;
-        var selected = new List<Guid>();
-        foreach (var attachment in attachments)
-        {
-            if (selected.Count == 3) break;
-            if (attachment.Size <= remaining && AttachmentExtractor.CanAnalyzeLocally(attachment.ContentType))
-            {
-                remaining -= (int)attachment.Size;
-                selected.Add(attachment.Id);
-            }
-        }
-
+        var selected = attachments.Where(file => AttachmentExtractor.CanAnalyzeLocally(file.ContentType))
+            .Select(file => file.Id).ToList();
         if (selected.Count == 0) return [];
         var metadata = await db.JournalAttachments
             .Where(row => selected.Contains(row.Id) && row.Entry.UserId == userId)
@@ -368,12 +380,24 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         var media = new List<JournalMediaFile>();
         foreach (var file in metadata.OrderBy(file => selected.IndexOf(file.Id)))
         {
-            await using var stream = uploads.OpenRead(userId, file.Id);
-            if (stream is null || stream.Length != file.Size || stream.Length > MaxFileBytes)
+            if (media.Count == 3) break;
+            var heic = HeicImageService.IsHeic(file.ContentType);
+            Stream? source;
+            if (heic)
+            {
+                try { source = await images.OpenJpegAsync(userId, file.Id, cancellationToken); }
+                catch (JournalInputException) { continue; } // Reported as an unread attachment by the reflector.
+            }
+            else source = uploads.OpenRead(userId, file.Id);
+            await using var stream = source;
+            if (stream is null || (!heic && stream.Length != file.Size))
                 throw new JournalInputException("No pudimos leer una imagen adjunta. Revisá los archivos del servidor.");
+            if (stream.Length > MaxFileBytes || stream.Length > remaining) continue;
             var content = new byte[(int)stream.Length];
             await stream.ReadExactlyAsync(content, cancellationToken);
-            media.Add(new JournalMediaFile(file.Id, file.FileName, file.ContentType, content));
+            remaining -= content.Length;
+            media.Add(new JournalMediaFile(file.Id, heic ? Path.ChangeExtension(file.FileName, ".jpg") : file.FileName,
+                HeicImageService.AnalysisContentType(file.ContentType), content));
         }
         return media.ToArray();
     }

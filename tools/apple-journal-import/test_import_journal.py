@@ -94,6 +94,21 @@ class ImportTests(unittest.TestCase):
             self.assertEqual(db.execute("SELECT Text FROM JournalEntries WHERE Id='old'").fetchone()[0], "prueba")
         self.assertEqual(list((self.uploads / self.account).glob("*.bin")), [])
 
+    def test_replacement_removes_old_original_and_jpeg(self):
+        old_file = str(uuid.uuid4())
+        directory = self.uploads / self.account
+        directory.mkdir(parents=True)
+        (directory / (old_file + ".bin")).write_bytes(b"old original")
+        (directory / (old_file + ".jpg")).write_bytes(b"old jpeg")
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("INSERT INTO JournalAttachments VALUES (?,'old',0,'old.heic','image/heic',12,'',NULL,'')", (old_file.upper(),))
+        result = replace_journal(inspect_export(self.source), self.database, self.uploads, self.account, self.root / "backups")
+        self.assertFalse((directory / (old_file + ".bin")).exists())
+        self.assertFalse((directory / (old_file + ".jpg")).exists())
+        backup = Path(result["backup"]) / "uploads" / self.account
+        self.assertEqual((backup / (old_file + ".bin")).read_bytes(), b"old original")
+        self.assertEqual((backup / (old_file + ".jpg")).read_bytes(), b"old jpeg")
+
     def test_unassigned_file_blocks_replacement(self):
         (self.source / "Resources" / "unassigned.png").write_bytes(b"unassigned")
         plan = inspect_export(self.source)

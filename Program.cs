@@ -8,7 +8,8 @@ using MiBitacora.Components.Account;
 using MiBitacora.Data;
 using MiBitacora.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+var prepareImages = args.Contains("--prepare-local-images", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(args.Where(arg => arg != "--prepare-local-images").ToArray());
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
@@ -48,6 +49,7 @@ builder.Services.AddSingleton(provider => new UploadFileStore(
     Path.Combine(builder.Environment.ContentRootPath, "uploads"),
     provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddSingleton<HeicImageService>();
 builder.Services.AddOptions<JournalStorageOptions>()
     .Bind(builder.Configuration.GetSection("Journal"))
     .Validate(options => options.MaxAccountAttachmentBytes > 0 && options.MaxAccountFiles > 0,
@@ -103,6 +105,30 @@ await using (var scope = app.Services.CreateAsyncScope())
     await db.Database.MigrateAsync();
     if (exported) await db.Database.ExecuteSqlRawAsync("VACUUM;");
     await uploads.CleanupOrphansAsync(db);
+}
+
+if (prepareImages)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var images = scope.ServiceProvider.GetRequiredService<HeicImageService>();
+    var originals = await db.JournalAttachments.Where(row => row.ContentType == "image/heic" || row.ContentType == "image/heif")
+        .Select(row => new { row.Id, row.Entry.UserId }).ToListAsync();
+    var prepared = 0;
+    foreach (var original in originals)
+    {
+        try
+        {
+            await using var jpeg = await images.OpenJpegAsync(original.UserId, original.Id);
+            if (jpeg is not null) prepared++;
+        }
+        catch (JournalInputException) { /* Original retained; the converter logs the failure. */ }
+        if (prepared % 10 == 0) Console.WriteLine($"Copias JPG preparadas: {prepared}/{originals.Count}");
+    }
+    Console.WriteLine($"Resultado: {prepared}/{originals.Count} fotos disponibles como JPG; originales conservados.");
+    Environment.ExitCode = prepared == originals.Count ? 0 : 1;
+    await app.DisposeAsync();
+    return;
 }
 
 if (!app.Environment.IsDevelopment())
@@ -168,7 +194,7 @@ static async Task<IResult> PreviewAttachment(
         return Results.Unauthorized();
     }
 
-    var file = await store.GetAttachmentAsync(userId, id, cancellationToken);
+    var file = await store.GetAttachmentPreviewAsync(userId, id, cancellationToken);
     if (file?.ContentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/avif"))
     {
         if (file is not null) await file.Content.DisposeAsync();

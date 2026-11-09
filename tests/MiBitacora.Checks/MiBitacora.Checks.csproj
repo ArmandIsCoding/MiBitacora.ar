@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../../MiBitacora.csproj" />
     <None Include="../Fixtures/red-square.png" Link="red-square.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Fixtures/oriented-colors.heic" Link="oriented-colors.heic" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

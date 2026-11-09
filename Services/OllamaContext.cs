@@ -70,7 +70,7 @@ public sealed partial class OllamaJournalService
                 binary.Content.Length > 0 &&
                 binary.Content.Length <= InlineByteBudget - binaryBytes &&
                 InlineTypes.Contains(binary.ContentType) &&
-                string.Equals(file.ContentType, binary.ContentType, StringComparison.OrdinalIgnoreCase))
+                string.Equals(HeicImageService.AnalysisContentType(file.ContentType), binary.ContentType, StringComparison.OrdinalIgnoreCase))
             {
                 images.Add(Convert.ToBase64String(binary.Content));
                 binaryBytes += binary.Content.Length;

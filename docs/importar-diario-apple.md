@@ -34,7 +34,7 @@ El importador no aplica los límites de 8 MiB por archivo y 16 MiB por entrada d
 
 La exportación HTML contiene el día, pero no una hora de creación de la entrada. Se conserva el día y se marca `IsDateOnly`. Internamente se usa el mediodía de Buenos Aires (UTC−03:00), con diferencias de microsegundos para ordenar entradas del mismo día según el índice; esa hora técnica no se muestra como hora original. El calendario y la paginación siguen funcionando.
 
-Los archivos se conservan sin recomprimir ni convertir. JPEG y PNG pueden verse y usarse con la IA local. HEIC/HEIF, videos y otros formatos no admitidos por el análisis quedan disponibles como originales descargables. La importación no amplía los formatos que entiende Ollama.
+Los archivos originales se conservan sin recomprimir ni modificar. JPEG y PNG pueden verse y usarse con la IA local. Para HEIC/HEIF, la aplicación prepara copias JPG al abrir la vista previa o pedir una devolución. También podés [preparar todos los JPG de antemano](heic-jpg.md) después de importar. Videos y otros formatos no admitidos por el análisis quedan disponibles como originales descargables.
 
 ## Restaurar y verificar
 

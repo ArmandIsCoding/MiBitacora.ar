@@ -99,7 +99,20 @@ await first;
 await Service(queueClient, queueGate).ReflectAsync(context, true);
 Check(calls == 2, "La cancelación libera correctamente la cola");
 
-await StorageChecks.RunAsync(image, Check);
+var heicContext = await StorageChecks.RunAsync(image, Check);
+await service.ReflectAsync(heicContext, true);
+Check(requestBody!.Value.GetProperty("messages")[1].GetProperty("images")[0].GetString()
+    == Convert.ToBase64String(heicContext.Media.Single().Content), "La solicitud a Ollama incluye el JPG derivado del HEIC");
+
+if (args.Contains("--live-heic"))
+{
+    using var localClient = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan };
+    var timer = Stopwatch.StartNew();
+    var visual = await Service(localClient, gate).ReflectAsync(heicContext, true);
+    var response = JsonSerializer.Serialize(visual);
+    Check(!visual.IsDemo && response.Contains("rojo", StringComparison.OrdinalIgnoreCase) && response.Contains("verde", StringComparison.OrdinalIgnoreCase),
+        $"Modelo real: reconoce los colores de un HEIC sintético convertido a JPG ({timer.Elapsed.TotalSeconds:F1} s)");
+}
 
 if (args.Contains("--live"))
 {

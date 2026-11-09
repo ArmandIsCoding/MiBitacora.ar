@@ -75,6 +75,7 @@ public interface IJournalStore
     Task<IReadOnlyList<JournalEntry>> GetSessionEntriesAsync(string userId, CancellationToken cancellationToken = default);
     Task<JournalContext> GetContextAsync(string userId, Guid entryId, bool includeMedia, CancellationToken cancellationToken = default);
     Task<AttachmentContent?> GetAttachmentAsync(string userId, Guid attachmentId, CancellationToken cancellationToken = default);
+    Task<AttachmentContent?> GetAttachmentPreviewAsync(string userId, Guid attachmentId, CancellationToken cancellationToken = default);
 }
 
 

@@ -605,13 +605,14 @@ public partial class Bitacora : IAsyncDisposable
         bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.0} MB" : $"{Math.Max(1, bytes / 1024d):0} KB";
 
     private static string AttachmentStatus(JournalAttachment file) =>
+        HeicImageService.IsHeic(file.ContentType) ? "Vista JPG · original conservado" :
         file.ExtractionStatus.Contains("Gemini", StringComparison.Ordinal)
             ? (AttachmentExtractor.CanAnalyzeLocally(file.ContentType)
                 ? "Disponible para analizar localmente" : "Guardado · formato sin análisis visual")
             : file.ExtractionStatus;
 
     private static bool HasPreview(JournalAttachment file) =>
-        file.ContentType is "image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/avif";
+        HeicImageService.HasPreview(file.ContentType);
 
     private static string AttachmentUrl(Guid id) => $"/adjuntos/{id}";
 

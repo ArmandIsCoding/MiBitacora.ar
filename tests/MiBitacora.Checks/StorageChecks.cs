@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ImageMagick;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -12,15 +13,15 @@ using MiBitacora.Services;
 
 internal static class StorageChecks
 {
-    public static async Task RunAsync(byte[] image, Action<bool, string> check)
+    public static async Task<JournalContext> RunAsync(byte[] image, Action<bool, string> check)
     {
         var temporary = Path.Combine(Path.GetTempPath(), $"mibitacora-storage-{Guid.NewGuid():N}");
         Directory.CreateDirectory(temporary);
-        try { await VerifyAsync(temporary, image, check); }
+        try { return await VerifyAsync(temporary, image, check); }
         finally { Directory.Delete(temporary, recursive: true); }
     }
 
-    private static async Task VerifyAsync(string temporary, byte[] image, Action<bool, string> check)
+    private static async Task<JournalContext> VerifyAsync(string temporary, byte[] image, Action<bool, string> check)
     {
         var aId = Guid.NewGuid().ToString("D");
         var bId = Guid.NewGuid().ToString("D");
@@ -132,11 +133,65 @@ internal static class StorageChecks
         check(Directory.GetFiles(Path.Combine(root, aId)).Length == 12, "El arranque limpia escrituras huérfanas sin tocar adjuntos válidos");
         await store.DeleteEntryAsync(aId, a.Id);
         check(!Directory.Exists(Path.Combine(root, aId)), "Borrar una entrada elimina sus originales y la carpeta vacía");
+
+        var heic = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "oriented-colors.heic"));
+        var photoEntry = await store.AddEntryAsync(bId, "Describí la figura y sus colores en la imagen adjunta.", [new("colores.heic", heic)]);
+        var photo = photoEntry.Attachments.Single();
+        var jpegPath = Path.Combine(root, bId, $"{photo.Id:D}.jpg");
+        check(await store.GetAttachmentPreviewAsync(aId, photo.Id) is null && !File.Exists(jpegPath),
+            "La vista HEIC verifica al propietario antes de generar el JPG");
+        var previews = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => store.GetAttachmentPreviewAsync(bId, photo.Id)));
+        foreach (var preview in previews)
+        {
+            check(preview?.ContentType == "image/jpeg", "La vista previa devuelve JPEG");
+            await preview!.Content.DisposeAsync();
+        }
+        using (var converted = new MagickImage(jpegPath))
+        {
+            check(converted.Width == 240 && converted.Height == 320 && converted.GetExifProfile() is null,
+                "La conversión respeta la orientación y no copia EXIF al JPG");
+            using var pixels = converted.GetPixels();
+            var top = pixels.GetPixel(20, 20).ToColor()!;
+            var bottom = pixels.GetPixel(20, 300).ToColor()!;
+            check(top.G > 200 && top.R < 30 && bottom.R > 200 && bottom.G < 30,
+                "Los colores y su posición se conservan en el JPG");
+        }
+        var original = await store.GetAttachmentAsync(bId, photo.Id);
+        await using (var stream = original!.Content)
+        {
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            check(original.ContentType == "image/heic" && buffer.ToArray().SequenceEqual(heic),
+                "La descarga mantiene el HEIC original byte por byte");
+        }
+        var heicContext = await store.GetContextAsync(bId, photoEntry.Id, true);
+        var analysisImage = heicContext.Media.Single(file => file.AttachmentId == photo.Id);
+        var savedJpeg = await File.ReadAllBytesAsync(jpegPath);
+        check(analysisImage.ContentType == "image/jpeg" && analysisImage.Content.SequenceEqual(savedJpeg),
+            "Ollama recibe la copia JPG del mismo adjunto HEIC");
+        var orphanPreview = Path.Combine(root, bId, $"{Guid.NewGuid():D}.jpg");
+        await File.WriteAllBytesAsync(orphanPreview, analysisImage.Content);
+        await using (var db = await factory.CreateDbContextAsync()) await uploads.CleanupOrphansAsync(db);
+        check(File.Exists(jpegPath) && !File.Exists(orphanPreview), "La limpieza conserva vistas válidas y elimina JPG huérfanos");
+        await store.DeleteEntryAsync(bId, photoEntry.Id);
+        check(!File.Exists(jpegPath) && !File.Exists(Path.Combine(root, bId, $"{photo.Id:D}.bin")),
+            "Borrar una entrada elimina el original y su copia JPG");
+        var broken = await store.AddEntryAsync(bId, "Archivo inválido", [new("roto.heic", heic[..32])]);
+        check(await store.GetAttachmentPreviewAsync(bId, broken.Attachments.Single().Id) is null,
+            "Un HEIC inválido conserva el original y no publica un JPG incompleto");
+        var brokenContext = await store.GetContextAsync(bId, broken.Id, true);
+        check(brokenContext.Media.All(file => file.AttachmentId != broken.Attachments.Single().Id),
+            "Una imagen que no se puede convertir queda fuera del análisis");
+        // Include a regenerated JPEG in the account-deletion check.
+        var another = await store.AddEntryAsync(bId, "Otra foto", [new("otra.heic", heic)]);
+        var anotherPreview = await store.GetAttachmentPreviewAsync(bId, another.Attachments.Single().Id);
+        await anotherPreview!.Content.DisposeAsync();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var deletion = await scope.ServiceProvider.GetRequiredService<AccountDeletionService>().DeleteAsync((await users.FindByIdAsync(bId))!);
         check(deletion.Succeeded && !Directory.Exists(Path.Combine(root, bId)) && (await store.GetEntriesAsync(bId)).Count == 0,
             "Borrar una cuenta elimina sus originales y todos sus registros");
         try { await store.AddEntryAsync(bId, "Sesión vieja", [new("x.png", image)]); throw new Exception("Se recreó la cuenta borrada"); }
         catch (DbUpdateException) { check(!Directory.Exists(Path.Combine(root, bId)), "Una sesión anterior no puede recrear archivos de una cuenta borrada"); }
+        return heicContext with { History = [], Attachments = photoEntry.Attachments, Media = [analysisImage] };
     }
 }
