@@ -52,7 +52,7 @@ public interface IJournalReflector
 
     Task<JournalReflection> ReflectAsync(
         JournalContext context,
-        bool sendToGemini,
+        bool useAi,
         CancellationToken cancellationToken = default);
 }
 

@@ -5,15 +5,15 @@ using System.Text.RegularExpressions;
 
 namespace MiBitacora.Services;
 
-public sealed partial class GeminiJournalService
+public sealed partial class OllamaJournalService
 {
-    // Base64 expands the input by about a third. Leave space below Gemini's 20 MB inline request limit.
+    // Limit image payload and selected text for the pilot's 8192-token context.
     private const int InlineByteBudget = 12 * 1024 * 1024;
-    private const int InlineFileLimit = 3;
+    private const int InlineFileLimit = 2;
 
     private static readonly HashSet<string> InlineTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"
+        "image/jpeg", "image/png", "image/webp"
     };
 
     private static readonly HashSet<string> CommonWords = new(StringComparer.Ordinal)
@@ -28,12 +28,13 @@ public sealed partial class GeminiJournalService
     private static readonly Regex TermPattern = new(
         @"[\p{L}\p{N}]{4,}", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
-    private static GeminiEvidence BuildEvidence(JournalContext context)
+    private static OllamaEvidence BuildEvidence(JournalContext context)
     {
         var sources = new Dictionary<string, EvidenceSource>(StringComparer.Ordinal);
         var promptSources = new List<PromptSource>();
-        var inlineParts = new List<object>();
-        var currentText = Excerpt(context.Current.Text, 12_000);
+        var images = new List<string>();
+        var remainingText = 6500;
+        var currentText = Excerpt(context.Current.Text, 3000);
 
         AddSource("actual", "entrada actual", "Tu entrada actual", currentText);
 
@@ -44,24 +45,6 @@ public sealed partial class GeminiJournalService
             searchTerms.UnionWith(Terms(Excerpt(file.ExtractedText, 800)));
         }
 
-        var entries = context.History
-            .Where(entry => entry.Id != context.Current.Id)
-            .OrderByDescending(entry => entry.CreatedUtc)
-            .ToArray();
-        foreach (var entry in Prioritize(entries, searchTerms, entry => entry.Text, keepRecent: 3, limit: 9))
-        {
-            var label = DateLabel("Entrada", entry.CreatedUtc);
-            AddSource($"entrada{promptSources.Count}", "entrada previa", label, Excerpt(entry.Text, 1150),
-                priorResponse: Excerpt(entry.Reflection?.Overview, 450));
-        }
-
-        var notes = context.Notes.OrderByDescending(note => note.CreatedUtc).ToArray();
-        foreach (var note in Prioritize(notes, searchTerms, note => note.Text, keepRecent: 2, limit: 6))
-        {
-            var label = DateLabel("Notita", note.CreatedUtc);
-            AddSource($"notita{promptSources.Count}", "notita", label, Excerpt(note.Text, 1100));
-        }
-
         var currentAttachments = context.Current.Attachments;
         var currentIds = currentAttachments.Select(file => file.Id).ToHashSet();
         var previousAttachments = context.Attachments
@@ -69,7 +52,7 @@ public sealed partial class GeminiJournalService
             .DistinctBy(file => file.Id)
             .ToArray();
         var selectedAttachments = currentAttachments.Concat(Prioritize(previousAttachments, searchTerms,
-            file => $"{file.FileName} {Excerpt(file.ExtractedText, 1800)}", keepRecent: 2, limit: 6));
+            file => $"{file.FileName} {Excerpt(file.ExtractedText, 1800)}", keepRecent: 1, limit: 2));
 
         var binaryBytes = 0;
         var binaryFiles = 0;
@@ -79,7 +62,7 @@ public sealed partial class GeminiJournalService
         {
             var isCurrent = currentIds.Contains(file.Id);
             var id = $"archivo{promptSources.Count}";
-            var text = Excerpt(file.ExtractedText, isCurrent ? 3900 : 1500);
+            var text = Excerpt(file.ExtractedText, isCurrent ? 1000 : 400);
             var hasInlineContent = false;
             if (text.Length == 0 &&
                 binaryFiles < InlineFileLimit &&
@@ -89,42 +72,46 @@ public sealed partial class GeminiJournalService
                 InlineTypes.Contains(binary.ContentType) &&
                 string.Equals(file.ContentType, binary.ContentType, StringComparison.OrdinalIgnoreCase))
             {
-                inlineParts.Add(new { text = $"Contenido adjunto de la fuente {id}." });
-                inlineParts.Add(new
-                {
-                    inlineData = new
-                    {
-                        mimeType = binary.ContentType,
-                        data = Convert.ToBase64String(binary.Content)
-                    }
-                });
+                images.Add(Convert.ToBase64String(binary.Content));
                 binaryBytes += binary.Content.Length;
                 binaryFiles++;
                 hasInlineContent = true;
             }
 
-            if (isCurrent && !hasInlineContent && text.Length == 0)
-            {
-                unreadCurrentAttachments++;
-            }
-
             var label = $"Archivo «{Excerpt(file.FileName, 150)}»";
-            AddSource(id, isCurrent ? "adjunto actual" : "adjunto previo", label, text, hasInlineContent);
+            AddSource(id, isCurrent ? "adjunto actual" : "adjunto previo", label, text, hasInlineContent, imageNumber: hasInlineContent ? binaryFiles : null);
+            if (isCurrent && !sources[id].HasContent) unreadCurrentAttachments++;
         }
 
-        var profile = Excerpt(context.Profile.PersonalContext, 1800);
+        var entries = context.History
+            .Where(entry => entry.Id != context.Current.Id)
+            .OrderByDescending(entry => entry.CreatedUtc)
+            .ToArray();
+        foreach (var entry in Prioritize(entries, searchTerms, entry => entry.Text, keepRecent: 1, limit: 3))
+        {
+            var label = DateLabel("Entrada", entry.CreatedUtc);
+            AddSource($"entrada{promptSources.Count}", "entrada previa", label, Excerpt(entry.Text, 500),
+                priorResponse: Excerpt(entry.Reflection?.Overview, 150));
+        }
+
+        var notes = context.Notes.OrderByDescending(note => note.CreatedUtc).ToArray();
+        foreach (var note in Prioritize(notes, searchTerms, note => note.Text, keepRecent: 1, limit: 2))
+        {
+            var label = DateLabel("Notita", note.CreatedUtc);
+            AddSource($"notita{promptSources.Count}", "notita", label, Excerpt(note.Text, 400));
+        }
+
+        var profile = Excerpt(context.Profile.PersonalContext, 600);
         if (profile.Length > 0)
         {
             AddSource("perfil", "contexto escrito en el perfil", "Tu contexto", profile);
         }
 
         var prompt = JsonSerializer.Serialize(new { fuentes = promptSources }, JsonOptions);
-        var parts = new List<object>(1 + inlineParts.Count)
-        {
-            new { text = $"Ordená la entrada actual con las fuentes disponibles. Estos son los datos.\n{prompt}" }
-        };
-        parts.AddRange(inlineParts);
-        return new(parts, sources, unreadCurrentAttachments);
+        var promptText = "Ordená la entrada actual con estas fuentes. Se incluyen fragmentos, no el cuaderno completo. " +
+            "Las imágenes adjuntas corresponden en orden al campo numeroImagen (1, 2). " +
+            "Si un texto está cortado, no inventes la continuación.\n" + prompt;
+        return new(promptText, images, sources, unreadCurrentAttachments);
 
         void AddSource(
             string id,
@@ -132,10 +119,15 @@ public sealed partial class GeminiJournalService
             string label,
             string text,
             bool inline = false,
-            string? priorResponse = null)
+            string? priorResponse = null,
+            int? imageNumber = null)
         {
+            text = Excerpt(text, Math.Min(remainingText, text.Length));
+            remainingText -= text.Length;
+            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, 150));
+            remainingText -= priorResponse.Length;
             sources.Add(id, new(label, text, text.Length > 0 || inline));
-            promptSources.Add(new(id, type, label, text, inline, priorResponse));
+            promptSources.Add(new(id, type, label, text, inline, priorResponse, imageNumber));
         }
     }
 
@@ -170,6 +162,7 @@ public sealed partial class GeminiJournalService
 
     private static string Excerpt(string? value, int length)
     {
+        if (length <= 0) return string.Empty;
         var text = value?.Trim() ?? string.Empty;
         if (text.Length <= length)
         {
@@ -186,12 +179,14 @@ public sealed partial class GeminiJournalService
         string Etiqueta,
         string Texto,
         bool IncluyeArchivo,
-        string? DevolucionAnterior);
+        string? DevolucionAnterior,
+        int? NumeroImagen);
 
     private sealed record EvidenceSource(string Label, string Text, bool HasContent);
 
-    private sealed record GeminiEvidence(
-        IReadOnlyList<object> Parts,
+    private sealed record OllamaEvidence(
+        string Prompt,
+        IReadOnlyList<string> Images,
         IReadOnlyDictionary<string, EvidenceSource> Sources,
         int UnreadCurrentAttachments);
 }

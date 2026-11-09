@@ -15,32 +15,44 @@ dotnet run --launch-profile http
 
 Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
-Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Ordenar mis ideas**. El modo de muestra arma una devolución local identificada, basada en fragmentos de tu texto. También podés guardar entradas sin pedir una devolución.
+Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Ordenar mis ideas**. La devolución usa Ollama y Qwen3-VL 4B instalados en el mismo equipo. También podés guardar entradas sin pedir una devolución. Si Ollama está detenido, la entrada queda guardada y se muestra una opción para reintentar.
 
-## Activar Gemini gratuito
+## IA local en Windows
 
-1. Creá una clave para un proyecto de **nivel gratuito**, sin facturación vinculada, en [Google AI Studio](https://aistudio.google.com/apikey).
-2. Guardala como secreto local del proyecto desde PowerShell:
+1. Instalá [Ollama para Windows](https://ollama.com/download/windows) si todavía no lo tenés. Qwen3-VL requiere Ollama 0.12.7 o posterior; en el piloto se verificó 0.40.15.
+2. En los ajustes de la app de Ollama, desactivá **Expose Ollama to the network**. Fijá el contexto en 8192 si aparece esa opción: la app puede sobrescribir las variables de entorno con sus preferencias.
+3. Con Ollama sin consultas activas, ejecutá:
 
    ```powershell
    Set-Location 'C:\Dev\MiBitacora'
-   dotnet user-secrets set 'Gemini:ApiKey' '<tu clave de Google AI Studio>'
+   .\scripts\Configure-LocalOllama.ps1 -DownloadModel
+   dotnet run --launch-profile http
    ```
 
-3. Reiniciá la web. En **Mi cuenta → Tu perfil**, activá **Devoluciones con Gemini** y guardá. La bitácora va a pedir confirmación cada vez que pueda enviar contenido.
+El script configura Ollama para el usuario actual: escucha exclusivamente en `127.0.0.1:11434`, desactiva funciones cloud, habilita Vulkan y la GPU integrada y limita la carga a un modelo y una generación simultánea. Reinicia Ollama y conserva la ubicación de sus modelos. Si hay un modelo cargado, primero terminá las consultas y liberalo con `ollama stop <modelo>`. Guarda los valores anteriores en `%LOCALAPPDATA%\MiBitacora\ollama`.
 
-La clave vive en el servidor. También se puede configurar con la variable de entorno `GEMINI_API_KEY`. El modelo predeterminado es [Gemini 3.5 Flash-Lite](https://aistudio.google.com/docs/models/gemini-3.5-flash-lite) y se puede cambiar con `Gemini__Model`. Si falla la red, se alcanza la cuota o Gemini devuelve una respuesta incompleta, la entrada queda guardada y la devolución se puede reintentar.
+La descarga inicial de `qwen3-vl:4b-instruct` ocupa aproximadamente 3,3 GB y requiere Internet. Las devoluciones posteriores usan el modelo instalado. Las actualizaciones de Ollama y las descargas son operaciones distintas de la inferencia; `OLLAMA_NO_CLOUD=1` no equivale a un firewall que bloquee toda salida.
 
-El piloto con Gemini está pensado para mayores de 18 años y material ficticio, libre de datos personales, sensibles o confidenciales. El envío puede incluir fragmentos del contexto y del cuaderno, texto extraído de adjuntos e imágenes o PDF completos. [Claves de Gemini](https://aistudio.google.com/docs/api-key) · [Términos](https://aistudio.google.com/docs/terms) · [Precios y nivel gratuito](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite)
+La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y modelos distintos de `qwen3-vl:4b-instruct`. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan.
+
+Para verificar texto, imágenes sintéticas, errores, cancelación y separación entre cuentas:
+
+```powershell
+dotnet run --project tests\MiBitacora.Checks
+dotnet run --project tests\MiBitacora.Checks -- --live
+ollama ps
+```
+
+`--live` ejecuta dos devoluciones reales con datos inventados. El resto de las comprobaciones usa respuestas simuladas y una base temporal. Más detalles en [la guía de IA local](docs/ia-local.md).
 
 ## Qué podés probar
 
 - **Conversación.** Un hilo por cuenta con tus originales y las devoluciones por separado. Para cada devolución se recuperan antecedentes recientes o relacionados, notitas y el contexto personal o cultural que hayas escrito en tu perfil.
-- **Adjuntos.** El selector nativo abre archivos y fotos. En el teléfono, **Foto** solicita la cámara cuando el navegador admite la captura nativa. La extracción local cubre documentos de Word modernos, Excel, CSV, texto y otros formatos de oficina. Gemini puede analizar imágenes y PDF compatibles. Los demás archivos quedan disponibles para descargar. Cada entrada admite 4 archivos, con un máximo de 8 MiB por archivo y 16 MiB en conjunto. La cuota por cuenta es de 80 MiB o 250 archivos.
+- **Adjuntos.** El selector nativo abre archivos y fotos. En el teléfono, **Foto** solicita la cámara cuando el navegador admite la captura nativa. La extracción local cubre documentos de Word modernos, Excel, CSV, texto y otros formatos de oficina. La IA local analiza JPEG, PNG y WebP, hasta dos imágenes por devolución. PDF, HEIC/HEIF, GIF, AVIF y audio se conservan como adjuntos; sus bytes no se envían al modelo y se informa cuando quedan fuera del análisis. Los demás archivos quedan disponibles para descargar. Cada entrada admite 4 archivos, con un máximo de 8 MiB por archivo y 16 MiB en conjunto. La cuota por cuenta es de 80 MiB o 250 archivos.
 - **Calendario y racha.** Abrí los días marcados para releer sus entradas. Cada día con una entrada suma a tu racha, que sigue vigente durante el día siguiente. Las fechas usan la hora de Buenos Aires por defecto. El despliegue puede cambiarla con la variable `Journal__TimeZone`.
 - **Notitas.** Creá, editá o borrá papelitos. Podés guardar una idea a partir de una devolución y marcarla para retomar.
 - **Para retomar.** Marcá entradas y notitas para armar una hoja. El texto de la hoja se puede editar para la copia o la impresión. La selección queda guardada en tu cuenta.
-- **Mi cuenta.** Perfil y contexto, contraseña, consentimiento revocable, exportación en JSON y borrado de la cuenta y su cuaderno. Descargá los archivos originales desde las entradas. Las cuentas del piloto son locales y el alta se completa en el momento.
+- **Mi cuenta.** Perfil y contexto, contraseña, información sobre el procesamiento local, exportación en JSON y borrado de la cuenta y su cuaderno. Descargá los archivos originales desde las entradas. Las cuentas del piloto son locales y el alta se completa en el momento.
 
 Para probar desde un teléfono, el dispositivo necesita poder acceder a la instancia. El arranque anterior escucha en el equipo local. Para abrir el piloto a amigos, servilo por HTTPS y mantené `App_Data` en almacenamiento persistente del servidor. La app aplica las migraciones de SQLite al arrancar.
 

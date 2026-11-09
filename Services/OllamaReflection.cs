@@ -5,7 +5,7 @@ namespace MiBitacora.Services;
 
 public sealed class JournalReflectionException(string message) : Exception(message);
 
-public sealed partial class GeminiJournalService : IJournalReflector
+public sealed partial class OllamaJournalService : IJournalReflector
 {
     private const string SystemInstruction = """
         Sos la herramienta de escritura de Mi Bitácora. Ayudás a quien escribe a ordenar sus palabras,
@@ -75,33 +75,22 @@ public sealed partial class GeminiJournalService : IJournalReflector
 
     public async Task<JournalReflection> ReflectAsync(
         JournalContext context,
-        bool sendToGemini,
+        bool useAi,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var apiKey = ApiKey;
-        if (!sendToGemini || !context.Profile.GeminiConsent || string.IsNullOrWhiteSpace(apiKey))
+        if (!useAi || !IsConfigured)
         {
             return CreateDemo(context);
         }
 
-        if (apiKey.Trim().Any(character => char.IsControl(character) || char.IsWhiteSpace(character)))
-        {
-            throw new JournalReflectionException(
-                "La clave de Gemini tiene un formato inválido. Tu entrada quedó guardada.");
-        }
-
         var evidence = BuildEvidence(context);
-        var reply = await CallGeminiAsync(evidence.Parts, ReflectionSchema, apiKey, cancellationToken);
-        if (reply.Json is null)
-        {
-            throw new JournalReflectionException(reply.Error ?? InvalidReply);
-        }
+        var replyJson = await CallOllamaAsync(evidence, cancellationToken);
 
         ModelReflection? parsed;
         try
         {
-            parsed = JsonSerializer.Deserialize<ModelReflection>(reply.Json, JsonOptions);
+            parsed = JsonSerializer.Deserialize<ModelReflection>(replyJson, JsonOptions);
         }
         catch (JsonException)
         {

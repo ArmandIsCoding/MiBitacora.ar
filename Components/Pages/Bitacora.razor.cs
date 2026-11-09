@@ -57,7 +57,7 @@ public partial class Bitacora : IAsyncDisposable
     private ElementReference _end;
     private IJSObjectReference? _module;
 
-    private bool IsGeminiReady => Reflector.IsConfigured && _profile.GeminiConsent;
+    private bool IsLocalAiEnabled => Reflector.IsConfigured;
     private bool HasDraft => !string.IsNullOrWhiteSpace(_draft) || _files.Count > 0;
     private int SessionCount => _sessionEntries.Count + _notes.Count(note => note.ForSession);
     private string DisplayName => string.IsNullOrWhiteSpace(_profile.DisplayName) ? "Hola" : $"Hola, {_profile.DisplayName}";
@@ -289,16 +289,10 @@ public partial class Bitacora : IAsyncDisposable
             _busy = false;
         }
 
-        if (IsGeminiReady)
-        {
-            OpenDialog(DialogKind.Gemini, entryId);
-            return;
-        }
-
-        await SaveOrReflectAsync(entryId, organize: true, sendToGemini: false);
+        await SaveOrReflectAsync(entryId, organize: true, useAi: IsLocalAiEnabled);
     }
 
-    private async Task SaveOrReflectAsync(Guid? entryId, bool organize, bool sendToGemini)
+    private async Task SaveOrReflectAsync(Guid? entryId, bool organize, bool useAi)
     {
         if (_busy || _uploading || (entryId is null && !HasDraft))
         {
@@ -331,8 +325,8 @@ public partial class Bitacora : IAsyncDisposable
             _entryErrors.Remove(entryId.Value);
             await InvokeAsync(StateHasChanged);
 
-            var context = await Store.GetContextAsync(_userId, entryId.Value, sendToGemini, Lifetime);
-            var reflection = await Reflector.ReflectAsync(context, sendToGemini, Lifetime);
+            var context = await Store.GetContextAsync(_userId, entryId.Value, useAi, Lifetime);
+            var reflection = await Reflector.ReflectAsync(context, useAi, Lifetime);
             await Store.SaveReflectionAsync(_userId, entryId.Value, reflection, Lifetime);
 
             ReplaceEntry(context.Current with { Reflection = reflection });
@@ -548,13 +542,6 @@ public partial class Bitacora : IAsyncDisposable
     private Task OnDialogKeyAsync(KeyboardEventArgs args) =>
         args.Key == "Escape" && !_busy ? CloseDialogAsync() : Task.CompletedTask;
 
-    private async Task ConfirmReflectionAsync(bool sendToGemini)
-    {
-        var entryId = _targetId;
-        await CloseDialogAsync();
-        await SaveOrReflectAsync(entryId, organize: true, sendToGemini);
-    }
-
     private string BuildSessionSheet()
     {
         var sheet = new StringBuilder();
@@ -625,6 +612,12 @@ public partial class Bitacora : IAsyncDisposable
     private static string SizeLabel(long bytes) =>
         bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.0} MB" : $"{Math.Max(1, bytes / 1024d):0} KB";
 
+    private static string AttachmentStatus(JournalAttachment file) =>
+        file.ExtractionStatus.Contains("Gemini", StringComparison.Ordinal)
+            ? (AttachmentExtractor.CanAnalyzeLocally(file.ContentType)
+                ? "Disponible para analizar localmente" : "Guardado · formato sin análisis visual")
+            : file.ExtractionStatus;
+
     private static bool HasPreview(JournalAttachment file) =>
         file.ContentType is "image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/avif";
 
@@ -654,5 +647,5 @@ public partial class Bitacora : IAsyncDisposable
     }
 
     private enum WorkspaceSection { Conversation, Calendar, Notes, Session }
-    private enum DialogKind { None, Gemini, Note, DeleteNote, DeleteEntry }
+    private enum DialogKind { None, Note, DeleteNote, DeleteEntry }
 }

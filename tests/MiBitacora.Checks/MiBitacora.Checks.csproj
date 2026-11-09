@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../MiBitacora.csproj" />
+    <None Include="../Fixtures/red-square.png" Link="red-square.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

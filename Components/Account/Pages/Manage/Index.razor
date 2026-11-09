@@ -35,20 +35,15 @@
     <div class="account-field">
         <label for="profile-context">Contexto personal o cultural <small>(opcional)</small></label>
         <InputTextArea @bind-Value="Input.PersonalContext" id="profile-context" maxlength="@JournalStore.MaxPersonalContextLength" rows="4" aria-describedby="profile-context-hint" />
-        <small id="profile-context-hint">Por ejemplo, expresiones de tu región o referencias culturales que quieras tener en cuenta. Si usás Gemini, este campo debe contener solo material ficticio.</small>
+        <small id="profile-context-hint">Por ejemplo, expresiones de tu región o referencias culturales que quieras tener en cuenta.</small>
         <ValidationMessage For="() => Input.PersonalContext" />
     </div>
 
-    <fieldset class="account-consent">
-        <legend>Devoluciones con Gemini</legend>
-        <p id="profile-consent-hint">Cuando confirmes un envío con el plan gratuito de Gemini, Google recibirá tu entrada y puede recibir fragmentos de tu contexto, tu historial y tus notitas, además de texto extraído de adjuntos. En algunos casos, puede recibir imágenes o PDF completos.</p>
-        <p id="profile-consent-limits">Google puede usar lo enviado y las respuestas para mejorar sus servicios, y sus revisores pueden acceder al contenido. Usá esta opción solo con material ficticio, sin datos personales, sensibles ni confidenciales.</p>
-        <label class="account-check">
-            <InputCheckbox @bind-Value="Input.GeminiConsent" aria-describedby="profile-consent-hint profile-consent-limits profile-consent-revoke" />
-            <span>Tengo 18 años o más y autorizo el uso de Gemini con material ficticio.</span>
-        </label>
-        <small id="profile-consent-revoke">Podés revocar el permiso desmarcando esta casilla y guardando los cambios. <a href="privacidad">Privacidad del piloto</a>.</small>
-    </fieldset>
+    <div class="account-consent">
+        <strong>Devoluciones con IA local</strong>
+        <p>Cuando pedís ordenar tus ideas, el análisis se hace en el servidor de Mi Bitácora. Puede usar fragmentos de tu contexto, cuaderno y archivos compatibles, asociados a tu cuenta.</p>
+        <small>Podés guardar tus entradas sin pedir una devolución. <a href="privacidad">Privacidad del piloto</a>.</small>
+    </div>
 
     <button type="submit" class="account-button">Guardar cambios</button>
 </EditForm>
@@ -82,8 +77,7 @@
             Input = new InputModel
             {
                 DisplayName = profile.DisplayName,
-                PersonalContext = profile.PersonalContext,
-                GeminiConsent = profile.GeminiConsent
+                PersonalContext = profile.PersonalContext
             };
         }
     }
@@ -99,7 +93,7 @@
         {
             await Store.SaveProfileAsync(
                 userId,
-                new JournalProfile(Input.DisplayName ?? "", Input.PersonalContext ?? "", Input.GeminiConsent),
+                new JournalProfile(Input.DisplayName ?? "", Input.PersonalContext ?? "", false),
                 HttpContext.RequestAborted);
         }
         catch (JournalInputException ex)
@@ -119,6 +113,5 @@
         [StringLength(JournalStore.MaxPersonalContextLength, ErrorMessage = "El contexto puede tener hasta {1} caracteres.")]
         public string? PersonalContext { get; set; }
 
-        public bool GeminiConsent { get; set; }
     }
 }

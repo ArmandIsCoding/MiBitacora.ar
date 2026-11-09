@@ -75,7 +75,7 @@
                             <p>Un mismo hilo, cada vez que vuelvas.</p>
                         </div>
                         <a class="mode-pill" href="/Account/Manage" title="Configurar el modo de devolución">
-                            <span class="status-dot"></span> @(IsGeminiReady ? "Gemini disponible" : "Modo de muestra")
+                            <span class="status-dot"></span> @(IsLocalAiEnabled ? "IA local" : "Modo de muestra")
                         </a>
                     </header>
 
@@ -142,7 +142,7 @@
                                                             <span class="attachment-file-icon"><Icon Name="file" Size="19" /></span>
                                                             <span class="attachment-label">
                                                                 <strong>@attachment.FileName</strong>
-                                                                <small>@SizeLabel(attachment.Size) · @attachment.ExtractionStatus</small>
+                                                                <small>@SizeLabel(attachment.Size) · @AttachmentStatus(attachment)</small>
                                                             </span>
                                                             <Icon Name="download" Size="17" />
                                                         </span>
@@ -174,9 +174,9 @@
                                                         Busy="_busy"
                                                         SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
                                                         ToggleSession="() => ToggleEntryAsync(entry)" />
-                                        @if (reflection.IsDemo && IsGeminiReady && _workingEntry != entry.Id)
+                                        @if (reflection.IsDemo && IsLocalAiEnabled && _workingEntry != entry.Id)
                                         {
-                                            <button type="button" class="quiet-action reflection-retry" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="16" /> Pedir devolución con Gemini</button>
+                                            <button type="button" class="quiet-action reflection-retry" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="16" /> Pedir devolución con IA local</button>
                                         }
                                     }
                                 </div>
@@ -356,17 +356,6 @@
                 <div class="dialog-actions">
                     <small>@_noteDraft.Length / @JournalStore.MaxNoteLength</small>
                     <button class="btn btn-primary" type="button" @onclick="SaveNoteAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_noteDraft))"><Icon Name="check" Size="19" /> Guardar notita</button>
-                </div>
-            }
-            else if (_dialogKind == DialogKind.Gemini)
-            {
-                <p class="eyebrow"><Icon Name="spark" Size="18" /> DEVOLUCIÓN CON GEMINI</p>
-                <h2 id="dialog-title">¿Enviar a Gemini?</h2>
-                <p>Para ordenar esta entrada, Gemini puede recibir partes de tu historial, tu contexto y tus notitas, texto extraído de adjuntos y, cuando corresponda, imágenes o PDF completos.</p>
-                <p class="dialog-callout"><Icon Name="info" Size="19" /><span>En el plan gratuito, Google puede usar y revisar lo enviado. Confirmá solo si todo el material de tu cuaderno es ficticio y está libre de datos personales o confidenciales.</span></p>
-                <div class="dialog-actions consent-actions">
-                    <button type="button" class="btn btn-outline" @onclick="() => ConfirmReflectionAsync(false)" autofocus>Usar muestra</button>
-                    <button type="button" class="btn btn-primary" @onclick="() => ConfirmReflectionAsync(true)"><Icon Name="spark" Size="19" /> Confirmo y envío</button>
                 </div>
             }
             else

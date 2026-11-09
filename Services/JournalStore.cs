@@ -273,7 +273,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             .Concat(relatedFiles)
             .Concat(Enumerable.Reverse(history).SelectMany(entry => entry.Attachments)));
 
-        var media = includeMedia && profile.GeminiConsent
+        var media = includeMedia
             ? await ReadMediaAsync(db, userId, attachments, cancellationToken)
             : [];
 
@@ -329,7 +329,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         foreach (var attachment in attachments)
         {
             if (selected.Count == 3) break;
-            if (attachment.Size <= remaining && AttachmentExtractor.CanSendToGemini(attachment.ContentType))
+            if (attachment.Size <= remaining && AttachmentExtractor.CanAnalyzeLocally(attachment.ContentType))
             {
                 remaining -= (int)attachment.Size;
                 selected.Add(attachment.Id);

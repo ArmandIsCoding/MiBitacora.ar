@@ -43,17 +43,17 @@ internal static class AttachmentExtractor
             : Clip(name, 180);
     }
 
-    public static bool CanSendToGemini(string type) =>
-        type is "application/pdf" or "image/jpeg" or "image/png" or "image/webp" or "image/heic" or "image/heif";
+    public static bool CanAnalyzeLocally(string type) =>
+        type is "image/jpeg" or "image/png" or "image/webp";
 
     public static AttachmentAnalysis Analyze(string name, byte[] content, CancellationToken cancellationToken)
     {
         var mediaType = DetectMediaType(content);
         if (mediaType is not null)
         {
-            return new AttachmentAnalysis(mediaType, null, CanSendToGemini(mediaType)
-                ? "Disponible para analizar con Gemini"
-                : "Imagen guardada");
+            return new AttachmentAnalysis(mediaType, null, CanAnalyzeLocally(mediaType)
+                ? "Disponible para analizar localmente"
+                : "Guardado · formato sin análisis visual");
         }
 
         var extension = Path.GetExtension(name).ToLowerInvariant();

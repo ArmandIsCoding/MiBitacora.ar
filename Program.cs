@@ -48,9 +48,18 @@ builder.Services.AddScoped<IJournalStore, JournalStore>();
 builder.Services.AddScoped<AdminDashboardService>();
 builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(
     builder.Configuration["Journal:TimeZone"] ?? "America/Argentina/Buenos_Aires"));
-builder.Services.AddHttpClient<IJournalReflector, GeminiJournalService>()
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
-    .RedactLoggedHeaders(["x-goog-api-key"]);
+builder.Services.AddOptions<OllamaOptions>()
+    .Bind(builder.Configuration.GetSection("Ollama"))
+    .Validate(options => options.IsValid(), "Ollama requiere una URL HTTP de loopback, un modelo local y límites válidos.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<LocalInferenceGate>();
+builder.Services.AddHttpClient<IJournalReflector, OllamaJournalService>(client =>
+    client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AllowAutoRedirect = false,
+        UseProxy = false
+    });
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
