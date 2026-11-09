@@ -42,7 +42,7 @@
         else
         {
             <nav class="topic-index" aria-label="Temas de tu devolución">
-                @foreach (var topic in snapshot.Topics) { <a href="@($"#tema-{topic.Id}")">@topic.Title</a> }
+                @foreach (var topic in snapshot.Topics) { <a href="@($"bitacora#tema-{topic.Id}")">@topic.Title</a> }
             </nav>
             <p class="topic-scope">Una lectura posible, para revisar y completar con tu mirada.</p>
             <div class="topic-list">

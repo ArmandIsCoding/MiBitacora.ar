@@ -2,7 +2,7 @@
 
 La pestaña **Devolución** reúne una devolución por cada tema detectado automáticamente en el texto del cuaderno. **Generar devolución** hace el primer análisis; **Actualizar devolución** vuelve a recorrer el contenido y reemplaza la versión guardada cuando termina correctamente. Abrir la pestaña solo consulta el resultado: no dispara inferencias.
 
-Cada tarjeta muestra una síntesis, preguntas para seguir escribiendo y fragmentos originales con fecha y fuente. Los temas se pueden recorrer desde el índice. La detección y las interpretaciones son aproximaciones del modelo que la persona puede revisar; no son diagnósticos.
+Cada tarjeta muestra una síntesis, preguntas para seguir escribiendo y fragmentos originales con fecha y fuente. Los enlaces del índice desplazan la vista a la tarjeta correspondiente sin salir de Devolución. La detección y las interpretaciones son aproximaciones del modelo que la persona puede revisar; no son diagnósticos.
 
 ## Alcance de esta versión
 
