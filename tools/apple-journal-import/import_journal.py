@@ -24,6 +24,19 @@ MEDIA_TYPES = {".heic": "image/heic", ".heif": "image/heif", ".jpeg": "image/jpe
                ".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".wav": "audio/wav"}
 
 
+def media_type(path):
+    # Apple's export can give HEIC bytes a .jpeg or .png filename. Preserve the
+    # original name/bytes, but use the actual format for previews and local AI.
+    with path.open("rb") as source:
+        header = source.read(1024)
+    if len(header) >= 16 and header[4:8] == b"ftyp":
+        end = min(int.from_bytes(header[:4], "big"), len(header))
+        brands = [header[8:12]] + [header[i:i + 4] for i in range(16, end - 3, 4)]
+        if any(brand in (b"heic", b"heix", b"hevc", b"hevx") for brand in brands):
+            return "image/heic"
+    return MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
+
+
 def normalized(text):
     return "".join(c for c in unicodedata.normalize("NFD", text)
                    if unicodedata.category(c) != "Mn").lower()
@@ -277,7 +290,7 @@ def replace_journal(plan, database, uploads, account, backups):
                     os.fsync(target.fileno())
                 if sha256(destination) != digest:
                     raise IOError("La copia de un adjunto no coincide con su original.")
-                mime = MEDIA_TYPES.get(source.suffix.lower(), "application/octet-stream")
+                mime = media_type(source)
                 status = "Disponible para analizar localmente" if mime in ("image/png", "image/jpeg", "image/webp") else "Importado de Diario · original conservado"
                 db.execute("INSERT INTO JournalAttachments (Id,EntryId,Position,FileName,ContentType,Size,ExtractionStatus,ExtractedText,SearchText) VALUES (?,?,?,?,?,?,?,NULL,?)",
                            (identifier, entry_id, position, source.name, mime, source.stat().st_size, status, normalized(source.name)))

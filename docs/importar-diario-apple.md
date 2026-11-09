@@ -14,6 +14,8 @@ Sin `--replace` solo informa cantidades, fechas y tamaños. Comprueba que el ín
 
 Conserva el título, el cuerpo, los saltos de párrafo, emojis, enlaces y las leyendas de recursos. El formato visual original se conserva en la copia completa de la exportación. Asocia fotos, videos y archivos complementarios mediante las referencias HTML y JSON; bloquea el reemplazo si queda algún archivo multimedia sin una entrada identificada o si falta un archivo referenciado.
 
+Detecta el formato HEIC por las marcas de formato del archivo, incluso cuando Apple lo exporta con nombre `.jpeg`, `.jpg` o `.png`. Conserva el nombre y los bytes originales, pero registra el tipo real para que la aplicación genere la vista JPG y pueda enviarla al modelo local. No hace falta volver a importar todo el cuaderno para corregir metadatos de archivos ya guardados.
+
 ## Reemplazar el cuaderno de una cuenta
 
 1. Actualizá la aplicación para aplicar la migración `AddEntryDatePrecision` y detenela. No ejecutes el importador mientras otra instancia escribe en esa base o carpeta de uploads.

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from import_journal import EntryParser, apple_filename, clean_text, inspect_export, replace_journal, summary
+from import_journal import EntryParser, apple_filename, clean_text, inspect_export, media_type, replace_journal, summary
 
 
 class ImportTests(unittest.TestCase):
@@ -66,6 +66,24 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(entry["createdUtc"], "2024-01-02 15:00:00.000000")
         self.assertEqual([file.suffix for file in entry["media"]], [".png", ".mov"])
         self.assertEqual(apple_filename("Cafe\u0301.html".encode().decode("cp437")), "Café.html")
+
+    def test_heic_with_png_filename_preserves_original_and_corrects_type(self):
+        fixture = Path(__file__).resolve().parents[2] / "tests" / "Fixtures" / "oriented-colors.heic"
+        original = fixture.read_bytes()
+        (self.source / "Resources" / (self.asset + ".png")).write_bytes(original)
+        replace_journal(inspect_export(self.source), self.database, self.uploads, self.account, self.root / "backups")
+        with closing(sqlite3.connect(self.database)) as db:
+            identifier, filename, content_type = db.execute("SELECT Id,FileName,ContentType FROM JournalAttachments WHERE FileName LIKE '%.png'").fetchone()
+        self.assertEqual(content_type, "image/heic")
+        self.assertTrue(filename.endswith(".png"))
+        self.assertEqual((self.uploads / self.account / (identifier.lower() + ".bin")).read_bytes(), original)
+
+    def test_heic_compatible_brand_and_video_fallback(self):
+        file = self.root / "misnamed.jpeg"
+        file.write_bytes((24).to_bytes(4, "big") + b"ftypmif1" + bytes(4) + b"mif1heic")
+        self.assertEqual(media_type(file), "image/heic")
+        video = self.source / "Resources" / (self.companion + ".mov")
+        self.assertEqual(media_type(video), "video/quicktime")
 
     def test_replace_preserves_other_account_and_backups(self):
         result = replace_journal(inspect_export(self.source), self.database, self.uploads, self.account, self.root / "backups")

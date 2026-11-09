@@ -40,6 +40,8 @@ Git y `dotnet publish` excluyen `App_Data` y `uploads`. Asegurá que la cuenta d
 
 Para un respaldo consistente, detené la aplicación y copiá **la base junto con los uploads de ese mismo momento**. Restaurá ambas juntas antes de arrancar: la limpieza inicial usa los metadatos de SQLite para identificar los archivos válidos. Las copias contienen información privada, incluido texto extraído; aplicales los mismos controles de acceso que al servidor.
 
+En IIS, detené el application pool y cerrá también DBeaver u otros editores que tengan abierta la base. `app_offline.htm` no cierra las conexiones de esos programas. No sobrescribas `mi-bitacora.db` mientras esté abierta: un `mi-bitacora.db-wal` anterior puede superponer datos viejos a la copia nueva. Respaldá el conjunto anterior completo antes de restaurar; no mezcles el `.db` de un respaldo con archivos `-wal` o `-shm` de otro. Un respaldo generado con la API de backup de SQLite puede prepararse como un único `.db` independiente. Copiá también `uploads`, que contiene los originales y sus vistas JPG; copiar solo `App_Data` no transporta los adjuntos.
+
 ## Comprobaciones
 
 ```powershell
