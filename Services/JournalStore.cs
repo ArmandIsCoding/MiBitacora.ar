@@ -3,11 +3,13 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using MiBitacora.Data;
 
 namespace MiBitacora.Services;
 
-public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext> factory, UploadFileStore uploads) : IJournalStore
+public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext> factory, UploadFileStore uploads,
+    IOptions<JournalStorageOptions>? storageOptions = null) : IJournalStore
 {
     public const int MaxFileBytes = 8 * 1024 * 1024;
     public const int MaxEntryAttachmentBytes = 16 * 1024 * 1024;
@@ -16,8 +18,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     public const int MaxDisplayNameLength = 80;
     public const int MaxPersonalContextLength = 3_000;
 
-    private const int MaxAccountAttachmentBytes = 80 * 1024 * 1024;
-    private const int MaxAccountFiles = 250;
+    private readonly JournalStorageOptions storage = storageOptions?.Value ?? new();
     private const int MaxNotes = 500;
     private const int ContextAttachmentChars = 24_000;
     private const int ContextMediaBytes = 10 * 1024 * 1024;
@@ -131,8 +132,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
                 .GroupBy(row => row.Entry.UserId)
                 .Select(group => new { Bytes = group.Sum(row => row.Size), Count = group.Count() })
                 .SingleOrDefaultAsync(cancellationToken);
-            if ((quota?.Bytes ?? 0) + entry.Attachments.Sum(row => row.Size) > MaxAccountAttachmentBytes
-                || (quota?.Count ?? 0) + entry.Attachments.Count > MaxAccountFiles)
+            if ((quota?.Bytes ?? 0) + entry.Attachments.Sum(row => row.Size) > storage.MaxAccountAttachmentBytes
+                || (quota?.Count ?? 0) + entry.Attachments.Count > storage.MaxAccountFiles)
             {
                 throw new JournalInputException("Alcanzaste el espacio de adjuntos del piloto. Podés guardar la entrada sin archivos o liberar espacio.");
             }
@@ -395,13 +396,13 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         CancellationToken cancellationToken)
     {
         var rows = await entries.AsSplitQuery().Select(row => new EntryProjection(
-            row.Id, row.Text, row.CreatedUtc, row.ReflectionJson, row.ForSession, row.Attachments
+            row.Id, row.Text, row.CreatedUtc, row.ReflectionJson, row.ForSession, row.IsDateOnly, row.Attachments
                 .OrderBy(attachment => attachment.Position)
                 .Select(attachment => new JournalAttachment(attachment.Id, attachment.EntryId, attachment.FileName,
                     attachment.ContentType, attachment.Size, attachment.ExtractionStatus, attachment.ExtractedText))
                 .ToList())).ToListAsync(cancellationToken);
         return rows.Select(row => new JournalEntry(row.Id, row.Text, AsUtc(row.CreatedUtc),
-            ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments)).ToList();
+            ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments, row.IsDateOnly)).ToList();
     }
 
     private static IQueryable<JournalAttachment> ProjectAttachments(IQueryable<JournalAttachmentRow> query) =>
@@ -507,5 +508,5 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     private static partial Regex SearchWord();
 
     private sealed record EntryProjection(Guid Id, string Text, DateTime CreatedUtc, string? ReflectionJson,
-        bool ForSession, List<JournalAttachment> Attachments);
+        bool ForSession, bool IsDateOnly, List<JournalAttachment> Attachments);
 }

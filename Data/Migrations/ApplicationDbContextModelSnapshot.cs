@@ -139,6 +139,9 @@ namespace MiBitacora.Migrations
                     b.Property<bool>("ForSession")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsDateOnly")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ReflectionJson")
                         .HasColumnType("TEXT");
 

@@ -15,6 +15,7 @@ internal sealed class JournalEntryRow
     public string Text { get; set; } = "";
     public string SearchText { get; set; } = "";
     public DateTime CreatedUtc { get; set; }
+    public bool IsDateOnly { get; set; }
     public string? ReflectionJson { get; set; }
     public bool ForSession { get; set; }
     public List<JournalAttachmentRow> Attachments { get; set; } = [];

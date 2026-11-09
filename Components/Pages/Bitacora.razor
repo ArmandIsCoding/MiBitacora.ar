@@ -121,7 +121,16 @@
                                 <div class="journal-turn" @key="entry.Id">
                                     <article class="entry-card" aria-label="Tu entrada">
                                         <header class="entry-meta">
-                                            <div><Icon Name="pen" Size="17" /> <strong>Vos</strong> <time datetime="@entry.CreatedUtc.ToString("O")">@LocalTime(entry.CreatedUtc)</time></div>
+                                            <div><Icon Name="pen" Size="17" /> <strong>Vos</strong>
+                                                @if (entry.IsDateOnly)
+                                                {
+                                                    <span title="La exportación original conserva la fecha, pero no la hora">Importado de Diario</span>
+                                                }
+                                                else
+                                                {
+                                                    <time datetime="@entry.CreatedUtc.ToString("O")">@LocalTime(entry.CreatedUtc)</time>
+                                                }
+                                            </div>
                                             <button type="button" class="icon-button" aria-label="Eliminar entrada" title="Eliminar entrada" disabled="@_busy" @onclick="() => OpenDialog(DialogKind.DeleteEntry, entry.Id)"><Icon Name="trash" Size="17" /></button>
                                         </header>
                                         @if (!string.IsNullOrWhiteSpace(entry.Text))

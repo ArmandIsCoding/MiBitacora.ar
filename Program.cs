@@ -48,6 +48,11 @@ builder.Services.AddSingleton(provider => new UploadFileStore(
     Path.Combine(builder.Environment.ContentRootPath, "uploads"),
     provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddOptions<JournalStorageOptions>()
+    .Bind(builder.Configuration.GetSection("Journal"))
+    .Validate(options => options.MaxAccountAttachmentBytes > 0 && options.MaxAccountFiles > 0,
+        "Las cuotas de adjuntos deben ser positivas.")
+    .ValidateOnStart();
 builder.Services.AddScoped<AccountDeletionService>();
 builder.Services.AddScoped<AdminDashboardService>();
 builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(

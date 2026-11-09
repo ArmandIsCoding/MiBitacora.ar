@@ -16,7 +16,7 @@ La carpeta de cada cuenta se crea cuando recibe su primer archivo. El nombre fí
 
 ## Límites y borrado
 
-Se quitó el máximo de cuatro archivos tanto del selector como del servidor. Se puede elegir más de diez archivos en una selección. Siguen vigentes los límites de 8 MiB por archivo, 16 MiB por entrada y la cuota del piloto de 80 MiB o 250 archivos por cuenta. Son límites de almacenamiento, independientes de las dos imágenes que el modelo puede analizar por devolución.
+Se quitó el máximo de cuatro archivos tanto del selector como del servidor. Se puede elegir más de diez archivos en una selección. Siguen vigentes los límites de 8 MiB por archivo y 16 MiB por entrada. La configuración incluida permite 1 GiB o 2000 archivos por cuenta, mediante `Journal:MaxAccountAttachmentBytes` y `Journal:MaxAccountFiles`; sin esa configuración, los valores por defecto son 80 MiB y 250 archivos. Son límites de almacenamiento, independientes de las dos imágenes que el modelo puede analizar por devolución. El importador administrativo de Apple conserva originales que superen los límites del selector; no recorta ni comprime los archivos históricos.
 
 Una entrada se confirma en SQLite después de escribir todos sus originales. Si una escritura falla, se revierte la entrada y se eliminan los archivos recién creados. Al borrar una entrada se borran sus originales; al borrar una cuenta se elimina su carpeta. Las escrituras y los borrados se serializan dentro de la instancia del servidor para evitar carreras entre pestañas y sesiones.
 

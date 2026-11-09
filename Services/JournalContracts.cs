@@ -8,7 +8,8 @@ public sealed record JournalEntry(
     DateTime CreatedUtc,
     JournalReflection? Reflection,
     bool ForSession,
-    IReadOnlyList<JournalAttachment> Attachments);
+    IReadOnlyList<JournalAttachment> Attachments,
+    bool IsDateOnly = false);
 
 public sealed record JournalNote(Guid Id, string Text, DateTime CreatedUtc, bool ForSession);
 

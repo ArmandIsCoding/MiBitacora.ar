@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MiBitacora.Data;
 using MiBitacora.Services;
 
@@ -82,6 +83,14 @@ internal static class StorageChecks
         var a = await store.AddEntryAsync(aId, "Apunte de A",
             Enumerable.Range(0, 12).Select(_ => new PendingAttachment("../../cuadrado.png", image)).ToArray());
         var b = await store.AddEntryAsync(bId, "SECRETO_B", [new("cuadrado.png", image)]);
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE JournalEntries SET IsDateOnly = 1 WHERE Id = {a.Id}");
+        check((await store.GetEntriesAsync(aId)).Single().IsDateOnly,
+            "Las entradas importadas conservan que su fecha original no incluía hora");
+        var limited = new JournalStore(factory, uploads, Options.Create(new JournalStorageOptions
+            { MaxAccountAttachmentBytes = 1, MaxAccountFiles = 2000 }));
+        try { await limited.AddEntryAsync(aId, "", [new("x.png", image)]); throw new Exception("No se aplicó la cuota configurada"); }
+        catch (JournalInputException) { check(true, "La cuota de adjuntos se toma de la configuración"); }
         check(a.Attachments.Count == 12 && Directory.GetFiles(Path.Combine(root, aId)).Length == 12,
             "Se guardan 12 archivos en una entrada, con nombres únicos dentro de uploads/cuenta");
         var own = await store.GetContextAsync(aId, a.Id, true);
