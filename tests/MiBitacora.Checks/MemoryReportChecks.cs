@@ -139,8 +139,26 @@ internal static class MemoryReportChecks
         catch(JournalReflectionException){check(true,"Memoria: rechaza referencias fuera de las fuentes de la solicitud");}
         try{await model.WriteReportSectionAsync(JournalReportSections.All[0],[new("original",Guid.NewGuid(),DateTime.UtcNow,"Entrada","Texto original")],"Alcance",default);throw new Exception("Aceptó una cita inventada");}
         catch(JournalReflectionException){check(true,"Informe: rechaza una cita inventada antes de publicar");}
+        var planClient=new CompletePlanClient();
+        var plan=await new ValidationAi(planClient).PlanReportAsync(
+            [new(new("original",Guid.NewGuid(),DateTime.UtcNow,"Entrada","Texto original"),new("original","Resumen","Conceptos","Texto original"))],DateTime.UtcNow,default);
+        check(planClient.RequiresAllSections && plan.Count==10 && plan.All(p=>p.SourceIds.Single()=="original"),
+            "Informe: el esquema exige diez secciones distintas y conserva la procedencia de cada selección");
     }
     private sealed class ValidationAi(IJournalModelClient client):JournalAiService(client,NullLogger.Instance);
+    private sealed class CompletePlanClient:IJournalModelClient
+    {
+        public bool IsConfigured=>true; public string ProviderName=>"Prueba"; public bool UsesExternalProvider=>true;
+        public bool RequiresAllSections;
+        public Task<string> GenerateAsync(string instruction,string prompt,JsonElement schema,IReadOnlyList<JournalImage> images,CancellationToken ct)
+        {
+            var sections=schema.GetProperty("properties").GetProperty("sections");
+            var required=sections.GetProperty("required").EnumerateArray().Select(v=>v.GetString()).ToHashSet();
+            RequiresAllSections=sections.GetProperty("type").GetString()=="object" && required.Count==10 &&
+                JournalReportSections.All.All(s=>required.Contains(s.Id) && sections.GetProperty("properties").TryGetProperty(s.Id,out _));
+            return Task.FromResult(JsonSerializer.Serialize(new{sections=JournalReportSections.All.ToDictionary(s=>s.Id,_=>new[]{"m0"})}));
+        }
+    }
     private sealed class InvalidReferences:IJournalModelClient
     {
         public bool IsConfigured=>true; public string ProviderName=>"Prueba"; public bool UsesExternalProvider=>true;

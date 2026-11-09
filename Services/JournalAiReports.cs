@@ -8,29 +8,29 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
     public async Task<IReadOnlyList<ReportSectionPlan>> PlanReportAsync(IReadOnlyList<MemoryCard> cards, DateTime nowUtc, CancellationToken ct)
     {
         var aliases = cards.Select((c, i) => (Id: "m" + i, Card: c)).ToDictionary(x => x.Id, x => x.Card);
+        // Required named properties prevent an otherwise schema-valid array from omitting or duplicating sections.
+        var selections = JournalReportSections.All.ToDictionary(s => s.Id, _ =>
+            new { type = "array", maxItems = 14, items = new { type = "string", @enum = aliases.Keys } });
         var schema = JsonSerializer.SerializeToElement(new { type = "object", properties = new
         {
-            sections = new { type = "array", items = new { type = "object", properties = new
-            {
-                id = new { type = "string", @enum = JournalReportSections.All.Select(s => s.Id) },
-                sourceIds = new { type = "array", maxItems = 14, items = new { type = "string", @enum = aliases.Keys } }
-            }, required = new[] { "id", "sourceIds" } } }
+            sections = new { type = "object", properties = selections, required = selections.Keys }
         }, required = new[] { "sections" } });
         var prompt = $"Prepará el plan de fuentes para un informe personal para llevar a terapia, fechado {nowUtc:yyyy-MM-dd}. " +
             "Leé TODO el índice; devolvé exactamente una selección por cada sección. Elegí hasta 14 fuentes por sección, incluyendo " +
             "fechas distantes, cambios y contraejemplos. No hagas una sección por entrada. Para el momento reciente priorizá los últimos " +
             "30 días; el pasado sirve para contraste, no para afirmar cómo está hoy. Para patrones buscá episodios distintos. " +
             "Distribuí los ejemplos de acuerdo con la función de cada sección, evitando usar el mismo grupo de episodios para todo. " +
-            "Una nota no tiene que aparecer en todas las secciones. Las secciones sin evidencia usan sourceIds=[].\nSECCIONES:\n" +
+            "Una nota no tiene que aparecer en todas las secciones. Dentro de sections, cada ID de sección es una propiedad con " +
+            "su lista de fuentes; usá [] en las secciones sin evidencia.\nSECCIONES:\n" +
             JsonSerializer.Serialize(JournalReportSections.All, JsonOptions) + "\nÍNDICE:\n" +
             JsonSerializer.Serialize(aliases.Select(p => new { id = p.Key, fecha = p.Value.Source.CreatedUtc,
                 tipo = p.Value.Source.Kind.ToString(), p.Value.Digest.Summary, p.Value.Digest.Concepts }), JsonOptions);
         var result = ParseTopics<ReportPlanReply>(await CallModelAsync(MemoryInstruction, prompt, schema, [], ct));
         if (result.Sections is null || result.Sections.Count != JournalReportSections.All.Count ||
-            result.Sections.Select(s => s.Id).Distinct().Count() != JournalReportSections.All.Count ||
-            result.Sections.Any(s => !JournalReportSections.All.Any(d => d.Id == s.Id) || s.SourceIds is null ||
-                s.SourceIds.Count > 14 || s.SourceIds.Any(id => !aliases.ContainsKey(id)))) throw ReportError();
-        return result.Sections.Select(s => s with { SourceIds = s.SourceIds.Distinct().Select(id => aliases[id].Source.Id).ToArray() }).ToArray();
+            result.Sections.Any(s => !selections.ContainsKey(s.Key) || s.Value is null ||
+                s.Value.Count > 14 || s.Value.Any(id => !aliases.ContainsKey(id)))) throw ReportError();
+        return JournalReportSections.All.Select(s => new ReportSectionPlan(s.Id,
+            result.Sections[s.Id].Distinct().Select(id => aliases[id].Source.Id).ToArray())).ToArray();
     }
 
     private const string ReportInstruction = """
@@ -115,7 +115,7 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
         }
         return new(section.Id, section.Title, result.Introduction, points);
     }
-    private sealed record ReportPlanReply(List<ReportSectionPlan> Sections);
+    private sealed record ReportPlanReply(Dictionary<string, List<string>> Sections);
     private sealed record ReportSectionReply(string Introduction, List<ReportPointReply> Points);
     private sealed record ReportPointReply(string Kind, string Title, string Text, string Question, List<TopicCitation> Evidence);
     private static JournalReflectionException ReportError() => new("La IA devolvió un informe incompleto o una cita que no coincide con el original. El informe anterior se conserva; podés reintentar.");
