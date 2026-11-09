@@ -325,6 +325,18 @@ a.mode-pill:hover { background: #e1e7d6; }
 .reflection-next svg { margin-top: .1rem; }
 .reflection-actions { padding-top: .3rem; }
 .reflection-retry { justify-self: start; }
+.conversation-boundary { display: flex; align-items: start; gap: .6rem; padding: .8rem 1rem; margin: .2rem 0 1.2rem; border-left: 3px solid #aab79e; color: var(--muted); background: #eff0e466; border-radius: .35rem; font-size: .84rem; line-height: 1.6; }
+.conversation-boundary svg { flex-shrink: 0; margin-top: .15rem; }
+.conversation-reply { width: min(100%, 700px); justify-self: start; border-top: 1px solid var(--line); border-radius: .35rem 1.1rem 1.1rem; }
+.conversation-reply .reflection-overview { color: var(--ink); line-height: 1.75; }
+.conversation-question { margin: 1rem 0 .75rem; padding-left: .85rem; border-left: 2px solid #aab79e; color: var(--olive-dark); font-weight: 500; line-height: 1.65; }
+.reply-date { display: block; margin-top: .65rem; color: var(--muted); font-size: .7rem; }
+.evidence-entry-link { display: inline-flex; align-items: center; gap: .35rem; margin-top: .6rem; color: var(--olive-dark); font-size: .85rem; text-decoration: underline; text-underline-offset: 3px; }
+.full-entry { max-width: 850px; }
+.full-entry .entry-card { width: 100%; margin: 1.5rem 0; }
+.full-entry .conversation-reply { width: 100%; }
+.full-entry .entry-card .preserved-text { color: var(--ink); }
+.full-entry-file { min-width: 0; }
 .organizing, .uploading { display: flex; align-items: center; gap: .5rem; color: var(--olive-dark); font-size: .86rem; }
 .organizing { padding: .48rem 1rem; }
 .spinner { display: inline-block; width: .95rem; height: .95rem; border: 2px solid #cbd6be; border-top-color: var(--olive); border-radius: 50%; animation: turning 1s linear infinite; }

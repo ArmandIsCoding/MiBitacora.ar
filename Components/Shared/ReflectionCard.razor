@@ -1,18 +1,25 @@
-<article class="reflection-card" aria-label="Devolución de Mi Bitácora">
+<article class="reflection-card @(IsConversation ? "conversation-reply" : "")" aria-label="Respuesta de Mi Bitácora">
     <header class="reflection-meta">
         <span class="reflection-mark"><Icon Name="spark" Size="19" /></span>
-        <span class="eyebrow">TUS IDEAS, EN ORDEN</span>
+        <span class="eyebrow">MI BITÁCORA · IA</span>
         @if (Reflection.IsDemo)
         {
             <span class="soft-badge">Muestra</span>
         }
     </header>
 
-    <h3>@Reflection.Title</h3>
+    @if (!IsConversation) { <h3>@Reflection.Title</h3> }
     <p class="reflection-overview">@Reflection.Overview</p>
+
+    @if (IsConversation && Reflection.OpenQuestions.FirstOrDefault() is { } focusQuestion)
+    {
+        <p class="conversation-question">@focusQuestion</p>
+    }
 
     @if (Reflection.Themes.Count > 0)
     {
+        <details class="reflection-details" open="@(!IsConversation)">
+        <summary>En qué se apoya esta lectura <Icon Name="chevron" Size="16" /></summary>
         <div class="reflection-themes">
             @foreach (var theme in Reflection.Themes)
             {
@@ -30,9 +37,10 @@
                 </section>
             }
         </div>
+        </details>
     }
 
-    @if (Reflection.OpenQuestions.Count > 0)
+    @if (!IsConversation && Reflection.OpenQuestions.Count > 0)
     {
         <details class="reflection-details">
             <summary>Preguntas para explorar <Icon Name="chevron" Size="16" /></summary>
@@ -62,15 +70,24 @@
     {
         <p class="reflection-next"><Icon Name="leaf" Size="19" /> <span>@Reflection.NextStep</span></p>
     }
+    @if (Reflection.GeneratedUtc is { } generated)
+    {
+        <small class="reply-date">Respuesta generada el @TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(generated, DateTimeKind.Utc), TimeZone).ToString("d/M/yyyy")</small>
+    }
+    @if (SaveAsNote.HasDelegate || ToggleSession.HasDelegate)
+    {
     <footer class="reflection-actions">
         <button class="quiet-action" type="button" @onclick="SaveAsNote" disabled="@Busy"><Icon Name="note" Size="17" /> Hacer una notita</button>
         <button class="quiet-action" type="button" @onclick="ToggleSession" aria-pressed="@Selected" disabled="@Busy">
             <Icon Name="@(Selected ? "check" : "bookmark")" Size="17" /> @(Selected ? "En tu hoja" : "Marcar para retomar")
         </button>
     </footer>
+    }
 </article>
 
 @code {
+    [Inject] private TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
+    private bool IsConversation => Reflection.ConversationVersion >= 1 && !Reflection.IsDemo;
     [Parameter, EditorRequired] public JournalReflection Reflection { get; set; } = default!;
     [Parameter] public bool Selected { get; set; }
     [Parameter] public bool Busy { get; set; }

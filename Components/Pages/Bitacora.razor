@@ -3,7 +3,7 @@
 @attribute [Authorize]
 @rendermode InteractiveServer
 
-<PageTitle>Mi Bitácora · Tu cuaderno</PageTitle>
+<PageTitle>Mi Bitácora · Tu conversación</PageTitle>
 
 <div class="journal-app">
     <header class="journal-top">
@@ -73,14 +73,16 @@
                 {
                     <header class="workspace-heading">
                         <div>
-                            <p class="eyebrow">PÁGINAS ABIERTAS</p>
-                            <h1 @ref="_sectionHeading" tabindex="-1">Tu bitácora<span class="brand-period">.</span></h1>
-                            <p>Un mismo hilo, cada vez que vuelvas.</p>
+                            <p class="eyebrow">UN ESPACIO PARA PENSAR</p>
+                            <h1 @ref="_sectionHeading" tabindex="-1">Tu conversación<span class="brand-period">.</span></h1>
+                            <p>Contá lo que te pasa. Podemos ir de a una cosa por vez.</p>
                         </div>
                         <a class="mode-pill" href="/Account/Manage" title="Configurar el modo de devolución">
                             <span class="status-dot"></span> @(IsAiEnabled ? Reflector.ProviderName : "Modo de muestra")
                         </a>
                     </header>
+
+                    <p class="conversation-boundary"><Icon Name="leaf" Size="19" /><span>Esta conversación con IA busca ayudarte a reflexionar y puede equivocarse. No reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo.</span></p>
 
                     <button type="button" class="journal-streak" @onclick="OpenCalendarAsync" disabled="@(!RendererInfo.IsInteractive)">
                         <span class="journal-streak-icon"><Icon Name="leaf" Size="21" /></span>
@@ -165,7 +167,7 @@
                                         @if (entry.Reflection is null && _workingEntry != entry.Id)
                                         {
                                             <div class="entry-actions">
-                                                <button type="button" class="quiet-action" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="17" /> @(_entryErrors.ContainsKey(entry.Id) ? "Reintentar devolución" : "Ordenar esta entrada")</button>
+                                                <button type="button" class="quiet-action" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="17" /> @(_entryErrors.ContainsKey(entry.Id) ? "Reintentar respuesta" : "Pedir una respuesta")</button>
                                                 <button type="button" class="quiet-action" @onclick="() => ToggleEntryAsync(entry)" aria-pressed="@entry.ForSession" disabled="@_busy"><Icon Name="@(entry.ForSession ? "check" : "bookmark")" Size="17" /> @(entry.ForSession ? "En tu hoja" : "Marcar para retomar")</button>
                                             </div>
                                         }
@@ -173,7 +175,7 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <div class="organizing" role="status"><span class="spinner"></span> Ordenando tus ideas…</div>
+                                        <div class="organizing" role="status"><span class="spinner"></span> Mi Bitácora está preparando una respuesta…</div>
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {
@@ -197,11 +199,11 @@
                     }
 
                     <div class="journal-end" @ref="_end"></div>
-                    <section class="composer-wrap" aria-label="Nueva entrada">
+                    <section class="composer-wrap" aria-label="Continuar la conversación">
                         <div class="composer">
                             <label class="visually-hidden" for="entry-text">Escribí una entrada</label>
                             <textarea id="entry-text" @ref="_composerInput" @bind="_draft" @bind:event="oninput" maxlength="@JournalStore.MaxTextLength" rows="3"
-                                      placeholder="@(RendererInfo.IsInteractive ? "Escribí como salga…" : "Abriendo tu cuaderno…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
+                                      placeholder="@(RendererInfo.IsInteractive ? "¿Qué te está pasando? Podés contar algo o seguir la conversación…" : "Abriendo tu cuaderno…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
                             @if (_files.Count > 0)
                             {
                                 <div class="draft-files">
@@ -228,7 +230,7 @@
                                 </div>
                                 <div class="composer-submit">
                                     <button type="button" class="quiet-action save-only" @onclick="() => SaveOrReflectAsync(null, false, false)" disabled="@(!HasDraft || _busy || _uploading)">Solo guardar</button>
-                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading)"><Icon Name="spark" Size="18" /> Ordenar <span class="send-extra">mis ideas</span></button>
+                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading)"><Icon Name="arrow" Size="18" /> Enviar</button>
                                 </div>
                             </div>
                         </div>
@@ -237,6 +239,7 @@
                             <p class="topic-scope">Al pedir una devolución, se envían a OpenAI fragmentos de tu entrada, contexto y archivos compatibles. «Solo guardar» no los envía. <a href="privacidad">Ver privacidad</a>.</p>
                         }
                         <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
+                        <p class="topic-scope conversation-footnote">La IA puede equivocarse y no reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia. Podés marcar mensajes en «Para retomar».</p>
                     </section>
                 }
                 else if (_section == WorkspaceSection.Calendar)

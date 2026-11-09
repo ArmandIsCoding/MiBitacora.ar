@@ -45,7 +45,12 @@ public sealed record JournalReflection(
     IReadOnlyList<string> OpenQuestions,
     IReadOnlyList<string> SessionTopics,
     string? NextStep,
-    bool IsDemo);
+    bool IsDemo,
+    int ConversationVersion = 0,
+    DateTime? GeneratedUtc = null)
+{
+    public const int CurrentConversationVersion = 1;
+}
 
 public interface IJournalReflector
 {
@@ -64,6 +69,7 @@ public interface IJournalStore
     Task<JournalProfile> GetProfileAsync(string userId, CancellationToken cancellationToken = default);
     Task SaveProfileAsync(string userId, JournalProfile profile, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalEntry>> GetEntriesAsync(string userId, int take = 40, DateTime? beforeUtc = null, CancellationToken cancellationToken = default);
+    Task<JournalEntry?> GetEntryAsync(string userId, Guid entryId, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<DateOnly, int>> GetEntryDaysAsync(string userId, TimeZoneInfo timeZone, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalEntry>> GetEntriesInRangeAsync(string userId, DateTime fromUtc, DateTime untilUtc, CancellationToken cancellationToken = default);
     Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files, CancellationToken cancellationToken = default);

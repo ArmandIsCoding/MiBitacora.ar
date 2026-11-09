@@ -15,7 +15,7 @@
     {
         <p class="topic-scope">Al generar o actualizar, los textos se envían a OpenAI para preparar la devolución. <a href="privacidad">Ver privacidad</a>.</p>
     }
-    <p class="topic-scope">Incluye tus entradas y documentos, con todas tus notitas y el contexto del perfil como un hilo que puede atravesar distintos temas. Las fotos se analizan al pedir una devolución individual.</p>
+    <p class="topic-scope">Incluye tus entradas y documentos. Tus notitas y el perfil se tienen en cuenta sólo donde aporten una relación concreta con el tema. Las fotos se analizan en la conversación.</p>
     @if (!Analyzer.IsConfigured)
     {
         <p class="journal-alert" role="status">La IA está desactivada. Podés consultar la última devolución guardada.</p>
@@ -61,7 +61,7 @@
         else
         {
             <nav class="topic-index" aria-label="Temas de tu devolución">
-                @foreach (var topic in snapshot.Topics) { <a href="@($"bitacora#tema-{topic.Id}")">@topic.Title</a> }
+                @foreach (var topic in snapshot.Topics) { <a href="@($"/bitacora?seccion=temas#tema-{topic.Id}")">@topic.Title</a> }
             </nav>
             <p class="topic-scope">Una lectura posible, para revisar y completar con tu mirada.</p>
             <div class="topic-list">
@@ -79,7 +79,14 @@
                             <summary>Ver fragmentos de apoyo (@topic.Evidence.Count)</summary>
                             @foreach (var evidence in topic.Evidence)
                             {
-                                <figure><figcaption>@evidence.Label@if (evidence.CreatedUtc is { } date) { <span> · <time datetime="@date.ToString("O")">@Date(date)</time></span> }</figcaption><blockquote class="preserved-text">@evidence.Excerpt</blockquote></figure>
+                                <figure>
+                                    <figcaption>@evidence.Label@if (evidence.CreatedUtc is { } date) { <span> · <time datetime="@date.ToString("O")">@Date(date)</time></span> }</figcaption>
+                                    <blockquote class="preserved-text">@evidence.Excerpt</blockquote>
+                                    @if (evidence.EntryId is { } entryId)
+                                    {
+                                        <a class="evidence-entry-link" href="@($"/entrada/{entryId}?tema={Uri.EscapeDataString(topic.Id)}")" target="_blank" rel="noopener">Abrir entrada completa <Icon Name="arrow" Size="15" /><span class="visually-hidden"> (en otra pestaña)</span></a>
+                                    }
+                                </figure>
                             }
                         </details>
                     </article>

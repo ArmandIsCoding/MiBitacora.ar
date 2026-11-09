@@ -1,0 +1,73 @@
+@page "/entrada/{EntryId:guid}"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IJournalStore Store
+@inject AuthenticationStateProvider Auth
+@inject TimeZoneInfo TimeZone
+@inject ILogger<Entrada> Logger
+
+<PageTitle>Entrada completa · Mi Bitácora</PageTitle>
+
+<header class="site-header wrap"><Brand Href="/bitacora" /><a class="text-link" href="@ReturnUrl">Volver a la devolución <Icon Name="arrow" Size="16" /></a></header>
+<main class="reading-paper full-entry">
+    <p class="eyebrow">TU ENTRADA ORIGINAL</p>
+    @if (_entry is { } entry)
+    {
+        <h1>@Local(entry.CreatedUtc).ToString("d 'de' MMMM 'de' yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"))</h1>
+        <p class="topic-scope">Texto completo y archivos guardados. La devolución es una lectura de la IA; podés contrastarla con lo que escribiste.</p>
+        <article class="entry-card" aria-label="Entrada completa">
+            @if (!string.IsNullOrWhiteSpace(entry.Text)) { <p class="preserved-text">@entry.Text</p> }
+            @if (entry.Attachments.Count > 0)
+            {
+                <div class="attachment-list" aria-label="Archivos de la entrada">
+                    @foreach (var file in entry.Attachments)
+                    {
+                        <div class="full-entry-file">
+                            <a class="attachment-card @(HeicImageService.HasPreview(file.ContentType) ? "attachment-image" : "")" href="@($"/adjuntos/{file.Id}")" download>
+                                @if (HeicImageService.HasPreview(file.ContentType))
+                                {
+                                    <img src="@($"/adjuntos/{file.Id}/vista")" alt="@file.FileName" loading="lazy" />
+                                }
+                                <span class="attachment-caption"><Icon Name="download" Size="17" /> @file.FileName</span>
+                            </a>
+                            @if (!string.IsNullOrWhiteSpace(file.ExtractedText))
+                            {
+                                <details class="reflection-details"><summary>Ver texto extraído del documento</summary><p class="preserved-text">@file.ExtractedText</p></details>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+        @if (entry.Reflection is { } reflection)
+        {
+            <ReflectionCard Reflection="reflection" />
+        }
+        <p class="conversation-boundary">Esta conversación con IA puede ayudarte a reflexionar y puede equivocarse. No reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo.</p>
+    }
+    else
+    {
+        <h1>Entrada no disponible.</h1>
+        <p role="status">@(_failed ? "No pudimos abrir la entrada. Volvé a intentarlo en un momento." : "Puede haberse eliminado o no pertenecer a tu cuenta.")</p>
+    }
+    <a class="btn btn-outline" href="@ReturnUrl">Volver a la devolución</a>
+</main>
+
+@code {
+    [Parameter] public Guid EntryId { get; set; }
+    [SupplyParameterFromQuery(Name = "tema")] public string? TopicId { get; set; }
+    private JournalEntry? _entry;
+    private bool _failed;
+    private string ReturnUrl => "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
+    private DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZone);
+    protected override async Task OnParametersSetAsync()
+    {
+        _entry = null;
+        _failed = false;
+        var userId = (await Auth.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return;
+        try { _entry = await Store.GetEntryAsync(userId, EntryId); }
+        catch (Exception ex) { Logger.LogWarning(ex, "No se pudo abrir una entrada completa."); _failed = true; }
+    }
+}

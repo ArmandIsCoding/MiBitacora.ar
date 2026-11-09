@@ -28,13 +28,13 @@ public abstract partial class JournalAiService
     private static readonly Regex TermPattern = new(
         @"[\p{L}\p{N}]{4,}", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
-    private static JournalEvidence BuildEvidence(JournalContext context)
+    private JournalEvidence BuildEvidence(JournalContext context)
     {
         var sources = new Dictionary<string, EvidenceSource>(StringComparer.Ordinal);
         var promptSources = new List<PromptSource>();
         var images = new List<JournalImage>();
-        var remainingText = 6500;
-        var currentText = Excerpt(context.Current.Text, 3000);
+        var remainingText = UsesExternalProvider ? 18_000 : 6500;
+        var currentText = Excerpt(context.Current.Text, UsesExternalProvider ? JournalStore.MaxTextLength : 3000);
 
         AddSource("actual", "entrada actual", "Tu entrada actual", currentText);
 
@@ -87,15 +87,17 @@ public abstract partial class JournalAiService
             .Where(entry => entry.Id != context.Current.Id)
             .OrderByDescending(entry => entry.CreatedUtc)
             .ToArray();
-        foreach (var entry in Prioritize(entries, searchTerms, entry => entry.Text, keepRecent: 1, limit: 3))
+        foreach (var entry in Prioritize(entries, searchTerms, entry => entry.Text, keepRecent: 2, limit: 3))
         {
             var label = DateLabel("Entrada", entry.CreatedUtc);
-            AddSource($"entrada{promptSources.Count}", "entrada previa", label, Excerpt(entry.Text, 500),
-                priorResponse: Excerpt(entry.Reflection?.Overview, 150));
+            AddSource($"entrada{promptSources.Count}", "entrada previa", label, Excerpt(entry.Text, 800),
+                priorResponse: entry.Reflection is { } previous
+                    ? Excerpt(previous.Overview, 1000) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
         }
 
-        var notes = context.Notes.OrderByDescending(note => note.CreatedUtc).ToArray();
-        foreach (var note in Prioritize(notes, searchTerms, note => note.Text, keepRecent: 1, limit: 2))
+        var notes = context.Notes.Where(note => note.CreatedUtc <= context.Current.CreatedUtc)
+            .OrderByDescending(note => note.CreatedUtc).ToArray();
+        foreach (var note in notes.Where(note => Terms(note.Text).Overlaps(searchTerms)).Take(2))
         {
             var label = DateLabel("Notita", note.CreatedUtc);
             AddSource($"notita{promptSources.Count}", "notita", label, Excerpt(note.Text, 400));
@@ -108,7 +110,9 @@ public abstract partial class JournalAiService
         }
 
         var prompt = JsonSerializer.Serialize(new { fuentes = promptSources }, JsonOptions);
-        var promptText = "Ordená la entrada actual con estas fuentes. Se incluyen fragmentos, no el cuaderno completo. " +
+        var promptText = $"Respondé al último mensaje, registrado el {context.Current.CreatedUtc:yyyy-MM-dd}, a partir de estas fuentes. " +
+            "El historial está ordenado del más reciente al más antiguo; devolucionAnterior es voz de la IA, no de la persona. " +
+            "El perfil describe el contexto actual, no necesariamente el de esta fecha. Se incluyen fragmentos del historial, no el cuaderno completo. " +
             "Las imágenes adjuntas corresponden en orden al campo numeroImagen (1, 2). " +
             "Si un texto está cortado, no inventes la continuación.\n" + prompt;
         return new(promptText, images, sources, unreadCurrentAttachments);
@@ -124,7 +128,7 @@ public abstract partial class JournalAiService
         {
             text = Excerpt(text, Math.Min(remainingText, text.Length));
             remainingText -= text.Length;
-            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, 150));
+            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, 1300));
             remainingText -= priorResponse.Length;
             sources.Add(id, new(label, text, text.Length > 0 || inline));
             promptSources.Add(new(id, type, label, text, inline, priorResponse, imageNumber));

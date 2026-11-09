@@ -54,6 +54,23 @@ Check(requestBody!.Value.GetProperty("messages")[1].GetProperty("images")[0].Get
 Check(requestBody.Value.GetProperty("format").GetProperty("type").GetString() == "object", "Se exige salida JSON estructurada");
 Check(requestBody.Value.GetProperty("think").ValueKind == JsonValueKind.False, "La devolución no consume el presupuesto en razonamiento interno");
 
+var lastTurn = entry with { Id = Guid.NewGuid(), CreatedUtc = entry.CreatedUtc.AddMinutes(-5), Text = "Me cuesta pedir ayuda.",
+    Attachments = [], Reflection = result with { Overview = "Quizás puedas distinguir lo que necesitás de lo que imaginás que responderán.", OpenQuestions = ["¿A quién te gustaría pedir ayuda?"] } };
+await service.ReflectAsync(context with
+{
+    Current = entry with { Text = "A mi hermana.", Attachments = [] }, Attachments = [], Media = [], History = [lastTurn],
+    Notes = [new(Guid.NewGuid(), "Me preocupa la factura eléctrica.", entry.CreatedUtc.AddDays(-1), false),
+             new(Guid.NewGuid(), "Mi hermana me escuchó mañana.", entry.CreatedUtc.AddDays(1), false)]
+}, true);
+var conversationPrompt = requestBody!.Value.GetProperty("messages")[1].GetProperty("content").GetString()!;
+var sourceJson = JsonDocument.Parse(conversationPrompt[conversationPrompt.IndexOf('{')..]).RootElement.GetProperty("fuentes");
+Check(sourceJson.EnumerateArray().Any(s => s.GetProperty("devolucionAnterior").GetString()?.Contains("¿A quién te gustaría pedir ayuda?") == true),
+    "Conversación: una respuesta breve conserva la pregunta anterior de la IA");
+Check(sourceJson.EnumerateArray().All(s => s.GetProperty("tipo").GetString() != "notita"),
+    "Conversación: se excluyen notitas ajenas al asunto y posteriores a la entrada");
+Check(result.ConversationVersion == JournalReflection.CurrentConversationVersion && result.GeneratedUtc.HasValue && result.OpenQuestions.Count <= 1,
+    "Conversación: la respuesta guarda su versión y fecha de generación");
+
 var pdf = attachment with { ContentType = "application/pdf", FileName = "nota.pdf" };
 var pdfResult = await service.ReflectAsync(context with
 {

@@ -90,7 +90,14 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
             {
                 progress?.Report($"Preparando devoluciones · tema {results.Count + 1} de {topics.Count}");
                 var observations = await CompressAsync(topic.Title, topic.Observations, BatchLength, ct);
-                var reading = await analyzer.ReadAsync(topic.Title, observations, ct, additionalContext: context);
+                // Only context explicitly linked as evidence belongs in this topic's final reading.
+                // Sending every note to every reading encourages repeated, unrelated closing remarks.
+                var relevantContext = contextSources.Where(source => topic.Evidence.Any(e =>
+                    e.Kind == source.Kind && e.NoteId == source.NoteId)).ToList();
+                var topicContext = await CompressAsync("Contexto pertinente a " + topic.Title,
+                    relevantContext.Select(s => JsonSerializer.Serialize(new { source = SourceLabel(s), text = s.Text }, Json)).ToList(),
+                    ContextLength, ct);
+                var reading = await analyzer.ReadAsync(topic.Title, observations, ct, additionalContext: topicContext);
                 results.Add(new(topic.Id, topic.Title, reading.Overview, reading.Questions,
                     topic.Evidence.Distinct().OrderBy(e => e.CreatedUtc).ToArray()));
             }
@@ -157,7 +164,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
         }
         // The version also marks pre-context snapshots as outdated, without a database migration.
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            JsonSerializer.Serialize(new { version = 2, entries, notes, personalContext }, Json))));
+            JsonSerializer.Serialize(new { version = 3, entries, notes, personalContext }, Json))));
         return new(sources, fingerprint, entries.Count, textEntries, documents, unread,
             notes.Count(n => !string.IsNullOrWhiteSpace(n.Text)), !string.IsNullOrWhiteSpace(personalContext));
 

@@ -15,7 +15,7 @@ dotnet run --launch-profile http
 
 Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
-Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Ordenar mis ideas**. La devolución usa Ollama y Qwen3-VL 4B instalados en el mismo equipo. También podés guardar entradas sin pedir una devolución. Si Ollama está detenido, la entrada queda guardada y se muestra una opción para reintentar.
+Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La respuesta usa el proveedor configurado. **Solo guardar** permite escribir sin IA. Si falla el proveedor, la entrada queda guardada y se muestra una opción para reintentar. Ver [conversación y actualización de entradas existentes](docs/conversacion.md).
 
 ## IA local en Windows
 

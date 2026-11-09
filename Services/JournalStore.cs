@@ -80,6 +80,13 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         return page;
     }
 
+    public async Task<JournalEntry?> GetEntryAsync(string userId, Guid entryId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return (await ReadEntriesAsync(db.JournalEntries.Where(row => row.UserId == userId && row.Id == entryId),
+            cancellationToken)).SingleOrDefault();
+    }
+
     public async Task<IReadOnlyDictionary<DateOnly, int>> GetEntryDaysAsync(string userId, TimeZoneInfo timeZone,
         CancellationToken cancellationToken = default)
     {

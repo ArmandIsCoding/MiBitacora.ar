@@ -8,9 +8,9 @@ public sealed class JournalReflectionException(string message) : Exception(messa
 public abstract partial class JournalAiService : IJournalReflector
 {
     private const string SystemInstruction = """
-        Sos la herramienta de escritura de Mi Bitácora. Ayudás a quien escribe a ordenar sus palabras,
-        encontrar preguntas y elegir asuntos para retomar. Escribí una reflexión personal, cálida y
-        en primera persona singular. Tratá la entrada actual como el foco de la devolución.
+        Sos la IA de apoyo de Mi Bitácora. Ayudás a explorar lo que la persona cuenta,
+        encontrar nuevas perspectivas y elegir asuntos para retomar en terapia. Respondé como
+        interlocutora, con voseo y calidez. La entrada actual es el foco de tu respuesta.
         Usá solamente contexto pertinente. Respetá los matices, contradicciones y preferencias culturales
         que la persona haya expresado. Evitá inferir su cultura, identidad o antecedentes.
 
@@ -32,7 +32,7 @@ public abstract partial class JournalAiService : IJournalReflector
         Citá solo fragmentos exactos de sus textos. Usá una cita vacía cuando la fuente sea visual o
         no haya un fragmento breve y exacto. No incluyas un tema si no hay fuente con contenido
         que lo sostenga. Dejá vacías las listas que no tengan elementos útiles. La próxima acción
-        puede ser una posibilidad sencilla de escribir o revisar, en primera persona, y puede quedar vacía.
+        puede ser una posibilidad sencilla y opcional, y puede quedar vacía. No llenes campos por rutina.
         Devolvé exclusivamente el objeto JSON pedido, sin Markdown.
         """;
 
@@ -42,17 +42,18 @@ public abstract partial class JournalAiService : IJournalReflector
         {
           "type": "object",
           "properties": {
-            "title": { "type": "string", "description": "Título breve, personal y fiel a la entrada, para leer como propio." },
-            "overview": { "type": "string", "description": "Dos o tres frases en primera persona singular, cálidas y fieles a lo escrito, para leerme a mí mismo o en terapia. Hasta 700 caracteres." },
+            "title": { "type": "string", "description": "Etiqueta breve y fiel al asunto para organizar la conversación; no es un diagnóstico." },
+            "overview": { "type": "string", "description": "Respuesta conversacional en dos o tres párrafos breves, dirigida a la persona con voseo. Aporta una distinción o lectura útil sobre el último mensaje, no una paráfrasis. Hasta 1800 caracteres, sin la pregunta final." },
             "themes": {
               "type": "array",
-              "maxItems": 4,
+              "maxItems": 2,
+              "description": "Apoyo opcional para revisar de dónde surge la lectura. Lista vacía si no aporta; no repitas la respuesta principal.",
               "items": {
                 "type": "object",
                 "properties": {
                   "title": { "type": "string", "description": "Nombre corto del tema." },
-                  "observation": { "type": "string", "description": "Una frase en mi voz sobre lo que escribí o veo en la fuente, sin adoptar vivencias ajenas. Hasta 350 caracteres." },
-                  "interpretation": { "type": "string", "description": "Una posible lectura en primera persona, explícitamente tentativa: quizás, me pregunto si. Hasta 230 caracteres; vacía si no aporta." },
+                  "observation": { "type": "string", "description": "Un detalle comprobable de la fuente, dirigido a quien escribe. Hasta 350 caracteres." },
+                  "interpretation": { "type": "string", "description": "Una lectura posible, explícitamente tentativa, sin atribuir emociones no expresadas. Hasta 230 caracteres; vacía si no aporta." },
                   "quote": { "type": "string", "description": "Fragmento literal de la fuente, de hasta 230 caracteres, o una cadena vacía." },
                   "sourceId": { "type": "string", "description": "Identificador exacto de una fuente con contenido presente en la solicitud." }
                 },
@@ -60,14 +61,14 @@ public abstract partial class JournalAiService : IJournalReflector
               }
             },
             "openQuestions": {
-              "type": "array", "maxItems": 3, "items": { "type": "string" },
-              "description": "Preguntas que me hago en primera persona, abiertas y específicas, sin sugerir respuestas."
+              "type": "array", "maxItems": 1, "items": { "type": "string" },
+              "description": "Como máximo una pregunta abierta con voseo, específica para seguir esta conversación, sin sugerir la respuesta. Puede estar vacía."
             },
             "sessionTopics": {
-              "type": "array", "maxItems": 3, "items": { "type": "string" },
-              "description": "Apuntes breves en primera persona sobre lo que podría conversar en terapia, sin atribuirme decisiones."
+              "type": "array", "maxItems": 2, "items": { "type": "string" },
+              "description": "Hasta dos apuntes opcionales sobre asuntos concretos que la persona podría llevar a terapia. Vacía si no aporta."
             },
-            "nextStep": { "type": "string", "description": "Posibilidad opcional en primera persona de escribir o revisar, sin dar órdenes. Hasta 240 caracteres; vacía si no aporta." }
+            "nextStep": { "type": "string", "description": "Recurso de reflexión breve y opcional, solo cuando resulte útil; normalmente vacío. Hasta 240 caracteres." }
           },
           "required": ["title", "overview", "themes", "openQuestions", "sessionTopics", "nextStep"]
         }
@@ -130,13 +131,13 @@ public abstract partial class JournalAiService : IJournalReflector
                 ? observation
                 : $"{observation}\n\n{interpretation}";
             themes.Add(new(Limit(theme.Title, 85), detail, quote, source.Label));
-            if (themes.Count == 4)
+            if (themes.Count == 2)
             {
                 break;
             }
         }
 
-        var overview = Limit(parsed.Overview, 700);
+        var overview = Limit(parsed.Overview, 1800);
         if (evidence.UnreadCurrentAttachments > 0)
         {
             var missing = evidence.UnreadCurrentAttachments == 1
@@ -149,10 +150,10 @@ public abstract partial class JournalAiService : IJournalReflector
             Limit(parsed.Title, 100),
             overview,
             themes,
-            TrimList(parsed.OpenQuestions),
-            TrimList(parsed.SessionTopics),
+            TrimList(parsed.OpenQuestions).Take(1).ToArray(),
+            TrimList(parsed.SessionTopics).Take(2).ToArray(),
             string.IsNullOrWhiteSpace(parsed.NextStep) ? null : Limit(parsed.NextStep, 240),
-            IsDemo: false);
+            IsDemo: false, ConversationVersion: JournalReflection.CurrentConversationVersion, GeneratedUtc: DateTime.UtcNow);
     }
 
     private static JournalReflection CreateDemo(JournalContext context)

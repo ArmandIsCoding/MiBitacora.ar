@@ -20,6 +20,7 @@ public partial class Bitacora : IAsyncDisposable
     [Inject] private AuthenticationStateProvider Auth { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
     [Inject] private ILogger<Bitacora> Logger { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "seccion")] public string? InitialSection { get; set; }
 
     private readonly CancellationTokenSource _lifetime = new();
     private readonly List<JournalEntry> _entries = [];
@@ -67,6 +68,7 @@ public partial class Bitacora : IAsyncDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        if (InitialSection == "temas") _section = WorkspaceSection.Topics;
         var state = await Auth.GetAuthenticationStateAsync();
         _userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         if (_userId.Length == 0)
@@ -92,7 +94,7 @@ public partial class Bitacora : IAsyncDisposable
             UpdateCalendarDay();
             _hasEarlier = _entries.Count == PageSize;
             _ready = true;
-            _scrollToEnd = _entries.Count > 0;
+            _scrollToEnd = _section == WorkspaceSection.Conversation && _entries.Count > 0;
         }
         catch (OperationCanceledException) when (_disposed)
         {

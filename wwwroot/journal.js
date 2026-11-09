@@ -9,6 +9,11 @@ export function showDialog(dialog) {
 }
 
 export function reveal(element) {
+    if (!element) return;
+    const composer = element.nextElementSibling;
+    if (composer?.classList.contains("composer-wrap")) {
+        element.style.scrollMarginBottom = `${Math.ceil(composer.getBoundingClientRect().height) + 16}px`;
+    }
     element?.scrollIntoView({ block: "nearest" });
 }
 

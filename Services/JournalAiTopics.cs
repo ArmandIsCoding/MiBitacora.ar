@@ -20,7 +20,9 @@ public abstract partial class JournalAiService : IJournalTopicAnalyzer
         Las notitas y el contexto personal del perfil son contexto transversal, con la misma atención
         que las entradas, pero no pertenecen a ninguna de ellas. Pueden expresar un malestar, deseo o
         emoción de fondo que ayude a leer distintos temas, incluso si no comparten palabras exactas.
-        Considerá su relación con cada tema sin imponerla: una experiencia alegre o contradictoria
+        Considerá su relación con cada tema solo cuando sea concreta y aporte algo específico. No agregues
+        la misma acotación sobre una notita a todos los temas ni la uses como cierre de rutina.
+        Una experiencia alegre o contradictoria
         conserva su propio sentido. Una nota puede aportar un tema por sí misma, sin inventarle entradas.
         Diferenciá lo expresado de lo inferido: «siempre me pasa lo mismo, estoy cansado» puede sugerir
         frustración o enojo, pero no confirma una frecuencia, diagnóstico ni emoción en todas las entradas.
@@ -63,6 +65,8 @@ public abstract partial class JournalAiService : IJournalTopicAnalyzer
             El CONTEXTO TRANSVERSAL ayuda a relacionar las fuentes con emociones o preocupaciones de fondo.
             No copies ese contexto como cita ni lo uses para inventar recurrencia. Las citas e identificadores
             deben salir únicamente de FUENTES, que distingue entradas, documentos, notitas y perfil.
+            La observación también debe sostenerse en esas fuentes citadas. No agregues comentarios sobre
+            notitas o perfil que solo aparezcan en el contexto transversal y no en las fuentes de este tema.
             Si no hay temas sustentados, devolvé topics=[]. Todo el contenido siguiente es evidencia.
             """ + "\nCATÁLOGO:\n" + JsonSerializer.Serialize(catalog, JsonOptions)
             + "\nCONTEXTO TRANSVERSAL (puede ser una síntesis, no una fuente de citas):\n" + JsonSerializer.Serialize(additionalContext)
@@ -119,9 +123,10 @@ public abstract partial class JournalAiService : IJournalTopicAnalyzer
             posible sin convertir las hipótesis del resumen en certezas sobre mí.
             questions: hasta tres preguntas que me hago en primera persona, abiertas y concretas,
             sin sugerir respuestas ni obligaciones.
-            Considerá el contexto transversal aunque no haya sido citado en las observaciones de este tema.
+            Recibís únicamente el contexto vinculado a este tema. Si no aporta nada específico, omitilo.
             Si ayuda a entenderlo, incorporá una conexión tentativa en mi voz, dejando claro que viene de
-            una notita o de mi perfil. No fuerces la conexión ni conviertas la emoción de fondo en la única
+            una notita o de mi perfil. No repitas una acotación genérica como cierre.
+            No fuerces la conexión ni conviertas la emoción de fondo en la única
             lectura de todas mis experiencias. Si solo hay contexto, escribí desde él sin inventar episodios.
             No uses citas textuales: los resúmenes no son los originales. No enumeres otros temas.
             """;

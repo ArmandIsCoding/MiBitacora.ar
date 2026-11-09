@@ -84,6 +84,11 @@ internal static class StorageChecks
         var a = await store.AddEntryAsync(aId, "Apunte de A",
             Enumerable.Range(0, 12).Select(_ => new PendingAttachment("../../cuadrado.png", image)).ToArray());
         var b = await store.AddEntryAsync(bId, "SECRETO_B", [new("cuadrado.png", image)]);
+        var fullEntry = await store.GetEntryAsync(aId, a.Id);
+        check(fullEntry?.Text == a.Text && fullEntry.Attachments.Count == 12,
+            "Entrada completa: devuelve el original y todos sus adjuntos");
+        check(await store.GetEntryAsync(aId, b.Id) is null && await store.GetEntryAsync(aId, Guid.NewGuid()) is null,
+            "Entrada completa: una entrada ajena y una inexistente son igualmente inaccesibles");
         await using (var db = await factory.CreateDbContextAsync())
             await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE JournalEntries SET IsDateOnly = 1 WHERE Id = {a.Id}");
         check((await store.GetEntriesAsync(aId)).Single().IsDateOnly,

@@ -132,7 +132,25 @@ internal static class TopicChecks
             check(html.Contains("Ver contexto adicional considerado") && html.Contains("44 entradas relacionadas") &&
                 !html.Contains("45 entradas relacionadas") && !html.Contains("0001"),
                 "Temas: el contexto no infla el contador de entradas ni muestra fechas ficticias");
+            check(html.Contains($"/entrada/{original.Id}?tema=t1") && html.Contains("target=\"_blank\"") &&
+                !html.Contains($"/entrada/{note.Id}"),
+                "Temas: los fragmentos de entradas abren el original, las notitas no inventan enlaces");
+            var entryHtml = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<Entrada>(
+                ParameterView.FromDictionary(new Dictionary<string, object?> { ["EntryId"] = longEntry.Id }))).ToHtmlString());
+            check(entryHtml.Contains("TU ENTRADA ORIGINAL") && entryHtml.Contains("seccion=temas") && WebUtility.HtmlDecode(entryHtml).Contains(longEntry.Text),
+                "Entrada completa: renderiza todo el texto y permite volver al tema sin generar IA");
+            var hiddenHtml = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<Entrada>(
+                ParameterView.FromDictionary(new Dictionary<string, object?> { ["EntryId"] = foreign.Id }))).ToHtmlString());
+            check(hiddenHtml.Contains("Entrada no disponible") && !hiddenHtml.Contains("SECRETO_DE_OTRA_CUENTA"),
+                "Entrada completa: la página no revela contenido de otra cuenta");
         }
+
+        var separated = new SeparatedAnalyzer();
+        var separatedSnapshot = await new JournalTopicService(factory, separated, new JournalTopicJobs()).GenerateAsync(a);
+        check(separated.FinalContexts["Entradas"] == "" && separated.FinalContexts["Contexto"].Contains("estoy cansado"),
+            "Temas: una notita sólo llega a la lectura que la vinculó como fuente, no a todas");
+        // Restore the reference snapshot used by concurrency checks below.
+        snapshot = await topics.GenerateAsync(a);
 
         await store.SaveNoteAsync(a, note.Id, "Cambió mi emoción de fondo.");
         check((await topics.GetAsync(a)).IsOutdated, "Temas: editar una notita invalida la huella");
@@ -274,6 +292,21 @@ internal static class TopicChecks
         }
     }
     private sealed class ProgressSink(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
+    private sealed class SeparatedAnalyzer : IJournalTopicAnalyzer
+    {
+        public bool IsConfigured => true;
+        public Dictionary<string, string> FinalContexts { get; } = [];
+        public Task<IReadOnlyList<TopicObservation>> DetectAsync(IReadOnlyList<TopicSource> sources,
+            IReadOnlyDictionary<string, string> catalog, CancellationToken ct, string additionalContext = "") =>
+            Task.FromResult<IReadOnlyList<TopicObservation>>(sources.GroupBy(s => s.EntryId.HasValue ? "Entradas" : "Contexto")
+                .Select(g => new TopicObservation(catalog.FirstOrDefault(p => p.Value == g.Key).Key ?? "nuevo", g.Key,
+                    "Observación de estas fuentes.", g.Select(s => new TopicCitation(s.Id, s.Text[..Math.Min(60, s.Text.Length)])).ToArray())).ToArray());
+        public Task<TopicReading> ReadAsync(string title, string observations, CancellationToken ct, bool summarizeOnly = false, string additionalContext = "")
+        {
+            if (!summarizeOnly) FinalContexts[title] = additionalContext;
+            return Task.FromResult(new TopicReading("Síntesis breve.", []));
+        }
+    }
     // Render the actual page's Razor tree, including its interactive child parameters, without a browser circuit.
     private sealed class PageRenderer(IServiceProvider services, ILoggerFactory logger) : StaticHtmlRenderer(services, logger)
     {
