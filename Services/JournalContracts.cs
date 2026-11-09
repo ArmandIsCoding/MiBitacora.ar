@@ -23,7 +23,7 @@ public sealed record JournalAttachment(
     string ExtractionStatus,
     string? ExtractedText);
 
-public sealed record AttachmentContent(string FileName, string ContentType, byte[] Content);
+public sealed record AttachmentContent(string FileName, string ContentType, Stream Content);
 
 public sealed record JournalMediaFile(Guid AttachmentId, string FileName, string ContentType, byte[] Content);
 

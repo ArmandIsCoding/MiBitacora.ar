@@ -99,25 +99,7 @@ await first;
 await Service(queueClient, queueGate).ReflectAsync(context, true);
 Check(calls == 2, "La cancelación libera correctamente la cola");
 
-var testDb = Path.Combine(Path.GetTempPath(), $"mibitacora-check-{Guid.NewGuid():N}.db");
-var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite($"Data Source={testDb};Pooling=False").Options;
-try
-{
-    await using (var db = new ApplicationDbContext(dbOptions))
-    {
-        await db.Database.EnsureCreatedAsync();
-        db.Users.AddRange(new ApplicationUser { Id = "a", UserName = "a" }, new ApplicationUser { Id = "b", UserName = "b" });
-        await db.SaveChangesAsync();
-    }
-    var store = new JournalStore(new TestDbFactory(dbOptions));
-    var a = await store.AddEntryAsync("a", "Apunte de A", [new("cuadrado.png", image)]);
-    var b = await store.AddEntryAsync("b", "SECRETO_B", []);
-    var own = await store.GetContextAsync("a", a.Id, true);
-    Check(own.Media.Count == 1 && !JsonSerializer.Serialize(own).Contains("SECRETO_B"), "El contexto y las imágenes pertenecen al usuario autenticado");
-    try { await store.GetContextAsync("a", b.Id, true); throw new Exception("Acceso cruzado"); }
-    catch (JournalInputException) { Check(true, "Se rechaza consultar una entrada de otro usuario"); }
-}
-finally { File.Delete(testDb); }
+await StorageChecks.RunAsync(image, Check);
 
 if (args.Contains("--live"))
 {
@@ -136,8 +118,4 @@ if (args.Contains("--live"))
 sealed class TestHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => send(request, cancellationToken);
-}
-sealed class TestDbFactory(DbContextOptions<ApplicationDbContext> options) : IDbContextFactory<ApplicationDbContext>
-{
-    public ApplicationDbContext CreateDbContext() => new(options);
 }

@@ -44,7 +44,11 @@ var sqlite = configuredConnection is null
 sqlite.ForeignKeys = true;
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options => options.UseSqlite(sqlite.ConnectionString));
+builder.Services.AddSingleton(provider => new UploadFileStore(
+    Path.Combine(builder.Environment.ContentRootPath, "uploads"),
+    provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddScoped<AccountDeletionService>();
 builder.Services.AddScoped<AdminDashboardService>();
 builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(
     builder.Configuration["Journal:TimeZone"] ?? "America/Argentina/Buenos_Aires"));
@@ -89,7 +93,11 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var uploads = scope.ServiceProvider.GetRequiredService<UploadFileStore>();
+    var exported = await LegacyUploadMigration.ExportAsync(db, uploads);
     await db.Database.MigrateAsync();
+    if (exported) await db.Database.ExecuteSqlRawAsync("VACUUM;");
+    await uploads.CleanupOrphansAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -158,6 +166,7 @@ static async Task<IResult> PreviewAttachment(
     var file = await store.GetAttachmentAsync(userId, id, cancellationToken);
     if (file?.ContentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/avif"))
     {
+        if (file is not null) await file.Content.DisposeAsync();
         return Results.NotFound();
     }
 

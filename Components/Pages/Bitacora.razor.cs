@@ -217,19 +217,11 @@ public partial class Bitacora : IAsyncDisposable
         }
 
         _error = null;
-        var available = JournalStore.MaxFilesPerEntry - _files.Count;
-        if (args.FileCount > available)
-        {
-            _error = $"Podés adjuntar hasta {JournalStore.MaxFilesPerEntry} archivos por entrada.";
-            _pickerVersion++;
-            return;
-        }
-
         _uploading = true;
         var skipped = new List<string>();
         try
         {
-            foreach (var file in args.GetMultipleFiles(available))
+            foreach (var file in args.GetMultipleFiles(args.FileCount))
             {
                 if (file.Size is <= 0 or > JournalStore.MaxFileBytes
                     || _files.Sum(item => (long)item.Content.Length) + file.Size > JournalStore.MaxEntryAttachmentBytes)

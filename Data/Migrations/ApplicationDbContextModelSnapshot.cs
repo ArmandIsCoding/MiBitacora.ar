@@ -91,10 +91,6 @@ namespace MiBitacora.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Content")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
-
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasColumnType("TEXT");

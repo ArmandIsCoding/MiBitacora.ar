@@ -7,6 +7,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
+@inject MiBitacora.Services.AccountDeletionService AccountDeletion
 
 <PageTitle>Borrar cuenta | Mi Bitácora</PageTitle>
 
@@ -54,7 +55,7 @@
             return;
         }
 
-        var result = await UserManager.DeleteAsync(user);
+        var result = await AccountDeletion.DeleteAsync(user);
         if (!result.Succeeded)
         {
             errorMessage = AccountText.DescribeErrors(result);

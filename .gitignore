@@ -429,6 +429,7 @@ FodyWeavers.xsd
 
 # Mi Bitácora: SQLite y archivos de datos locales
 App_Data/
+uploads/
 *.db
 *.db-shm
 *.db-wal

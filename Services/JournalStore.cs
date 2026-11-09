@@ -7,11 +7,10 @@ using MiBitacora.Data;
 
 namespace MiBitacora.Services;
 
-public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext> factory) : IJournalStore
+public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext> factory, UploadFileStore uploads) : IJournalStore
 {
     public const int MaxFileBytes = 8 * 1024 * 1024;
     public const int MaxEntryAttachmentBytes = 16 * 1024 * 1024;
-    public const int MaxFilesPerEntry = 4;
     public const int MaxTextLength = 12_000;
     public const int MaxNoteLength = 2_000;
     public const int MaxDisplayNameLength = 80;
@@ -112,6 +111,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         }
 
         ValidateFiles(files);
+        using var uploadLock = await uploads.LockAsync(cancellationToken);
 
         var entry = new JournalEntryRow
         {
@@ -145,8 +145,24 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         entry.CreatedUtc = latest is { } previous && previous >= now ? previous.AddTicks(1) : now;
 
         db.JournalEntries.Add(entry);
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        var written = new List<Guid>();
+        try
+        {
+            // Validate foreign keys before writing any originals; commit only after all files exist.
+            await db.SaveChangesAsync(cancellationToken);
+            for (var index = 0; index < files.Count; index++)
+            {
+                var id = entry.Attachments[index].Id;
+                await uploads.WriteAsync(userId, id, files[index].Content, cancellationToken);
+                written.Add(id);
+            }
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            uploads.Delete(userId, written);
+            throw;
+        }
 
         return new JournalEntry(entry.Id, entry.Text, entry.CreatedUtc, null, false,
             entry.Attachments.Select(ToAttachment).ToArray());
@@ -180,9 +196,13 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
 
     public async Task DeleteEntryAsync(string userId, Guid entryId, CancellationToken cancellationToken = default)
     {
+        using var uploadLock = await uploads.LockAsync(cancellationToken);
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var files = await db.JournalAttachments.Where(row => row.EntryId == entryId && row.Entry.UserId == userId)
+            .Select(row => row.Id).ToListAsync(cancellationToken);
         await db.JournalEntries.Where(row => row.Id == entryId && row.UserId == userId)
             .ExecuteDeleteAsync(cancellationToken);
+        uploads.Delete(userId, files);
     }
 
     public async Task<IReadOnlyList<JournalNote>> GetNotesAsync(string userId, CancellationToken cancellationToken = default)
@@ -285,9 +305,12 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        return await db.JournalAttachments.Where(row => row.Id == attachmentId && row.Entry.UserId == userId)
-            .Select(row => new AttachmentContent(row.FileName, row.ContentType, row.Content))
+        var metadata = await db.JournalAttachments.Where(row => row.Id == attachmentId && row.Entry.UserId == userId)
+            .Select(row => new { row.FileName, row.ContentType })
             .SingleOrDefaultAsync(cancellationToken);
+        if (metadata is null) return null;
+        var stream = uploads.OpenRead(userId, attachmentId);
+        return stream is null ? null : new AttachmentContent(metadata.FileName, metadata.ContentType, stream);
     }
 
     private static async Task<List<JournalEntry>> FindHistoryAsync(IQueryable<JournalEntryRow> earlier, string[] terms,
@@ -321,7 +344,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         }).ToArray();
     }
 
-    private static async Task<JournalMediaFile[]> ReadMediaAsync(ApplicationDbContext db, string userId,
+    private async Task<JournalMediaFile[]> ReadMediaAsync(ApplicationDbContext db, string userId,
         IReadOnlyList<JournalAttachment> attachments, CancellationToken cancellationToken)
     {
         var remaining = ContextMediaBytes;
@@ -337,11 +360,21 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         }
 
         if (selected.Count == 0) return [];
-        var media = await db.JournalAttachments
+        var metadata = await db.JournalAttachments
             .Where(row => selected.Contains(row.Id) && row.Entry.UserId == userId)
-            .Select(row => new JournalMediaFile(row.Id, row.FileName, row.ContentType, row.Content))
+            .Select(row => new { row.Id, row.FileName, row.ContentType, row.Size })
             .ToListAsync(cancellationToken);
-        return media.OrderBy(file => selected.IndexOf(file.AttachmentId)).ToArray();
+        var media = new List<JournalMediaFile>();
+        foreach (var file in metadata.OrderBy(file => selected.IndexOf(file.Id)))
+        {
+            await using var stream = uploads.OpenRead(userId, file.Id);
+            if (stream is null || stream.Length != file.Size || stream.Length > MaxFileBytes)
+                throw new JournalInputException("No pudimos leer una imagen adjunta. Revisá los archivos del servidor.");
+            var content = new byte[(int)stream.Length];
+            await stream.ReadExactlyAsync(content, cancellationToken);
+            media.Add(new JournalMediaFile(file.Id, file.FileName, file.ContentType, content));
+        }
+        return media.ToArray();
     }
 
     private static async Task<JournalProfile> ReadProfileAsync(ApplicationDbContext db, string userId,
@@ -396,11 +429,6 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
 
     private static void ValidateFiles(IReadOnlyList<PendingAttachment> files)
     {
-        if (files.Count > MaxFilesPerEntry)
-        {
-            throw new JournalInputException($"Podés agregar hasta {MaxFilesPerEntry} archivos a una entrada.");
-        }
-
         if (files.Any(file => file.Content.Length is 0 or > MaxFileBytes))
         {
             throw new JournalInputException("Cada archivo tiene que pesar entre 1 byte y 8 MB.");
@@ -431,8 +459,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
                 Size = file.Content.Length,
                 ExtractionStatus = analysis.Status,
                 ExtractedText = analysis.ExtractedText,
-                SearchText = NormalizeSearch($"{name}\n{analysis.ExtractedText}"),
-                Content = file.Content
+                SearchText = NormalizeSearch($"{name}\n{analysis.ExtractedText}")
             });
         }
 

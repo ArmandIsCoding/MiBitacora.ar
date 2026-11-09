@@ -208,9 +208,9 @@
                             }
                             <div class="composer-toolbar">
                                 <div class="composer-tools">
-                                    <InputFile @key="(0, _pickerVersion)" id="file-picker" aria-label="Adjuntar fotos o archivos" class="visually-hidden file-input" OnChange="PickFilesAsync" multiple disabled="@(!RendererInfo.IsInteractive || _busy || _uploading || _files.Count >= JournalStore.MaxFilesPerEntry)" />
+                                    <InputFile @key="(0, _pickerVersion)" id="file-picker" aria-label="Adjuntar fotos o archivos" class="visually-hidden file-input" OnChange="PickFilesAsync" multiple disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
                                     <label for="file-picker" class="composer-tool" title="Adjuntar fotos y archivos"><Icon Name="paperclip" Size="19" /><span>Adjuntar</span></label>
-                                    <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading || _files.Count >= JournalStore.MaxFilesPerEntry)" />
+                                    <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
                                     <label for="camera-picker" class="composer-tool camera-tool" title="Sacar una foto"><Icon Name="camera" Size="19" /><span>Foto</span></label>
                                     <button class="composer-tool" type="button" aria-label="Escribir una notita" @onclick="() => StartNote()" disabled="@(!RendererInfo.IsInteractive || _busy)"><Icon Name="note" Size="19" /><span>Notita</span></button>
                                 </div>
@@ -220,7 +220,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>Hasta 4 archivos · 8 MB c/u</span></div>
+                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
                     </section>
                 }
                 else if (_section == WorkspaceSection.Calendar)

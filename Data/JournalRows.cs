@@ -41,5 +41,4 @@ internal sealed class JournalAttachmentRow
     public string ExtractionStatus { get; set; } = "";
     public string? ExtractedText { get; set; }
     public string SearchText { get; set; } = "";
-    public byte[] Content { get; set; } = [];
 }
