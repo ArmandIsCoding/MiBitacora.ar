@@ -1,0 +1,36 @@
+@page "/informe"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject JournalTopicService Topics
+@inject AuthenticationStateProvider Auth
+@inject IJSRuntime Js
+@inject ILogger<Informe> Logger
+
+<PageTitle>Informe para terapia · Mi Bitácora</PageTitle>
+<main class="report-print-page">
+    <div class="report-print-tools"><Brand Href="/bitacora" /><a href="/bitacora?seccion=temas">Volver a Devolución</a>
+    <button type="button" class="btn btn-primary" @onclick="PrintAsync" disabled="@(!RendererInfo.IsInteractive || _state?.Snapshot?.Report is null)"><Icon Name="print" Size="18" /> Imprimir / guardar PDF</button></div>
+    @if (_error is not null) { <p role="alert">@_error</p> }
+    else if (_state?.Snapshot is { Report: not null } snapshot)
+    {
+        @if (_state.IsOutdated) { <p class="journal-alert">Hay cambios posteriores en el cuaderno. Este informe corresponde a la versión guardada el @snapshot.GeneratedUtc.ToString("d/M/yyyy").</p> }
+        <TherapyReportView Snapshot="snapshot" PrintMode="true" />
+    }
+    else if (_state is null) { <p role="status">Abriendo el informe…</p> }
+    else { <p>Todavía no hay un informe completo. Podés prepararlo desde Devolución.</p> }
+</main>
+
+@code {
+    private JournalTopicState? _state;
+    private string? _error;
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = (await Auth.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) { _error = "Volvé a ingresar para abrir tu informe."; return; }
+        try { _state = await Topics.GetAsync(userId); }
+        catch (Exception ex) { Logger.LogWarning(ex, "No se pudo abrir el informe para imprimir."); _error = "No pudimos abrir el informe. Volvé a intentarlo."; }
+    }
+    private async Task PrintAsync() => await Js.InvokeVoidAsync("print");
+}

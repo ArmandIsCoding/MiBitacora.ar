@@ -1,0 +1,77 @@
+@inject TimeZoneInfo TimeZone
+
+@if (Snapshot.Report is { } report)
+{
+    <article class="therapy-report" aria-label="Informe personal para terapia">
+        <header class="report-cover">
+            <div class="report-cover-top"><span class="eyebrow">MI BITÁCORA · DOCUMENTO PERSONAL</span><Icon Name="leaf" Size="29" /></div>
+            <p class="report-kicker">Un recorrido para conversar</p>
+            <h2>Lo que vengo<br />sintiendo<span>.</span></h2>
+            <p class="report-cover-description">Mis experiencias, las conexiones que vale la pena explorar y lo que quiero llevar a terapia.</p>
+            <div class="report-cover-meta"><span>Preparado el @Date(Snapshot.GeneratedUtc)</span><span>Registros: @Date(report.FromUtc) — @Date(report.ThroughUtc)</span></div>
+        </header>
+        <div class="report-method">
+            <strong>Una lectura para revisar juntos.</strong>
+            <p>Documento preparado con IA a partir de mi cuaderno. No es una evaluación clínica ni un diagnóstico y no reemplaza a un terapeuta. Las hipótesis son posibilidades para conversar, no conclusiones sobre mí. Puedo corregir o descartar cualquier lectura que no me represente.</p>
+        </div>
+        <div class="report-facts" aria-label="Alcance del informe">
+            <div><strong>@Snapshot.EntryCount</strong><span>entradas del cuaderno</span></div>
+            <div><strong>@report.RecentEntryCount</strong><span>con texto en los últimos 30 días</span></div>
+            <div><strong>@report.Sections.Count</strong><span>apartados para profundizar</span></div>
+        </div>
+        @if (!PrintMode)
+        {
+            <nav class="report-index" aria-label="Apartados del informe">
+                @for (var i = 0; i < report.Sections.Count; i++)
+                {
+                    var section = report.Sections[i];
+                    <a href="@($"/bitacora?seccion=temas#tema-{section.Id}")"><span>@((i + 1).ToString("00"))</span>@section.Title<Icon Name="arrow" Size="15" /></a>
+                }
+            </nav>
+        }
+        <div class="report-legend"><span class="report-kind registro">Lo que registré</span><span class="report-kind hipotesis">Hipótesis para explorar</span><span class="report-kind propuesta">Propuesta para terapia</span><span class="report-kind limite">Información pendiente</span></div>
+        @for (var i = 0; i < report.Sections.Count; i++)
+        {
+            var section = report.Sections[i];
+            <section class="report-section" id="@($"tema-{section.Id}")">
+                <header><span class="report-number">@((i + 1).ToString("00"))</span><div><h3>@section.Title</h3><p>@section.Introduction</p></div></header>
+                <div class="report-points">
+                    @foreach (var point in section.Points)
+                    {
+                        <article class="report-point @point.Kind">
+                            <span class="report-kind @point.Kind">@KindLabel(point.Kind)</span>
+                            <h4>@point.Title</h4>
+                            <p class="preserved-text">@point.Text</p>
+                            @if (!string.IsNullOrWhiteSpace(point.Question))
+                            { <p class="report-question"><Icon Name="quote" Size="18" /><span>@point.Question</span></p> }
+                            @if (point.Evidence.Count > 0)
+                            {
+                                <details class="report-evidence" open="@PrintMode">
+                                    <summary>Ver fragmentos de apoyo (@point.Evidence.Count)</summary>
+                                    @foreach (var evidence in point.Evidence)
+                                    {
+                                        <figure><figcaption>@evidence.Label · @Date(evidence.CreatedUtc)</figcaption><blockquote class="preserved-text">@evidence.Excerpt</blockquote>
+                                        @if (evidence.EntryId is { } id)
+                                        { <a href="@($"/entrada/{id}?tema={section.Id}")" target="_blank" rel="noopener">Abrir entrada completa <Icon Name="arrow" Size="14" /></a> }
+                                        </figure>
+                                    }
+                                </details>
+                            }
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+        <footer class="report-footer">
+            <Icon Name="book" Size="24" /><div><h3>El informe abre una conversación.</h3><p>Lo más importante es lo que puedo agregar, matizar o cuestionar al leerlo con mi terapeuta.</p>
+            <p class="report-scope">Se procesaron los textos disponibles de @Snapshot.TextEntryCount entradas, @Snapshot.DocumentCount documentos y @Snapshot.NoteCount notitas@(Snapshot.HasPersonalContext ? ", junto con mi contexto personal" : ""). Las síntesis ayudan a seleccionar los originales que respaldan cada apartado; pueden perder matices. @Snapshot.UnreadAttachmentCount adjuntos sin texto disponible quedaron fuera. Las respuestas previas de la IA no se usan como evidencia. El informe describe lo registrado hasta @Date(report.ThroughUtc), no demuestra mi estado actual.</p></div>
+        </footer>
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired] public JournalTopicSnapshot Snapshot { get; set; } = default!;
+    [Parameter] public bool PrintMode { get; set; }
+    private string Date(DateTime? date) => date is { } value ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(value, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR")) : "sin fecha de episodio";
+    private static string KindLabel(string kind) => kind switch { "registro" => "Lo que registré", "hipotesis" => "Hipótesis para explorar", "propuesta" => "Propuesta para terapia", _ => "Información pendiente" };
+}

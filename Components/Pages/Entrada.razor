@@ -9,7 +9,7 @@
 
 <PageTitle>Entrada completa · Mi Bitácora</PageTitle>
 
-<header class="site-header wrap"><Brand Href="/bitacora" /><a class="text-link" href="@ReturnUrl">Volver a la devolución <Icon Name="arrow" Size="16" /></a></header>
+<header class="site-header wrap"><Brand Href="/bitacora" /><a class="text-link" href="@ReturnUrl">@ReturnLabel <Icon Name="arrow" Size="16" /></a></header>
 <main class="reading-paper full-entry">
     <p class="eyebrow">TU ENTRADA ORIGINAL</p>
     @if (_entry is { } entry)
@@ -51,7 +51,7 @@
         <h1>Entrada no disponible.</h1>
         <p role="status">@(_failed ? "No pudimos abrir la entrada. Volvé a intentarlo en un momento." : "Puede haberse eliminado o no pertenecer a tu cuenta.")</p>
     }
-    <a class="btn btn-outline" href="@ReturnUrl">Volver a la devolución</a>
+    <a class="btn btn-outline" href="@ReturnUrl">@ReturnLabel</a>
 </main>
 
 @code {
@@ -59,7 +59,9 @@
     [SupplyParameterFromQuery(Name = "tema")] public string? TopicId { get; set; }
     private JournalEntry? _entry;
     private bool _failed;
-    private string ReturnUrl => "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
+    [SupplyParameterFromQuery(Name = "origen")] public string? Origin { get; set; }
+    private string ReturnUrl => Origin == "chat" ? "/bitacora" : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
+    private string ReturnLabel => Origin == "chat" ? "Volver a la conversación" : "Volver a la devolución";
     private DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZone);
     protected override async Task OnParametersSetAsync()
     {

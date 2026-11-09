@@ -63,6 +63,12 @@ internal static class TopicChecks
         var analyzer = new SyntheticAnalyzer();
         services.AddSingleton<IJournalTopicAnalyzer>(analyzer);
         services.AddScoped<JournalTopicService>();
+        var memoryAnalyzer = new FakeJournalMemory();
+        services.AddSingleton<IJournalMemoryAnalyzer>(memoryAnalyzer);
+        services.AddSingleton<IJournalReportAnalyzer>(memoryAnalyzer);
+        services.AddSingleton<JournalMemoryJobs>();
+        services.AddScoped<JournalMemoryService>();
+        services.AddScoped<JournalReportService>();
         var account = new TestAccount();
         var components = new CapturedComponents();
         services.AddSingleton<AuthenticationStateProvider>(account);

@@ -78,6 +78,9 @@ builder.Services.AddOptions<OpenAiOptions>().Bind(builder.Configuration.GetSecti
     .ValidateOnStart();
 builder.Services.AddSingleton<JournalTopicJobs>();
 builder.Services.AddScoped<JournalTopicService>();
+builder.Services.AddSingleton<JournalMemoryJobs>();
+builder.Services.AddScoped<JournalMemoryService>();
+builder.Services.AddScoped<JournalReportService>();
 builder.Services.AddHttpClient<OllamaJournalService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
@@ -99,6 +102,8 @@ builder.Services.AddScoped<JournalAiService>(provider =>
         : provider.GetRequiredService<OllamaJournalService>());
 builder.Services.AddScoped<IJournalReflector>(provider => provider.GetRequiredService<JournalAiService>());
 builder.Services.AddScoped<IJournalTopicAnalyzer>(provider => provider.GetRequiredService<JournalAiService>());
+builder.Services.AddScoped<IJournalMemoryAnalyzer>(provider => provider.GetRequiredService<JournalAiService>());
+builder.Services.AddScoped<IJournalReportAnalyzer>(provider => provider.GetRequiredService<JournalAiService>());
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -174,6 +179,8 @@ app.Use(async (context, next) =>
     if (context.Request.Path.StartsWithSegments("/bitacora")
         || context.Request.Path.StartsWithSegments("/Account")
         || context.Request.Path.StartsWithSegments("/admin")
+        || context.Request.Path.StartsWithSegments("/entrada")
+        || context.Request.Path.StartsWithSegments("/informe")
         || context.Request.Path.StartsWithSegments("/adjuntos"))
     {
         context.Response.Headers.CacheControl = "private, no-store";

@@ -1,5 +1,15 @@
 namespace MiBitacora.Data;
 
+internal sealed class JournalMemoryRow
+{
+    public string UserId { get; set; } = "";
+    public string SourceId { get; set; } = "";
+    public string SourceHash { get; set; } = "";
+    public string DigestJson { get; set; } = "";
+    public Guid? EntryId { get; set; }
+    public Guid? NoteId { get; set; }
+}
+
 internal sealed class JournalTopicOverviewRow
 {
     public string UserId { get; set; } = "";

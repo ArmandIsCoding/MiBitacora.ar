@@ -13,7 +13,8 @@ public sealed record JournalTopic(string Id, string Title, string Overview, IRea
     IReadOnlyList<TopicEvidence> Evidence);
 public sealed record JournalTopicSnapshot(DateTime GeneratedUtc, int EntryCount, int TextEntryCount,
     int DocumentCount, int UnreadAttachmentCount, IReadOnlyList<JournalTopic> Topics,
-    int NoteCount = 0, bool HasPersonalContext = false, IReadOnlyList<TopicEvidence>? AdditionalContext = null);
+    int NoteCount = 0, bool HasPersonalContext = false, IReadOnlyList<TopicEvidence>? AdditionalContext = null,
+    TherapyReport? Report = null);
 public sealed record JournalTopicState(JournalTopicSnapshot? Snapshot, bool IsOutdated);
 
 public interface IJournalTopicAnalyzer

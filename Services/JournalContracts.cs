@@ -34,7 +34,9 @@ public sealed record JournalContext(
     IReadOnlyList<JournalEntry> History,
     IReadOnlyList<JournalNote> Notes,
     IReadOnlyList<JournalAttachment> Attachments,
-    IReadOnlyList<JournalMediaFile> Media);
+    IReadOnlyList<JournalMediaFile> Media,
+    IReadOnlyList<TopicSource>? MemorySources = null,
+    int IndexedSourceCount = 0);
 
 public sealed record ReflectionTheme(string Title, string Detail, string? Quote, string? Source);
 
@@ -47,7 +49,8 @@ public sealed record JournalReflection(
     string? NextStep,
     bool IsDemo,
     int ConversationVersion = 0,
-    DateTime? GeneratedUtc = null)
+    DateTime? GeneratedUtc = null,
+    IReadOnlyList<TopicEvidence>? ContextSources = null)
 {
     public const int CurrentConversationVersion = 1;
 }

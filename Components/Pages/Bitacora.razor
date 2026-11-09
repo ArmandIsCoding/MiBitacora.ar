@@ -175,7 +175,7 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <div class="organizing" role="status"><span class="spinner"></span> Mi Bitácora está preparando una respuesta…</div>
+                                        <div class="organizing" role="status"><span class="spinner"></span> @_reflectionProgress</div>
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {
@@ -236,7 +236,7 @@
                         </div>
                         @if (Reflector.UsesExternalProvider)
                         {
-                            <p class="topic-scope">Al pedir una devolución, se envían a OpenAI fragmentos de tu entrada, contexto y archivos compatibles. «Solo guardar» no los envía. <a href="privacidad">Ver privacidad</a>.</p>
+                            <p class="topic-scope">Al enviar, OpenAI recibe tu mensaje y contexto pertinente. Para mantener la memoria también procesa textos anteriores de tu cuaderno. «Solo guardar» no inicia ese análisis. <a href="privacidad">Ver privacidad</a>.</p>
                         }
                         <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
                         <p class="topic-scope conversation-footnote">La IA puede equivocarse y no reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia. Podés marcar mensajes en «Para retomar».</p>
@@ -257,7 +257,7 @@
                 else if (_section == WorkspaceSection.Topics)
                 {
                     <header class="workspace-heading">
-                        <div><p class="eyebrow">LOS TEMAS QUE VAN APARECIENDO</p><h1 @ref="_sectionHeading" tabindex="-1">Devolución<span class="brand-period">.</span></h1><p>Otra forma de volver a lo que escribiste.</p></div>
+                        <div><p class="eyebrow">TU RECORRIDO, CON PERSPECTIVA</p><h1 @ref="_sectionHeading" tabindex="-1">Devolución<span class="brand-period">.</span></h1><p>Un documento personal para profundizar en terapia.</p></div>
                         <span class="mode-pill"><Icon Name="spark" Size="15" /> @Reflector.ProviderName</span>
                     </header>
                 }
@@ -339,7 +339,7 @@
                         <div class="print-sheet preserved-text">@(_sessionDraft ?? BuildSessionSheet())</div>
                     }
                 }
-                <section hidden="@(_section != WorkspaceSection.Topics)" aria-label="Devolución por temas">
+                <section hidden="@(_section != WorkspaceSection.Topics)" aria-label="Informe para terapia">
                     <JournalTopics UserId="@_userId" Active="@(_section == WorkspaceSection.Topics)" ContextRevision="@_contextRevision" />
                 </section>
             </main>

@@ -1,5 +1,7 @@
 # Devolución por temas
 
+**Versión actual:** la pestaña genera un [informe integrado para terapia](memoria-e-informe.md) con diez apartados y vista para imprimir. Las síntesis por temas descritas debajo corresponden al formato anterior, que se conserva plegado hasta actualizar. El servicio anterior sigue disponible para compatibilidad y no es el destino del botón actual.
+
 La pestaña **Devolución** reúne una devolución por cada tema detectado automáticamente en el texto del cuaderno. **Generar devolución** hace el primer análisis; **Actualizar devolución** vuelve a recorrer el contenido y reemplaza la versión guardada cuando termina correctamente. Abrir la pestaña solo consulta el resultado: no dispara inferencias.
 
 Cada tarjeta muestra una síntesis, preguntas para seguir escribiendo y fragmentos originales con fecha y fuente. Los enlaces del índice desplazan la vista a la tarjeta correspondiente sin salir de Devolución. La detección y las interpretaciones son aproximaciones del modelo que la persona puede revisar; no son diagnósticos.

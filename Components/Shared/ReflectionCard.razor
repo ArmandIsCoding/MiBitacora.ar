@@ -70,6 +70,20 @@
     {
         <p class="reflection-next"><Icon Name="leaf" Size="19" /> <span>@Reflection.NextStep</span></p>
     }
+    @if (Reflection.ContextSources is { Count: > 0 } memories)
+    {
+        <details class="reflection-details conversation-sources">
+            <summary>Antecedentes consultados (@memories.Count) <Icon Name="chevron" Size="16" /></summary>
+            <p class="topic-scope">Fragmentos que la IA tuvo a mano para responder. Podés revisar si la conexión tiene sentido para vos.</p>
+            @foreach (var memory in memories)
+            {
+                <figure><figcaption>@memory.Label @if (memory.CreatedUtc is { } date) { <span>· @date.ToString("d/M/yyyy")</span> }</figcaption>
+                <blockquote>@memory.Excerpt</blockquote>
+                @if (memory.EntryId is { } id) { <a href="@($"/entrada/{id}?origen=chat")" target="_blank" rel="noopener">Abrir entrada completa</a> }
+                </figure>
+            }
+        </details>
+    }
     @if (Reflection.GeneratedUtc is { } generated)
     {
         <small class="reply-date">Respuesta generada el @TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(generated, DateTimeKind.Utc), TimeZone).ToString("d/M/yyyy")</small>

@@ -165,6 +165,37 @@ namespace MiBitacora.Migrations
                     b.ToTable("JournalEntries");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.JournalMemoryRow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DigestJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("EntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("NoteId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId", "SourceId");
+
+                    b.HasIndex("EntryId");
+
+                    b.HasIndex("NoteId");
+
+                    b.ToTable("JournalMemories");
+                });
+
             modelBuilder.Entity("MiBitacora.Data.JournalNoteRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -393,6 +424,25 @@ namespace MiBitacora.Migrations
 
             modelBuilder.Entity("MiBitacora.Data.JournalEntryRow", b =>
                 {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalMemoryRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.JournalEntryRow", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("MiBitacora.Data.JournalNoteRow", null)
+                        .WithMany()
+                        .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("MiBitacora.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

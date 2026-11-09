@@ -153,7 +153,8 @@ public abstract partial class JournalAiService : IJournalReflector
             TrimList(parsed.OpenQuestions).Take(1).ToArray(),
             TrimList(parsed.SessionTopics).Take(2).ToArray(),
             string.IsNullOrWhiteSpace(parsed.NextStep) ? null : Limit(parsed.NextStep, 240),
-            IsDemo: false, ConversationVersion: JournalReflection.CurrentConversationVersion, GeneratedUtc: DateTime.UtcNow);
+            IsDemo: false, ConversationVersion: JournalReflection.CurrentConversationVersion, GeneratedUtc: DateTime.UtcNow,
+            ContextSources: evidence.Memories);
     }
 
     private static JournalReflection CreateDemo(JournalContext context)

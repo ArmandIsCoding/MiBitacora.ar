@@ -29,8 +29,11 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var row = await db.JournalTopicOverviews.AsNoTracking().SingleOrDefaultAsync(r => r.UserId == userId, ct);
         if (row is null) return new(null, false);
+        var snapshot = JsonSerializer.Deserialize<JournalTopicSnapshot>(row.SnapshotJson, Json);
+        if (snapshot?.Report is not null)
+            return new(snapshot, row.Fingerprint != JournalReportService.Fingerprint(await JournalCorpusReader.ReadAsync(db, userId, ct: ct)));
         var input = await ReadInputAsync(db, userId, ct);
-        return new(JsonSerializer.Deserialize<JournalTopicSnapshot>(row.SnapshotJson, Json), row.Fingerprint != input.Fingerprint);
+        return new(snapshot, row.Fingerprint != input.Fingerprint);
     }
 
     public async Task<JournalTopicSnapshot> GenerateAsync(string userId, IProgress<string>? progress = null,

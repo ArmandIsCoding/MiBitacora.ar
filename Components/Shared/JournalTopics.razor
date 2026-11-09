@@ -1,12 +1,13 @@
 @implements IAsyncDisposable
 @inject JournalTopicService Topics
+@inject JournalReportService Reports
 @inject IJournalTopicAnalyzer Analyzer
 @inject TimeZoneInfo TimeZone
 @inject ILogger<JournalTopics> Logger
 
 <div class="topic-workspace">
     <div class="topic-toolbar">
-        <p>Una devolución por tema, conectando tus entradas con lo que venís sintiendo.</p>
+        <p>Un informe completo de tu recorrido, para leer con calma y llevar a terapia.</p>
         <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@(_busy || _loading || !Analyzer.IsConfigured || !RendererInfo.IsInteractive)">
             <Icon Name="spark" Size="18" /> @(_state.Snapshot is null ? "Generar devolución" : "Actualizar devolución")
         </button>
@@ -15,14 +16,14 @@
     {
         <p class="topic-scope">Al generar o actualizar, los textos se envían a OpenAI para preparar la devolución. <a href="privacidad">Ver privacidad</a>.</p>
     }
-    <p class="topic-scope">Incluye tus entradas y documentos. Tus notitas y el perfil se tienen en cuenta sólo donde aporten una relación concreta con el tema. Las fotos se analizan en la conversación.</p>
+    <p class="topic-scope">Integra los textos de todo tu cuaderno, documentos, notitas y contexto personal. Distingue lo registrado de las hipótesis y propuestas para terapia. Las fotos se analizan en la conversación.</p>
     @if (!Analyzer.IsConfigured)
     {
         <p class="journal-alert" role="status">La IA está desactivada. Podés consultar la última devolución guardada.</p>
     }
     @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
     @if (_message is not null) { <p class="journal-notice" role="status">@_message</p> }
-    @if (_loading) { <p class="organizing" role="status"><span class="spinner"></span> Abriendo tus temas…</p> }
+    @if (_loading) { <p class="organizing" role="status"><span class="spinner"></span> Abriendo tu informe…</p> }
     @if (_busy)
     {
         <div class="topic-progress">
@@ -31,8 +32,16 @@
             <button type="button" class="quiet-action" @onclick="Cancel">Cancelar actualización</button>
         </div>
     }
-    @if (_state.Snapshot is { } snapshot)
+    @if (_state.Snapshot is { Report: not null } reportSnapshot)
     {
+        <div class="report-actions"><span>Actualizado el @Date(reportSnapshot.GeneratedUtc), @Local(reportSnapshot.GeneratedUtc).ToString("HH:mm")</span><a class="btn btn-outline" href="/informe" target="_blank" rel="noopener"><Icon Name="print" Size="17" /> Imprimir / guardar PDF</a></div>
+        @if (_state.IsOutdated) { <p class="journal-notice">Hay cambios en tu cuaderno. «Actualizar devolución» prepara un informe nuevo con ellos.</p> }
+        <TherapyReportView Snapshot="reportSnapshot" />
+    }
+    else if (_state.Snapshot is { } snapshot)
+    {
+        <p class="journal-notice">Ya podés preparar un informe integrado para terapia con «Actualizar devolución». Tu versión anterior sigue disponible mientras tanto.</p>
+        <details class="legacy-topics"><summary>Ver la devolución anterior por temas</summary>
         <div class="topic-summary">
             <p><strong>@snapshot.Topics.Count @(snapshot.Topics.Count == 1 ? "tema" : "temas")</strong> · Actualizado el @Date(snapshot.GeneratedUtc), @Local(snapshot.GeneratedUtc).ToString("HH:mm")</p>
             <p>Texto disponible en @snapshot.TextEntryCount de @snapshot.EntryCount entradas · @snapshot.DocumentCount @(snapshot.DocumentCount == 1 ? "documento" : "documentos") con texto.</p>
@@ -93,10 +102,11 @@
                 }
             </div>
         }
+        </details>
     }
     else if (!_loading && !_busy)
     {
-        <div class="blank-journal blank-small topic-empty"><span class="empty-note-icon sage"><Icon Name="spark" Size="40" /></span><h2>Mirar el cuaderno en conjunto.</h2><p>Generá tu primera devolución para encontrar temas entre tus entradas. Quedarán organizados acá para volver cuando quieras.</p><p>Se genera con @Analyzer.ProviderName.</p></div>
+        <div class="blank-journal blank-small topic-empty"><span class="empty-note-icon sage"><Icon Name="book" Size="40" /></span><h2>Tu recorrido, con perspectiva.</h2><p>Prepará un informe con tu evolución, emociones, vínculos, recursos y asuntos para trabajar en terapia. Incluye fragmentos originales para revisar cada lectura.</p><p>Se genera con @Analyzer.ProviderName.</p></div>
     }
 </div>
 
@@ -139,9 +149,9 @@
             {
                 if (!_disposed) _ = InvokeAsync(() => { _progress = value; StateHasChanged(); });
             });
-            var snapshot = await Topics.GenerateAsync(UserId, progress, generation.Token);
+            var snapshot = await Reports.GenerateAsync(UserId, progress, generation.Token);
             _state = new(snapshot, false);
-            _message = "Tu devolución por temas quedó guardada.";
+            _message = "Tu informe para terapia quedó guardado.";
         }
         catch (OperationCanceledException) { _message = "Actualización cancelada. La última devolución guardada se conserva."; }
         catch (JournalInputException ex) { _error = ex.Message; }

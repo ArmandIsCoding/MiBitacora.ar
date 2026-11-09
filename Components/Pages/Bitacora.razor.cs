@@ -20,6 +20,7 @@ public partial class Bitacora : IAsyncDisposable
     [Inject] private AuthenticationStateProvider Auth { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
     [Inject] private ILogger<Bitacora> Logger { get; set; } = default!;
+    [Inject] private JournalMemoryService Memory { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "seccion")] public string? InitialSection { get; set; }
 
     private readonly CancellationTokenSource _lifetime = new();
@@ -39,6 +40,7 @@ public partial class Bitacora : IAsyncDisposable
     private string? _fatalError;
     private Guid? _noteId;
     private Guid? _workingEntry;
+    private string _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
     private Guid? _targetId;
     private bool _ready;
     private bool _busy;
@@ -318,10 +320,18 @@ public partial class Bitacora : IAsyncDisposable
             }
 
             _workingEntry = entryId;
+            _reflectionProgress = "Buscando el hilo de la conversación…";
             _entryErrors.Remove(entryId.Value);
             await InvokeAsync(StateHasChanged);
 
             var context = await Store.GetContextAsync(_userId, entryId.Value, useAi, Lifetime);
+            if (useAi)
+                context = await Memory.EnrichAsync(_userId, context, new MemoryProgress(message =>
+                {
+                    if (!_disposed) _ = InvokeAsync(() => { _reflectionProgress = message; StateHasChanged(); });
+                }), Lifetime);
+            _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
+            await InvokeAsync(StateHasChanged);
             var reflection = await Reflector.ReflectAsync(context, useAi, Lifetime);
             await Store.SaveReflectionAsync(_userId, entryId.Value, reflection, Lifetime);
 
@@ -638,5 +648,6 @@ public partial class Bitacora : IAsyncDisposable
     }
 
     private enum WorkspaceSection { Conversation, Calendar, Topics, Notes, Session }
+    private sealed class MemoryProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
     private enum DialogKind { None, Note, DeleteNote, DeleteEntry }
 }

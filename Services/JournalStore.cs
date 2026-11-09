@@ -59,6 +59,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         row.PersonalContext = context;
         row.GeminiConsent = profile.GeminiConsent;
         await db.SaveChangesAsync(cancellationToken);
+        await db.JournalMemories.Where(item => item.UserId == userId && item.SourceId.StartsWith("perfil:"))
+            .ExecuteDeleteAsync(cancellationToken);
         if (clearedContext)
             await db.JournalTopicOverviews.Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -317,7 +319,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             ? await ReadMediaAsync(db, userId, attachments, cancellationToken)
             : [];
 
-        var boundedHistory = history.Select(entry => entry with { Text = Clip(entry.Text, 2_500), Attachments = [] }).ToArray();
+        var boundedHistory = history.Select(entry => entry with { Attachments = [] }).ToArray();
         return new JournalContext(profile, current, boundedHistory, notes, attachments, media);
     }
 

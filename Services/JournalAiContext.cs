@@ -32,11 +32,34 @@ public abstract partial class JournalAiService
     {
         var sources = new Dictionary<string, EvidenceSource>(StringComparer.Ordinal);
         var promptSources = new List<PromptSource>();
+        var memories = new List<TopicEvidence>();
         var images = new List<JournalImage>();
-        var remainingText = UsesExternalProvider ? 18_000 : 6500;
+        var remainingText = UsesExternalProvider ? 76_000 : 6500;
         var currentText = Excerpt(context.Current.Text, UsesExternalProvider ? JournalStore.MaxTextLength : 3000);
 
         AddSource("actual", "entrada actual", "Tu entrada actual", currentText);
+
+        // Reserve continuity before attachments and retrieval can spend the text budget.
+        var recent = context.History.Where(e => e.Id != context.Current.Id && e.CreatedUtc < context.Current.CreatedUtc)
+            .OrderByDescending(e => e.CreatedUtc).Take(UsesExternalProvider ? 6 : 2).ToArray();
+        for (var i = 0; i < recent.Length; i++)
+        {
+            var entry = recent[i];
+            AddSource($"entrada{promptSources.Count}", "turno previo de la conversación", DateLabel("Entrada", entry.CreatedUtc),
+                Excerpt(entry.Text, UsesExternalProvider ? (i < 2 ? JournalStore.MaxTextLength : 1500) : 650),
+                priorResponse: entry.Reflection is { } previous
+                    ? Excerpt(previous.Overview, UsesExternalProvider ? 1800 : 550) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
+        }
+        foreach (var source in context.MemorySources ?? [])
+        {
+            if (remainingText <= 0) break;
+            var text = Excerpt(source.Text, UsesExternalProvider ? 2400 : 450);
+            var id = $"memoria{promptSources.Count}";
+            AddSource(id, "antecedente recuperado · " + source.Kind, source.Label +
+                (source.CreatedUtc is { } date ? $" · {date:yyyy-MM-dd}" : " · contexto actual sin fecha de episodio"), text);
+            if (sources[id].Text.Length > 0)
+                memories.Add(new(source.EntryId, source.CreatedUtc, source.Label, Excerpt(sources[id].Text, 220), source.Kind, source.NoteId));
+        }
 
         var searchTerms = Terms(currentText);
         foreach (var file in context.Current.Attachments)
@@ -83,19 +106,7 @@ public abstract partial class JournalAiService
             if (isCurrent && !sources[id].HasContent) unreadCurrentAttachments++;
         }
 
-        var entries = context.History
-            .Where(entry => entry.Id != context.Current.Id)
-            .OrderByDescending(entry => entry.CreatedUtc)
-            .ToArray();
-        foreach (var entry in Prioritize(entries, searchTerms, entry => entry.Text, keepRecent: 2, limit: 3))
-        {
-            var label = DateLabel("Entrada", entry.CreatedUtc);
-            AddSource($"entrada{promptSources.Count}", "entrada previa", label, Excerpt(entry.Text, 800),
-                priorResponse: entry.Reflection is { } previous
-                    ? Excerpt(previous.Overview, 1000) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
-        }
-
-        var notes = context.Notes.Where(note => note.CreatedUtc <= context.Current.CreatedUtc)
+        var notes = (context.MemorySources is null ? context.Notes : []).Where(note => note.CreatedUtc <= context.Current.CreatedUtc)
             .OrderByDescending(note => note.CreatedUtc).ToArray();
         foreach (var note in notes.Where(note => Terms(note.Text).Overlaps(searchTerms)).Take(2))
         {
@@ -103,8 +114,8 @@ public abstract partial class JournalAiService
             AddSource($"notita{promptSources.Count}", "notita", label, Excerpt(note.Text, 400));
         }
 
-        var profile = Excerpt(context.Profile.PersonalContext, 600);
-        if (profile.Length > 0)
+        var profile = Excerpt(context.Profile.PersonalContext, UsesExternalProvider ? 3000 : 600);
+        if (profile.Length > 0 && !(context.MemorySources?.Any(s => s.Kind == TopicSourceKind.Profile) ?? false))
         {
             AddSource("perfil", "contexto escrito en el perfil", "Tu contexto", profile);
         }
@@ -112,10 +123,12 @@ public abstract partial class JournalAiService
         var prompt = JsonSerializer.Serialize(new { fuentes = promptSources }, JsonOptions);
         var promptText = $"Respondé al último mensaje, registrado el {context.Current.CreatedUtc:yyyy-MM-dd}, a partir de estas fuentes. " +
             "El historial está ordenado del más reciente al más antiguo; devolucionAnterior es voz de la IA, no de la persona. " +
-            "El perfil describe el contexto actual, no necesariamente el de esta fecha. Se incluyen fragmentos del historial, no el cuaderno completo. " +
+            "Los antecedentes recuperados son fragmentos ORIGINALES de distintas épocas; nombrá su fecha cuando conectes el pasado con hoy. " +
+            "No supongas que algo antiguo sigue pasando: conservá cambios y contradicciones, y preguntá si sigue vigente cuando haga falta. " +
+            "El perfil describe el contexto actual, no necesariamente el de esta fecha. Los turnos recientes preservan el hilo; las memorias amplían los antecedentes. " +
             "Las imágenes adjuntas corresponden en orden al campo numeroImagen (1, 2). " +
             "Si un texto está cortado, no inventes la continuación.\n" + prompt;
-        return new(promptText, images, sources, unreadCurrentAttachments);
+        return new(promptText, images, sources, unreadCurrentAttachments, memories);
 
         void AddSource(
             string id,
@@ -128,7 +141,7 @@ public abstract partial class JournalAiService
         {
             text = Excerpt(text, Math.Min(remainingText, text.Length));
             remainingText -= text.Length;
-            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, 1300));
+            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, UsesExternalProvider ? 2200 : 800));
             remainingText -= priorResponse.Length;
             sources.Add(id, new(label, text, text.Length > 0 || inline));
             promptSources.Add(new(id, type, label, text, inline, priorResponse, imageNumber));
@@ -192,5 +205,6 @@ public abstract partial class JournalAiService
         string Prompt,
         IReadOnlyList<JournalImage> Images,
         IReadOnlyDictionary<string, EvidenceSource> Sources,
-        int UnreadCurrentAttachments);
+        int UnreadCurrentAttachments,
+        IReadOnlyList<TopicEvidence> Memories);
 }

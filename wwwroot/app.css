@@ -325,6 +325,9 @@ a.mode-pill:hover { background: #e1e7d6; }
 .reflection-next svg { margin-top: .1rem; }
 .reflection-actions { padding-top: .3rem; }
 .reflection-retry { justify-self: start; }
+.conversation-sources figure { margin: .6rem 0; padding: .65rem; background: #f5f4eb; border-radius: .4rem; }
+.conversation-sources figcaption, .conversation-sources a { font-size: .78rem; color: var(--olive-dark); }
+.conversation-sources blockquote { margin: .35rem 0; font-size: .85rem; }
 .conversation-boundary { display: flex; align-items: start; gap: .6rem; padding: .8rem 1rem; margin: .2rem 0 1.2rem; border-left: 3px solid #aab79e; color: var(--muted); background: #eff0e466; border-radius: .35rem; font-size: .84rem; line-height: 1.6; }
 .conversation-boundary svg { flex-shrink: 0; margin-top: .15rem; }
 .conversation-reply { width: min(100%, 700px); justify-self: start; border-top: 1px solid var(--line); border-radius: .35rem 1.1rem 1.1rem; }
