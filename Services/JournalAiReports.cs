@@ -28,7 +28,8 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
         var result = ParseTopics<ReportPlanReply>(await CallModelAsync(MemoryInstruction, prompt, schema, [], ct));
         if (result.Sections is null || result.Sections.Count != JournalReportSections.All.Count ||
             result.Sections.Any(s => !selections.ContainsKey(s.Key) || s.Value is null ||
-                s.Value.Count > 14 || s.Value.Any(id => !aliases.ContainsKey(id)))) throw ReportError();
+                s.Value.Count > 14 || s.Value.Any(id => !aliases.ContainsKey(id))))
+            throw ReportError("el plan del informe", "faltan apartados o las fuentes seleccionadas no son válidas");
         return JournalReportSections.All.Select(s => new ReportSectionPlan(s.Id,
             result.Sections[s.Id].Distinct().Select(id => aliases[id].Source.Id).ToArray())).ToArray();
     }
@@ -96,19 +97,21 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
             JsonSerializer.Serialize(aliases.Select(p => p.Value with { Id = p.Key }), JsonOptions);
         var result = ParseTopics<ReportSectionReply>(await CallModelAsync(ReportInstruction, prompt, JsonSerializer.SerializeToElement(schema), [], ct));
         if (string.IsNullOrWhiteSpace(result.Introduction) || result.Introduction.Length > 850 || result.Points is null || result.Points.Count is < 1 or > 5)
-            throw ReportError();
+            throw ReportError(section.Title, "el apartado llegó incompleto");
         var points = new List<TherapyReportPoint>();
         foreach (var point in result.Points)
         {
             if (point.Kind is not ("registro" or "hipotesis" or "propuesta" or "limite") ||
                 string.IsNullOrWhiteSpace(point.Title) || point.Title.Length > 130 || string.IsNullOrWhiteSpace(point.Text) || point.Text.Length > 1400 ||
                 point.Question is null || point.Question.Length > 350 || point.Evidence is null || point.Evidence.Count > 4 ||
-                (point.Kind != "limite" && point.Evidence.Count == 0)) throw ReportError();
+                (point.Kind != "limite" && point.Evidence.Count == 0))
+                throw ReportError(section.Title, "un punto está incompleto o no tiene fuentes de apoyo");
             var evidence = new List<TopicEvidence>();
             foreach (var citation in point.Evidence)
             {
                 if (!aliases.TryGetValue(citation.SourceId, out var source) || string.IsNullOrWhiteSpace(citation.Quote) || citation.Quote.Length > 240 ||
-                    !source.Text.Contains(citation.Quote, StringComparison.Ordinal)) throw ReportError();
+                    !source.Text.Contains(citation.Quote, StringComparison.Ordinal))
+                    throw ReportError(section.Title, "un fragmento de apoyo no coincide con el texto original");
                 evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, citation.Quote, source.Kind, source.NoteId));
             }
             points.Add(new(point.Kind, point.Title, point.Text, point.Question, evidence.Distinct().ToArray()));
@@ -118,5 +121,6 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
     private sealed record ReportPlanReply(Dictionary<string, List<string>> Sections);
     private sealed record ReportSectionReply(string Introduction, List<ReportPointReply> Points);
     private sealed record ReportPointReply(string Kind, string Title, string Text, string Question, List<TopicCitation> Evidence);
-    private static JournalReflectionException ReportError() => new("La IA devolvió un informe incompleto o una cita que no coincide con el original. El informe anterior se conserva; podés reintentar.");
+    private static JournalReflectionException ReportError(string section, string reason) =>
+        new($"No pudimos validar «{section}»: {reason}. El informe anterior se conserva; podés reintentar.");
 }
