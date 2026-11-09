@@ -78,7 +78,7 @@
                             <p>Un mismo hilo, cada vez que vuelvas.</p>
                         </div>
                         <a class="mode-pill" href="/Account/Manage" title="Configurar el modo de devolución">
-                            <span class="status-dot"></span> @(IsLocalAiEnabled ? "IA local" : "Modo de muestra")
+                            <span class="status-dot"></span> @(IsAiEnabled ? Reflector.ProviderName : "Modo de muestra")
                         </a>
                     </header>
 
@@ -186,9 +186,9 @@
                                                         Busy="_busy"
                                                         SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
                                                         ToggleSession="() => ToggleEntryAsync(entry)" />
-                                        @if (reflection.IsDemo && IsLocalAiEnabled && _workingEntry != entry.Id)
+                                        @if (reflection.IsDemo && IsAiEnabled && _workingEntry != entry.Id)
                                         {
-                                            <button type="button" class="quiet-action reflection-retry" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="16" /> Pedir devolución con IA local</button>
+                                            <button type="button" class="quiet-action reflection-retry" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="16" /> Pedir devolución con @Reflector.ProviderName</button>
                                         }
                                     }
                                 </div>
@@ -232,6 +232,10 @@
                                 </div>
                             </div>
                         </div>
+                        @if (Reflector.UsesExternalProvider)
+                        {
+                            <p class="topic-scope">Al pedir una devolución, se envían a OpenAI fragmentos de tu entrada, contexto y archivos compatibles. «Solo guardar» no los envía. <a href="privacidad">Ver privacidad</a>.</p>
+                        }
                         <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
                     </section>
                 }
@@ -251,7 +255,7 @@
                 {
                     <header class="workspace-heading">
                         <div><p class="eyebrow">LOS TEMAS QUE VAN APARECIENDO</p><h1 @ref="_sectionHeading" tabindex="-1">Devolución<span class="brand-period">.</span></h1><p>Otra forma de volver a lo que escribiste.</p></div>
-                        <span class="mode-pill"><Icon Name="lock" Size="15" /> IA local</span>
+                        <span class="mode-pill"><Icon Name="spark" Size="15" /> @Reflector.ProviderName</span>
                     </header>
                 }
                 else if (_section == WorkspaceSection.Notes)

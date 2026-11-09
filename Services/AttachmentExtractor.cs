@@ -52,7 +52,7 @@ internal static class AttachmentExtractor
         if (mediaType is not null)
         {
             return new AttachmentAnalysis(mediaType, null, CanAnalyzeLocally(mediaType)
-                ? "Disponible para analizar localmente"
+                ? "Disponible para analizar"
                 : "Guardado · formato sin análisis visual");
         }
 

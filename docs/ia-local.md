@@ -1,5 +1,7 @@
 # Ollama y Qwen3-VL 4B en Mi Bitácora
 
+Esta guía aplica a `AI:Provider=Ollama`. También se puede configurar [OpenAI](openai.md) explícitamente; la aplicación muestra el proveedor activo y sus condiciones de privacidad.
+
 El backend Blazor (.NET 10) llama a `http://127.0.0.1:11434/api/chat`. Los navegadores se conectan a Mi Bitácora: los usuarios no necesitan instalar Ollama ni pueden elegir el servidor o el modelo desde el cliente.
 
 Se fija la variante **Instruct** de Qwen3-VL 4B. Al verificar este despliegue, la etiqueta genérica `qwen3-vl:4b` resolvía a Thinking y agotaba el presupuesto de salida antes de entregar una devolución; `think=false` no evitó ese comportamiento. La variante explícita hace reproducible la elección.
@@ -63,7 +65,7 @@ El campo histórico `GeminiConsent` se conserva para mantener compatibles las ba
 
 ## Verificación
 
-La pestaña **Devolución** usa el mismo modelo y la misma cola local para analizar los textos del cuaderno completo por partes. Sus prompts están en `Services/OllamaTopics.cs`; los de una entrada individual siguen en `Services/OllamaReflection.cs`. El análisis por temas se inicia únicamente con el botón y guarda una versión por cuenta. Ver [la guía de devolución por temas](devolucion-por-temas.md). Para probarlo con textos inventados: `dotnet run --project tests/MiBitacora.Checks -- --live-topics`.
+La pestaña **Devolución** usa el mismo modelo y la misma cola local para analizar los textos del cuaderno completo por partes. Sus prompts están en `Services/JournalAiTopics.cs`; los de una entrada individual siguen en `Services/JournalAiReflection.cs`. El análisis por temas se inicia únicamente con el botón y guarda una versión por cuenta. Ver [la guía de devolución por temas](devolucion-por-temas.md). Para probarlo con textos inventados: `dotnet run --project tests/MiBitacora.Checks -- --live-topics`.
 
 ```powershell
 dotnet build MiBitacora.csproj

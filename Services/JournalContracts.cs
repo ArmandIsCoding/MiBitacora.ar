@@ -50,6 +50,8 @@ public sealed record JournalReflection(
 public interface IJournalReflector
 {
     bool IsConfigured { get; }
+    string ProviderName => "IA local";
+    bool UsesExternalProvider => false;
 
     Task<JournalReflection> ReflectAsync(
         JournalContext context,

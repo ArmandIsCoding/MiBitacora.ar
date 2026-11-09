@@ -42,22 +42,25 @@ public sealed class LocalInferenceGate : IDisposable
     public void Dispose() => Semaphore.Dispose();
 }
 
-public sealed partial class OllamaJournalService(
+public sealed class OllamaJournalService(HttpClient client, IOptions<OllamaOptions> options,
+    LocalInferenceGate gate, ILogger<OllamaJournalService> logger)
+    : JournalAiService(new OllamaModelClient(client, options, gate, logger), logger);
+
+public sealed class OllamaModelClient(
     HttpClient client,
     IOptions<OllamaOptions> options,
     LocalInferenceGate gate,
-    ILogger<OllamaJournalService> logger)
+    ILogger logger) : IJournalModelClient
 {
     public bool IsConfigured => options.Value.Enabled;
+    public string ProviderName => "IA local";
+    public bool UsesExternalProvider => false;
 
     private const string InvalidReply =
         "La IA local devolvió una respuesta incompleta. Tu entrada está guardada y podés reintentar.";
 
-    private Task<string> CallOllamaAsync(OllamaEvidence evidence, CancellationToken cancellationToken) =>
-        CallOllamaAsync(SystemInstruction, evidence.Prompt, ReflectionSchema, evidence.Images, cancellationToken);
-
-    private async Task<string> CallOllamaAsync(string instruction, string prompt, JsonElement schema,
-        IReadOnlyList<string> images, CancellationToken cancellationToken)
+    public async Task<string> GenerateAsync(string instruction, string prompt, JsonElement schema,
+        IReadOnlyList<JournalImage> images, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         // Also enforce this boundary if the service is constructed outside dependency injection.
@@ -80,7 +83,7 @@ public sealed partial class OllamaJournalService(
                 messages = new object[]
                 {
                     new { role = "system", content = instruction },
-                    new { role = "user", content = prompt, images }
+                    new { role = "user", content = prompt, images = images.Select(image => image.Base64).ToArray() }
                 },
                 format = schema,
                 think = false,

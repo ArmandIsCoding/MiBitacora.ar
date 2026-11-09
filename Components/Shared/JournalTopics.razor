@@ -11,10 +11,14 @@
             <Icon Name="spark" Size="18" /> @(_state.Snapshot is null ? "Generar devolución" : "Actualizar devolución")
         </button>
     </div>
+    @if (Analyzer.UsesExternalProvider)
+    {
+        <p class="topic-scope">Al generar o actualizar, los textos se envían a OpenAI para preparar la devolución. <a href="privacidad">Ver privacidad</a>.</p>
+    }
     <p class="topic-scope">Usa los textos de todas tus entradas y el texto disponible de los documentos. Las fotos se analizan al pedir una devolución individual.</p>
     @if (!Analyzer.IsConfigured)
     {
-        <p class="journal-alert" role="status">La IA local está desactivada. Podés consultar la última devolución guardada.</p>
+        <p class="journal-alert" role="status">La IA está desactivada. Podés consultar la última devolución guardada.</p>
     }
     @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
     @if (_message is not null) { <p class="journal-notice" role="status">@_message</p> }
@@ -70,7 +74,7 @@
     }
     else if (!_loading && !_busy)
     {
-        <div class="blank-journal blank-small topic-empty"><span class="empty-note-icon sage"><Icon Name="spark" Size="40" /></span><h2>Mirar el cuaderno en conjunto.</h2><p>Generá tu primera devolución para encontrar temas entre tus entradas. Quedarán organizados acá para volver cuando quieras.</p><p>Se genera en este servidor, con la IA local.</p></div>
+        <div class="blank-journal blank-small topic-empty"><span class="empty-note-icon sage"><Icon Name="spark" Size="40" /></span><h2>Mirar el cuaderno en conjunto.</h2><p>Generá tu primera devolución para encontrar temas entre tus entradas. Quedarán organizados acá para volver cuando quieras.</p><p>Se genera con @Analyzer.ProviderName.</p></div>
     }
 </div>
 
@@ -116,7 +120,7 @@
         }
         catch (OperationCanceledException) { _message = "Actualización cancelada. La última devolución guardada se conserva."; }
         catch (JournalInputException ex) { _error = ex.Message; }
-        catch (JournalReflectionException) { _error = "No pudimos completar la devolución con la IA local. La versión anterior se conserva; podés reintentar."; }
+        catch (JournalReflectionException ex) { _error = ex.Message; }
         catch (Exception ex) { Logger.LogWarning(ex, "No se pudo generar la devolución por temas."); _error = "No pudimos guardar la devolución. Podés reintentar; tus entradas siguen guardadas."; }
         finally
         {

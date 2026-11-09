@@ -14,6 +14,8 @@ public sealed record JournalTopicState(JournalTopicSnapshot? Snapshot, bool IsOu
 public interface IJournalTopicAnalyzer
 {
     bool IsConfigured { get; }
+    string ProviderName => "IA local";
+    bool UsesExternalProvider => false;
     Task<IReadOnlyList<TopicObservation>> DetectAsync(IReadOnlyList<TopicSource> sources,
         IReadOnlyDictionary<string, string> catalog, CancellationToken cancellationToken);
     Task<TopicReading> ReadAsync(string title, string observations, CancellationToken cancellationToken, bool summarizeOnly = false);

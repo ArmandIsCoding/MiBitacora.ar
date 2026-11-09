@@ -10,6 +10,11 @@ using MiBitacora.Services;
 
 var prepareImages = args.Contains("--prepare-local-images", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args.Where(arg => arg != "--prepare-local-images").ToArray());
+// Private deployment configuration: excluded from Git/publish and outside static wwwroot.
+builder.Configuration.AddJsonFile("App_Data/ai.settings.json", optional: true, reloadOnChange: false);
+if (builder.Environment.IsDevelopment()) builder.Configuration.AddUserSecrets<Program>(optional: true);
+builder.Configuration.AddEnvironmentVariables();
+builder.Configuration.AddCommandLine(args.Where(arg => arg != "--prepare-local-images").ToArray());
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
@@ -64,22 +69,36 @@ builder.Services.AddOptions<OllamaOptions>()
     .Validate(options => options.IsValid(), "Ollama requiere una URL HTTP de loopback, un modelo local y límites válidos.")
     .ValidateOnStart();
 builder.Services.AddSingleton<LocalInferenceGate>();
+builder.Services.AddOptions<JournalAiOptions>().Bind(builder.Configuration.GetSection("AI"))
+    .Validate(options => options.Provider is "Ollama" or "OpenAI", "AI:Provider debe ser Ollama u OpenAI.")
+    .ValidateOnStart();
+builder.Services.AddOptions<OpenAiOptions>().Bind(builder.Configuration.GetSection("OpenAI"))
+    .Validate(options => builder.Configuration["AI:Provider"] != "OpenAI" || options.IsValid(),
+        "OpenAI requiere una clave, un proyecto y un modelo con límites válidos.")
+    .ValidateOnStart();
 builder.Services.AddSingleton<JournalTopicJobs>();
 builder.Services.AddScoped<JournalTopicService>();
-builder.Services.AddHttpClient<IJournalTopicAnalyzer, OllamaJournalService>(client =>
+builder.Services.AddHttpClient<OllamaJournalService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false,
         UseProxy = false
     });
-builder.Services.AddHttpClient<IJournalReflector, OllamaJournalService>(client =>
+builder.Services.AddHttpClient<OpenAiJournalService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false,
         UseProxy = false
     });
+
+builder.Services.AddScoped<JournalAiService>(provider =>
+    provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<JournalAiOptions>>().Value.Provider == "OpenAI"
+        ? provider.GetRequiredService<OpenAiJournalService>()
+        : provider.GetRequiredService<OllamaJournalService>());
+builder.Services.AddScoped<IJournalReflector>(provider => provider.GetRequiredService<JournalAiService>());
+builder.Services.AddScoped<IJournalTopicAnalyzer>(provider => provider.GetRequiredService<JournalAiService>());
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

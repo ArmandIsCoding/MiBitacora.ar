@@ -7,6 +7,7 @@
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IJournalStore Store
+@inject IJournalReflector Reflector
 @inject IdentityRedirectManager RedirectManager
 
 <PageTitle>Tu perfil | Mi Bitácora</PageTitle>
@@ -40,8 +41,15 @@
     </div>
 
     <div class="account-consent">
-        <strong>Devoluciones con IA local</strong>
-        <p>Cuando pedís ordenar tus ideas, el análisis se hace en el servidor de Mi Bitácora. Puede usar fragmentos de tu contexto, cuaderno y archivos compatibles, asociados a tu cuenta.</p>
+        <strong>Devoluciones con @Reflector.ProviderName</strong>
+        @if (Reflector.UsesExternalProvider)
+        {
+            <p>Cuando pedís una devolución, la aplicación envía a OpenAI fragmentos de tu contexto, cuaderno y archivos compatibles. La devolución por temas usa los textos de todas tus entradas y documentos.</p>
+        }
+        else
+        {
+            <p>Cuando pedís ordenar tus ideas, el análisis se hace en el servidor de Mi Bitácora. Puede usar fragmentos de tu contexto, cuaderno y archivos compatibles, asociados a tu cuenta.</p>
+        }
         <small>Podés guardar tus entradas sin pedir una devolución. <a href="privacidad">Privacidad del piloto</a>.</small>
     </div>
 

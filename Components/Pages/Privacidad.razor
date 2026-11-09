@@ -1,4 +1,5 @@
 @page "/privacidad"
+@inject IJournalReflector Reflector
 
 <PageTitle>Privacidad del piloto · Mi Bitácora</PageTitle>
 
@@ -7,14 +8,23 @@
     <main class="reading-paper">
         <p class="eyebrow">MI BITÁCORA · PILOTO</p>
         <h1>Privacidad del piloto</h1>
-        <p>Este piloto es para personas de 18 años o más. El cuaderno y su análisis con IA se procesan en el servidor de Mi Bitácora.</p>
+        <p>Este piloto es para personas de 18 años o más. Tu cuaderno se guarda en el servidor de Mi Bitácora. El proveedor configurado para las devoluciones es <strong>@Reflector.ProviderName</strong>.</p>
         <h2>Qué queda en tu cuaderno</h2>
         <p>Tus entradas, notitas y adjuntos quedan asociados a tu cuenta en el servidor de este piloto. Desde tu cuenta podés descargar un registro en texto y eliminar tu cuenta con todo el contenido guardado.</p>
         <h2>Qué puede ver la administración</h2>
         <p>El panel del piloto se limita a códigos de cuenta, fechas por día y recuentos de entradas, notitas y adjuntos. Desde tu cuenta podés compartir tu código si querés que la administración identifique tus métricas.</p>
-        <p>El acceso técnico al servidor y a sus copias de seguridad puede permitir leer los datos guardados. El procesamiento local no equivale a cifrado de extremo a extremo.</p>
-        <h2>Cuándo se usa la IA local</h2>
-        <p>Al pedir una devolución, la aplicación analiza tu entrada con un modelo instalado en el mismo servidor. Puede usar fragmentos de tu contexto, historial, notitas, texto extraído de archivos e imágenes compatibles de tu cuenta. Esta versión no envía ese contenido a proveedores de IA externos.</p>
+        <p>El acceso técnico al servidor y a sus copias de seguridad puede permitir leer los datos guardados. Este piloto no ofrece cifrado de extremo a extremo.</p>
+        <h2>Cuándo se usa la IA</h2>
+        @if (Reflector.UsesExternalProvider)
+        {
+            <p>Al pedir una devolución individual, Mi Bitácora envía a OpenAI fragmentos de tu entrada, contexto personal, historial, notitas, textos extraídos de documentos y hasta dos imágenes compatibles de tu cuenta. Los archivos HEIC se convierten a JPG localmente antes de enviar una copia.</p>
+            <p>Al generar o actualizar la devolución por temas, se envían por partes los textos de todas tus entradas y el texto disponible de tus documentos. Las fotos no participan de ese análisis.</p>
+            <p>Este análisis se realiza fuera del servidor de Mi Bitácora. Solicitamos que las respuestas no se guarden como estado de la API. OpenAI no usa los datos de la API para entrenar sus modelos de forma predeterminada; puede conservar contenido en registros de prevención de abusos hasta 30 días, o más en las excepciones que detalla su política. Esto no equivale a retención cero. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">Política de datos de OpenAI</a>.</p>
+        }
+        else
+        {
+            <p>Al pedir una devolución, la aplicación analiza tu entrada con un modelo instalado en el mismo servidor. Puede usar fragmentos de tu contexto, historial, notitas, texto extraído de archivos e imágenes compatibles de tu cuenta. Con este proveedor local no se envía ese contenido a proveedores de IA externos.</p>
+        }
         <p>Podés guardar entradas sin pedir una devolución. Si el análisis falla, tu entrada queda guardada para reintentar. Los formatos que el modelo no puede leer se conservan como adjuntos y se indica cuando quedan fuera de la devolución.</p>
         <p>Si usaste una versión anterior con un proveedor externo, este cambio no borra lo que ya le hayas enviado.</p>
         <h2>Para qué sirve</h2>

@@ -5,7 +5,7 @@ namespace MiBitacora.Services;
 
 public sealed class JournalReflectionException(string message) : Exception(message);
 
-public sealed partial class OllamaJournalService : IJournalReflector
+public abstract partial class JournalAiService : IJournalReflector
 {
     private const string SystemInstruction = """
         Sos la herramienta de escritura de Mi Bitácora. Ayudás a quien escribe a ordenar sus palabras,
@@ -85,7 +85,7 @@ public sealed partial class OllamaJournalService : IJournalReflector
         }
 
         var evidence = BuildEvidence(context);
-        var replyJson = await CallOllamaAsync(evidence, cancellationToken);
+        var replyJson = await CallModelAsync(evidence, cancellationToken);
 
         ModelReflection? parsed;
         try

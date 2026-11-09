@@ -1,6 +1,6 @@
 # Mi Bitácora
 
-Piloto local de un cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite.
+Piloto de un cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. Las devoluciones pueden usar Ollama local u OpenAI, según la configuración privada de la instalación.
 
 ![Inicio de Mi Bitácora, con un cuaderno ilustrado y una vista de cómo funciona el piloto](docs/inicio-mi-bitacora.png)
 
@@ -18,6 +18,8 @@ Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y r
 Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Ordenar mis ideas**. La devolución usa Ollama y Qwen3-VL 4B instalados en el mismo equipo. También podés guardar entradas sin pedir una devolución. Si Ollama está detenido, la entrada queda guardada y se muestra una opción para reintentar.
 
 ## IA local en Windows
+
+Esta sección corresponde a `AI:Provider=Ollama`, el valor predeterminado del repositorio. Para usar los créditos de API en el servidor, ver [OpenAI: configuración, privacidad y pruebas](docs/openai.md). La interfaz muestra el proveedor activo; no existe fallback automático entre proveedores.
 
 1. Instalá [Ollama para Windows](https://ollama.com/download/windows) si todavía no lo tenés. Qwen3-VL requiere Ollama 0.12.7 o posterior; en el piloto se verificó 0.40.15.
 2. En los ajustes de la app de Ollama, desactivá **Expose Ollama to the network**. Fijá el contexto en 8192 si aparece esa opción: la app puede sobrescribir las variables de entorno con sus preferencias.
@@ -38,8 +40,9 @@ La configuración del proyecto está en `appsettings.json`, sección `Ollama`. L
 Para verificar texto, imágenes sintéticas, errores, cancelación y separación entre cuentas:
 
 ```powershell
-dotnet run --project tests\MiBitacora.Checks
-dotnet run --project tests\MiBitacora.Checks -- --live
+dotnet build tests\MiBitacora.Checks
+dotnet tests\MiBitacora.Checks\bin\Debug\net10.0\MiBitacora.Checks.dll
+dotnet tests\MiBitacora.Checks\bin\Debug\net10.0\MiBitacora.Checks.dll --live
 ollama ps
 ```
 

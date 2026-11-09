@@ -8,14 +8,14 @@ Cada tarjeta muestra una síntesis, preguntas para seguir escribiendo y fragment
 
 - Usa todas las entradas de la cuenta, sin depender de las 30 entradas cargadas en Conversación, y el texto que ya se pudo extraer de sus documentos. No vuelve a extraer archivos ni hace OCR. No usa notitas, contexto personal ni devoluciones anteriores como evidencia.
 - Las fotos, videos y adjuntos sin texto extraído no participan. La pantalla informa cuántas entradas tienen texto y cuántos documentos y adjuntos sin texto hay. Las imágenes siguen disponibles en la devolución individual.
-- Todo el procesamiento usa el Ollama local configurado, sin servicios externos, proxy ni redirecciones. Comparte la cola de inferencia con las devoluciones individuales.
+- El procesamiento usa el proveedor configurado en `AI:Provider`: Ollama local u OpenAI. Comparte la cola de inferencia con las devoluciones individuales. Con OpenAI se envían los textos a su API; ver [configuración y privacidad](openai.md).
 - El botón trabaja a demanda y puede tardar varios minutos. Se puede recorrer el resto del cuaderno mientras trabaja. Cancelar o cerrar la página detiene el trabajo asociado al componente; no hay un trabajo durable ni un proceso programado todavía. Una desconexión breve puede conservar el circuito hasta su expiración.
 - Se conserva la última versión completa. Un error o cancelación no publica resultados parciales. Si cambia el cuaderno durante la generación, se pide volver a generarla. Entradas nuevas posteriores marcan la versión como desactualizada.
 - Eliminar una entrada retira la devolución general para no conservar fragmentos borrados. La importación con reemplazo hace lo mismo para esa cuenta. Eliminar la cuenta elimina sus devoluciones en cascada. La descarga de datos personales incluye la devolución guardada y su vigencia.
 
 ## Implementación y prompts
 
-`Services/OllamaTopics.cs` contiene las instrucciones y los esquemas JSON para detectar temas, resumir evidencia extensa y escribir cada devolución. Los identificadores permitidos de temas y fuentes se incorporan al esquema de cada solicitud. Se verifican las referencias y las citas contra las fuentes originales; una cita que no es literal se reemplaza por un fragmento real de esa fuente. Los registros no incluyen textos ni respuestas.
+`Services/JournalAiTopics.cs` contiene las instrucciones y los esquemas JSON para detectar temas, resumir evidencia extensa y escribir cada devolución. Los identificadores permitidos de temas y fuentes se incorporan al esquema de cada solicitud. Se verifican las referencias y las citas contra las fuentes originales; una cita que no es literal se reemplaza por un fragmento real de esa fuente. Los registros no incluyen textos ni respuestas.
 
 `JournalTopicService.GenerateAsync(userId, progress, cancellationToken)` concentra el proceso y puede invocarse desde un futuro worker con un scope de servicios, sin depender de HTTP ni de Blazor. `JournalTopics.razor` aporta la interfaz. `JournalTopicJobs` evita dos generaciones simultáneas de la misma cuenta dentro del proceso.
 

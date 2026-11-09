@@ -57,7 +57,7 @@ public partial class Bitacora : IAsyncDisposable
     private ElementReference _end;
     private IJSObjectReference? _module;
 
-    private bool IsLocalAiEnabled => Reflector.IsConfigured;
+    private bool IsAiEnabled => Reflector.IsConfigured;
     private bool HasDraft => !string.IsNullOrWhiteSpace(_draft) || _files.Count > 0;
     private int SessionCount => _sessionEntries.Count + _notes.Count(note => note.ForSession);
     private string DisplayName => string.IsNullOrWhiteSpace(_profile.DisplayName) ? "Hola" : $"Hola, {_profile.DisplayName}";
@@ -281,7 +281,7 @@ public partial class Bitacora : IAsyncDisposable
             _busy = false;
         }
 
-        await SaveOrReflectAsync(entryId, organize: true, useAi: IsLocalAiEnabled);
+        await SaveOrReflectAsync(entryId, organize: true, useAi: IsAiEnabled);
     }
 
     private async Task SaveOrReflectAsync(Guid? entryId, bool organize, bool useAi)
@@ -608,7 +608,7 @@ public partial class Bitacora : IAsyncDisposable
         HeicImageService.IsHeic(file.ContentType) ? "Vista JPG · original conservado" :
         file.ExtractionStatus.Contains("Gemini", StringComparison.Ordinal)
             ? (AttachmentExtractor.CanAnalyzeLocally(file.ContentType)
-                ? "Disponible para analizar localmente" : "Guardado · formato sin análisis visual")
+                ? "Disponible para analizar" : "Guardado · formato sin análisis visual")
             : file.ExtractionStatus;
 
     private static bool HasPreview(JournalAttachment file) =>

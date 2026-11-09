@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace MiBitacora.Services;
 
-public sealed partial class OllamaJournalService
+public abstract partial class JournalAiService
 {
     // Limit image payload and selected text for the pilot's 8192-token context.
     private const int InlineByteBudget = 12 * 1024 * 1024;
@@ -28,11 +28,11 @@ public sealed partial class OllamaJournalService
     private static readonly Regex TermPattern = new(
         @"[\p{L}\p{N}]{4,}", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
-    private static OllamaEvidence BuildEvidence(JournalContext context)
+    private static JournalEvidence BuildEvidence(JournalContext context)
     {
         var sources = new Dictionary<string, EvidenceSource>(StringComparer.Ordinal);
         var promptSources = new List<PromptSource>();
-        var images = new List<string>();
+        var images = new List<JournalImage>();
         var remainingText = 6500;
         var currentText = Excerpt(context.Current.Text, 3000);
 
@@ -72,7 +72,7 @@ public sealed partial class OllamaJournalService
                 InlineTypes.Contains(binary.ContentType) &&
                 string.Equals(HeicImageService.AnalysisContentType(file.ContentType), binary.ContentType, StringComparison.OrdinalIgnoreCase))
             {
-                images.Add(Convert.ToBase64String(binary.Content));
+                images.Add(new(Convert.ToBase64String(binary.Content), binary.ContentType));
                 binaryBytes += binary.Content.Length;
                 binaryFiles++;
                 hasInlineContent = true;
@@ -184,9 +184,9 @@ public sealed partial class OllamaJournalService
 
     private sealed record EvidenceSource(string Label, string Text, bool HasContent);
 
-    private sealed record OllamaEvidence(
+    private sealed record JournalEvidence(
         string Prompt,
-        IReadOnlyList<string> Images,
+        IReadOnlyList<JournalImage> Images,
         IReadOnlyDictionary<string, EvidenceSource> Sources,
         int UnreadCurrentAttachments);
 }

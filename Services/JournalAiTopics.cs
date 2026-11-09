@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 
 namespace MiBitacora.Services;
 
-public sealed partial class OllamaJournalService : IJournalTopicAnalyzer
+public abstract partial class JournalAiService : IJournalTopicAnalyzer
 {
     private const string TopicInstruction = """
         Sos la herramienta de escritura de Mi Bitácora. Organizás temas de un cuaderno personal.
@@ -55,7 +55,7 @@ public sealed partial class OllamaJournalService : IJournalTopicAnalyzer
         var fields = schema["properties"]!["topics"]!["items"]!["properties"]!;
         fields["topicId"]!["enum"] = JsonSerializer.SerializeToNode(catalog.Keys.Append("nuevo"));
         fields["evidence"]!["items"]!["properties"]!["sourceId"]!["enum"] = JsonSerializer.SerializeToNode(sources.Select(s => s.Id));
-        var reply = await CallOllamaAsync(TopicInstruction, prompt, JsonSerializer.SerializeToElement(schema), [], cancellationToken);
+        var reply = await CallModelAsync(TopicInstruction, prompt, JsonSerializer.SerializeToElement(schema), [], cancellationToken);
         var parsed = ParseTopics<TopicDetectionReply>(reply);
         if (parsed.Topics is null || parsed.Topics.Count > 6) throw InvalidTopics();
         foreach (var topic in parsed.Topics)
@@ -99,7 +99,7 @@ public sealed partial class OllamaJournalService : IJournalTopicAnalyzer
             """;
         var prompt = instruction + "\nTEMA:\n" + JsonSerializer.Serialize(title)
             + "\nOBSERVACIONES:\n" + observations;
-        var reply = await CallOllamaAsync(TopicInstruction, prompt, TopicReadingSchema, [], cancellationToken);
+        var reply = await CallModelAsync(TopicInstruction, prompt, TopicReadingSchema, [], cancellationToken);
         var parsed = ParseTopics<TopicReading>(reply);
         if (string.IsNullOrWhiteSpace(parsed.Overview) || parsed.Overview.Length > 1400 ||
             parsed.Questions is null || parsed.Questions.Count > 3 ||
@@ -114,6 +114,6 @@ public sealed partial class OllamaJournalService : IJournalTopicAnalyzer
     }
 
     private static JournalReflectionException InvalidTopics() =>
-        new("La IA local devolvió temas incompletos. La devolución anterior se conserva; podés reintentar.");
+        new("La IA devolvió temas incompletos. La devolución anterior se conserva; podés reintentar.");
     private sealed record TopicDetectionReply(List<TopicObservation> Topics);
 }

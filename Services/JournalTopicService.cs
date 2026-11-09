@@ -35,7 +35,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
     public async Task<JournalTopicSnapshot> GenerateAsync(string userId, IProgress<string>? progress = null,
         CancellationToken ct = default)
     {
-        if (!analyzer.IsConfigured) throw new JournalInputException("Activá la IA local para generar la devolución por temas.");
+        if (!analyzer.IsConfigured) throw new JournalInputException("Activá la IA para generar la devolución por temas.");
         if (!jobs.Start(userId)) throw new JournalInputException("Ya se está generando una devolución para tu cuenta. Esperá a que termine.");
         try
         {
@@ -57,7 +57,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 var catalog = topics.ToDictionary(t => t.Id, t => t.Title);
                 // Reject oversized context explicitly rather than silently ignoring older themes/text.
                 if (JsonSerializer.Serialize(catalog, Json).Length > 6500)
-                    throw new JournalInputException("Se detectaron demasiados temas para el contexto del modelo local. La devolución anterior se conserva.");
+                    throw new JournalInputException("Se detectaron demasiados temas para el contexto configurado para el análisis. La devolución anterior se conserva.");
                 var detected = await analyzer.DetectAsync(batches[i], catalog, ct);
                 foreach (var item in detected)
                 {
