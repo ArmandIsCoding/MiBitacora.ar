@@ -33,4 +33,4 @@ dotnet run --project tests/MiBitacora.Checks
 dotnet run --project tests/MiBitacora.Checks -- --live-topics
 ```
 
-Las comprobaciones usan una base temporal y datos sintéticos. Cubren lectura de más de una página, textos largos sin recortes, documentos, síntesis intermedia, persistencia, aislamiento por cuenta, citas, errores, cancelación, concurrencia, invalidación al borrar y renderizado de tarjetas con HTML escapado. `--live-topics` agrega llamadas reales a Ollama con textos inventados; no lee el cuaderno del usuario.
+Las comprobaciones usan una base temporal y datos sintéticos. Cubren lectura de más de una página, textos largos sin recortes, documentos, síntesis intermedia, persistencia, aislamiento por cuenta, citas, errores, cancelación, concurrencia, invalidación al borrar y renderizado de tarjetas con HTML escapado. También renderizan la página Bitácora completa para comprobar que entrega al componente de temas el identificador de la cuenta autenticada, no un texto literal. `--live-topics` agrega llamadas reales a Ollama con textos inventados; no lee el cuaderno del usuario.

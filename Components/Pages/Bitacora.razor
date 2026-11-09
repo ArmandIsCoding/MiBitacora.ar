@@ -333,7 +333,7 @@
                     }
                 }
                 <section hidden="@(_section != WorkspaceSection.Topics)" aria-label="Devolución por temas">
-                    <JournalTopics UserId="_userId" Active="@(_section == WorkspaceSection.Topics)" />
+                    <JournalTopics UserId="@_userId" Active="@(_section == WorkspaceSection.Topics)" />
                 </section>
             </main>
 

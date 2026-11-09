@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.HtmlRendering.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +13,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MiBitacora.Components.Shared;
+using MiBitacora.Components.Pages;
+using Microsoft.JSInterop;
+using System.Security.Claims;
 using MiBitacora.Data;
 using MiBitacora.Services;
 
@@ -58,12 +63,19 @@ internal static class TopicChecks
         var analyzer = new SyntheticAnalyzer();
         services.AddSingleton<IJournalTopicAnalyzer>(analyzer);
         services.AddScoped<JournalTopicService>();
+        var account = new TestAccount();
+        var components = new CapturedComponents();
+        services.AddSingleton<AuthenticationStateProvider>(account);
+        services.AddSingleton<IComponentActivator>(components);
+        services.AddSingleton<IJournalReflector, UnusedReflector>();
+        services.AddSingleton<IJSRuntime, UnusedJavaScript>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var factory = provider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
         var store = scope.ServiceProvider.GetRequiredService<IJournalStore>();
         var topics = scope.ServiceProvider.GetRequiredService<JournalTopicService>();
         var a = Guid.NewGuid().ToString(); var b = Guid.NewGuid().ToString();
+        account.UserId = a;
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync();
@@ -88,6 +100,16 @@ internal static class TopicChecks
         check(!(await topics.GetAsync(a)).IsOutdated, "Temas: la devolución recién guardada está vigente");
         check(analyzer.SummaryCalls > 0, "Temas: se sintetiza toda la evidencia extensa antes de escribir la devolución final");
 
+        await using (var pageRenderer = new PageRenderer(scope.ServiceProvider, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()))
+        {
+            await pageRenderer.Dispatcher.InvokeAsync(async () =>
+            {
+                var page = pageRenderer.BeginRenderingComponent(typeof(Bitacora), ParameterView.Empty);
+                await page.QuiescenceTask;
+            });
+            check(components.Topics?.UserId == a,
+                "Temas: la página entrega al componente el identificador real de la cuenta autenticada");
+        }
         await using (var renderer = new HtmlRenderer(scope.ServiceProvider, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()))
         {
             var html = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<JournalTopics>(
@@ -176,6 +198,41 @@ internal static class TopicChecks
         }
     }
     private sealed class ProgressSink(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
+    // Render the actual page's Razor tree, including its interactive child parameters, without a browser circuit.
+    private sealed class PageRenderer(IServiceProvider services, ILoggerFactory logger) : StaticHtmlRenderer(services, logger)
+    {
+        protected override IComponent ResolveComponentForRenderMode(Type componentType, int? parentComponentId,
+            IComponentActivator componentActivator, IComponentRenderMode renderMode) =>
+            renderMode is InteractiveServerRenderMode ? componentActivator.CreateInstance(componentType)
+                : throw new NotSupportedException("Este renderer de prueba solo admite InteractiveServer.");
+    }
+    private sealed class TestAccount : AuthenticationStateProvider
+    {
+        public string UserId { get; set; } = "";
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
+            new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, UserId)], "Test"))));
+    }
+    private sealed class CapturedComponents : IComponentActivator
+    {
+        public JournalTopics? Topics { get; private set; }
+        public IComponent CreateInstance(Type componentType)
+        {
+            var component = (IComponent)Activator.CreateInstance(componentType)!;
+            if (component is JournalTopics topics) Topics = topics;
+            return component;
+        }
+    }
+    private sealed class UnusedReflector : IJournalReflector
+    {
+        public bool IsConfigured => true;
+        public Task<JournalReflection> ReflectAsync(JournalContext context, bool useAi, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Abrir el cuaderno no debe generar una devolución individual.");
+    }
+    private sealed class UnusedJavaScript : IJSRuntime
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => throw new NotSupportedException();
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) => throw new NotSupportedException();
+    }
     private sealed class TopicHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => send(request, cancellationToken); }
 }
