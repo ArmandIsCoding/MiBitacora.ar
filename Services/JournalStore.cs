@@ -345,11 +345,23 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var file = await db.JournalAttachments.Where(row => row.Id == attachmentId && row.Entry.UserId == userId)
             .Select(row => new { row.FileName, row.ContentType }).SingleOrDefaultAsync(cancellationToken);
-        if (file is null || !HeicImageService.HasPreview(file.ContentType)) return null;
+        if (file is null) return null;
         if (!HeicImageService.IsHeic(file.ContentType))
         {
             var original = uploads.OpenRead(userId, attachmentId);
-            return original is null ? null : new AttachmentContent(file.FileName, file.ContentType, original);
+            if (original is null) return null;
+            try
+            {
+                var header = new byte[(int)Math.Min(original.Length, 4096)];
+                await original.ReadExactlyAsync(header, cancellationToken);
+                original.Position = 0;
+                var type = AttachmentExtractor.DetectMediaType(header, file.FileName);
+                if (type is not null && AttachmentPresentation.IsInlineType(type))
+                    return new AttachmentContent(file.FileName, type, original);
+                await original.DisposeAsync();
+                return null;
+            }
+            catch { await original.DisposeAsync(); throw; }
         }
         try
         {

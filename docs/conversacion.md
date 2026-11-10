@@ -10,6 +10,8 @@ La respuesta habla de «vos» como interlocutora, retoma un detalle concreto y a
 
 `JournalAiVoice.cs` contiene la voz de conversación. `JournalAiReflection.cs` define el contrato y valida citas y fuentes. La [memoria del cuaderno](memoria-e-informe.md) combina turnos recientes con una búsqueda por significado en todos los textos anteriores. Las respuestas previas se identifican como propuestas de la IA, no como vivencias confirmadas. **Antecedentes consultados** permite abrir los originales recuperados.
 
+La [revisión de profundidad y calidez](conversacion-profunda.md) desarrolla el enfoque de la conversación: una lectura específica, con apoyo en el texto y antecedentes pertinentes, que pueda discutirse o descartarse. El cuerpo admite hasta 4200 caracteres; los intercambios sencillos siguen siendo breves. Las respuestas ya guardadas se conservan. El [visor de adjuntos](visor-de-adjuntos.md) permite revisar fotos, reproducir medios y abrir documentos desde la conversación, el calendario y la entrada completa, sin iniciar una descarga por defecto.
+
 OpenAI recibe hasta 76.000 caracteres de fuentes, priorizando el texto actual completo y seis turnos recientes, con hasta ocho antecedentes recuperados. Ollama conserva su presupuesto de 6500 caracteres, dos turnos recientes y hasta tres antecedentes. Ambos admiten hasta dos imágenes compatibles y fragmentos de documentos. La selección puede omitir detalles: no equivale a una memoria ilimitada.
 
 Las respuestas nuevas guardan `ConversationVersion=1` y `GeneratedUtc`; el JSON anterior sigue siendo legible. La interfaz muestra la fecha real de generación, también cuando responde una entrada histórica. No se cambia la fecha del original.

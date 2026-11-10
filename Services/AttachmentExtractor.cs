@@ -48,7 +48,7 @@ internal static class AttachmentExtractor
 
     public static AttachmentAnalysis Analyze(string name, byte[] content, CancellationToken cancellationToken)
     {
-        var mediaType = DetectMediaType(content);
+        var mediaType = DetectMediaType(content, name);
         if (mediaType is not null)
         {
             return new AttachmentAnalysis(mediaType, null, CanAnalyzeLocally(mediaType)
@@ -83,7 +83,7 @@ internal static class AttachmentExtractor
         return new AttachmentAnalysis("application/octet-stream", null, "Guardado · sin texto disponible");
     }
 
-    private static string? DetectMediaType(ReadOnlySpan<byte> bytes)
+    internal static string? DetectMediaType(ReadOnlySpan<byte> bytes, string name = "")
     {
         if (bytes.StartsWith("%PDF-"u8))
         {
@@ -97,6 +97,15 @@ internal static class AttachmentExtractor
         {
             return "image/webp";
         }
+
+        if (bytes.Length >= 12 && bytes.StartsWith("RIFF"u8) && bytes[8..12].SequenceEqual("WAVE"u8)) return "audio/wav";
+        if (bytes.StartsWith("fLaC"u8)) return "audio/flac";
+        if (bytes.StartsWith("ID3"u8) || (bytes.Length >= 3 && bytes[0] == 0xff && (bytes[1] & 0xe6) == 0xe2)) return "audio/mpeg";
+        var extension = Path.GetExtension(name).ToLowerInvariant();
+        if (bytes.Length >= 7 && bytes[0] == 0xff && (bytes[1] & 0xf6) == 0xf0) return "audio/aac";
+        if (bytes.StartsWith("OggS"u8)) return extension == ".ogv" ? "video/ogg" : "audio/ogg";
+        if (bytes.StartsWith(new byte[] { 0x1a, 0x45, 0xdf, 0xa3 }) && bytes.IndexOf("webm"u8) >= 0)
+            return extension == ".weba" ? "audio/webm" : "video/webm";
 
         if (bytes.Length >= 16 && bytes[4..8].SequenceEqual("ftyp"u8))
         {
@@ -113,6 +122,13 @@ internal static class AttachmentExtractor
             }
 
             if (genericHeif) return "image/heif";
+            var major = bytes.Slice(8, 4);
+            if (major.SequenceEqual("M4A "u8) || major.SequenceEqual("M4B "u8)) return "audio/mp4";
+            if (major.SequenceEqual("qt  "u8)) return "video/quicktime";
+            if (major.StartsWith("3gp"u8)) return "video/3gpp";
+            if (major.SequenceEqual("isom"u8) || major.StartsWith("iso"u8) || major.SequenceEqual("mp41"u8)
+                || major.SequenceEqual("mp42"u8) || major.SequenceEqual("M4V "u8) || major.SequenceEqual("avc1"u8)
+                || major.SequenceEqual("dash"u8)) return extension == ".m4a" ? "audio/mp4" : "video/mp4";
         }
 
         return null;

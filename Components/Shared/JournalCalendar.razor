@@ -154,16 +154,7 @@
                         }
                         @if (entry.Attachments.Count > 0)
                         {
-                            <ul class="calendar-files" aria-label="Adjuntos">
-                                @foreach (var attachment in entry.Attachments)
-                                {
-                                    <li @key="attachment.Id">
-                                        <a href="@($"/adjuntos/{attachment.Id}")" download aria-label="@($"Descargar {attachment.FileName}")">
-                                            <Icon Name="paperclip" Size="16" /><span>@attachment.FileName</span><Icon Name="download" Size="16" />
-                                        </a>
-                                    </li>
-                                }
-                            </ul>
+                            <AttachmentGallery Files="entry.Attachments" Compact="true" />
                         }
                         @if (entry.Reflection is { } reflection)
                         {

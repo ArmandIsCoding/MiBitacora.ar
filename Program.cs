@@ -195,47 +195,6 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapAdditionalIdentityEndpoints();
 
-var attachments = app.MapGroup("/adjuntos").RequireAuthorization();
-attachments.MapGet("/{id:guid}", DownloadAttachment);
-attachments.MapGet("/{id:guid}/vista", PreviewAttachment);
+app.MapJournalAttachments();
 
 app.Run();
-
-static async Task<IResult> DownloadAttachment(
-    Guid id, ClaimsPrincipal user, IJournalStore store, HttpContext http, CancellationToken cancellationToken)
-{
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    var file = await store.GetAttachmentAsync(userId, id, cancellationToken);
-    if (file is null)
-    {
-        return Results.NotFound();
-    }
-
-    http.Response.Headers.CacheControl = "private, no-store";
-    return Results.File(file.Content, "application/octet-stream", file.FileName);
-}
-
-static async Task<IResult> PreviewAttachment(
-    Guid id, ClaimsPrincipal user, IJournalStore store, HttpContext http, CancellationToken cancellationToken)
-{
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-    if (userId is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    var file = await store.GetAttachmentPreviewAsync(userId, id, cancellationToken);
-    if (file?.ContentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/avif"))
-    {
-        if (file is not null) await file.Content.DisposeAsync();
-        return Results.NotFound();
-    }
-
-    http.Response.Headers.CacheControl = "private, no-store";
-    return Results.File(file.Content, file.ContentType);
-}

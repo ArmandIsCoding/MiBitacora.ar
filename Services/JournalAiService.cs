@@ -23,8 +23,10 @@ public abstract partial class JournalAiService(IJournalModelClient model, ILogge
         "La IA devolvió una respuesta incompleta. Tu entrada está guardada y podés reintentar.";
 
     private Task<string> CallModelAsync(JournalEvidence evidence, CancellationToken cancellationToken) =>
-        CallModelAsync(SystemInstruction + "\n\n" + ConversationVoiceInstruction,
-            evidence.Prompt, ReflectionSchema, evidence.Images, cancellationToken);
+        CallModelAsync(SystemInstruction + "\n\n" + ConversationVoiceInstruction +
+            (UsesExternalProvider ? "" : "\nPor el presupuesto del modelo local, desarrollá la idea principal en 120 a 220 palabras y dejá vacíos los campos opcionales que no aporten."),
+            evidence.Prompt,
+            ReflectionSchema, evidence.Images, cancellationToken);
 
     private Task<string> CallModelAsync(string instruction, string prompt, JsonElement schema,
         IReadOnlyList<JournalImage> images, CancellationToken cancellationToken) =>

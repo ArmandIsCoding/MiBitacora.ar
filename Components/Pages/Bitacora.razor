@@ -153,25 +153,7 @@
                                         }
                                         @if (entry.Attachments.Count > 0)
                                         {
-                                            <div class="attachment-list" aria-label="Archivos adjuntos">
-                                                @foreach (var attachment in entry.Attachments)
-                                                {
-                                                    <a class="attachment-card @(HasPreview(attachment) ? "attachment-image" : "")" href="@AttachmentUrl(attachment.Id)" download title="@($"Descargar {attachment.FileName}")">
-                                                        @if (HasPreview(attachment))
-                                                        {
-                                                            <img src="@($"{AttachmentUrl(attachment.Id)}/vista")" alt="" loading="lazy" />
-                                                        }
-                                                        <span class="attachment-caption">
-                                                            <span class="attachment-file-icon"><Icon Name="file" Size="19" /></span>
-                                                            <span class="attachment-label">
-                                                                <strong>@attachment.FileName</strong>
-                                                                <small>@SizeLabel(attachment.Size) · @AttachmentStatus(attachment)</small>
-                                                            </span>
-                                                            <Icon Name="download" Size="17" />
-                                                        </span>
-                                                    </a>
-                                                }
-                                            </div>
+                                            <AttachmentGallery Files="entry.Attachments" />
                                         }
                                         @if (entry.Reflection is null && _workingEntry != entry.Id)
                                         {

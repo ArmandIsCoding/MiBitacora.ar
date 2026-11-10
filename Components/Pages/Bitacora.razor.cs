@@ -614,21 +614,6 @@ public partial class Bitacora : IAsyncDisposable
 
     private string LocalTime(DateTime utc) => JournalLocalTime(utc).ToString("HH:mm", Spanish);
 
-    private static string SizeLabel(long bytes) =>
-        bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.0} MB" : $"{Math.Max(1, bytes / 1024d):0} KB";
-
-    private static string AttachmentStatus(JournalAttachment file) =>
-        HeicImageService.IsHeic(file.ContentType) ? "Vista JPG · original conservado" :
-        file.ExtractionStatus.Contains("Gemini", StringComparison.Ordinal)
-            ? (AttachmentExtractor.CanAnalyzeLocally(file.ContentType)
-                ? "Disponible para analizar" : "Guardado · formato sin análisis visual")
-            : file.ExtractionStatus;
-
-    private static bool HasPreview(JournalAttachment file) =>
-        HeicImageService.HasPreview(file.ContentType);
-
-    private static string AttachmentUrl(Guid id) => $"/adjuntos/{id}";
-
     public async ValueTask DisposeAsync()
     {
         _disposed = true;

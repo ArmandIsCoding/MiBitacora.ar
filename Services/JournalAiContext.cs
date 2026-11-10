@@ -49,7 +49,7 @@ public abstract partial class JournalAiService
             AddSource($"entrada{promptSources.Count}", "turno previo de la conversación", DateLabel("Entrada", entry.CreatedUtc),
                 Excerpt(entry.Text, UsesExternalProvider ? (i < 2 ? JournalStore.MaxTextLength : 1500) : 650),
                 priorResponse: entry.Reflection is { } previous
-                    ? Excerpt(previous.Overview, UsesExternalProvider ? 1800 : 550) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
+                    ? Excerpt(previous.Overview, UsesExternalProvider ? (i < 2 ? 4200 : 1800) : 550) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
         }
         foreach (var source in context.MemorySources ?? [])
         {
@@ -143,7 +143,7 @@ public abstract partial class JournalAiService
         {
             text = Excerpt(text, Math.Min(remainingText, text.Length));
             remainingText -= text.Length;
-            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, UsesExternalProvider ? 2200 : 800));
+            priorResponse = Excerpt(priorResponse, Math.Min(remainingText, UsesExternalProvider ? 4600 : 800));
             remainingText -= priorResponse.Length;
             sources.Add(id, new(label, text, text.Length > 0 || inline));
             promptSources.Add(new(id, type, label, text, inline, priorResponse, imageNumber));

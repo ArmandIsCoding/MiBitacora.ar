@@ -21,24 +21,7 @@
             @if (!string.IsNullOrWhiteSpace(entry.Text)) { <p class="preserved-text">@entry.Text</p> }
             @if (entry.Attachments.Count > 0)
             {
-                <div class="attachment-list" aria-label="Archivos de la entrada">
-                    @foreach (var file in entry.Attachments)
-                    {
-                        <div class="full-entry-file">
-                            <a class="attachment-card @(HeicImageService.HasPreview(file.ContentType) ? "attachment-image" : "")" href="@($"/adjuntos/{file.Id}")" download>
-                                @if (HeicImageService.HasPreview(file.ContentType))
-                                {
-                                    <img src="@($"/adjuntos/{file.Id}/vista")" alt="@file.FileName" loading="lazy" />
-                                }
-                                <span class="attachment-caption"><Icon Name="download" Size="17" /> @file.FileName</span>
-                            </a>
-                            @if (!string.IsNullOrWhiteSpace(file.ExtractedText))
-                            {
-                                <details class="reflection-details"><summary>Ver texto extraído del documento</summary><p class="preserved-text">@file.ExtractedText</p></details>
-                            }
-                        </div>
-                    }
-                </div>
+                <AttachmentGallery Files="entry.Attachments" @rendermode="InteractiveServer" />
             }
         </article>
         @if (entry.Reflection is { } reflection)

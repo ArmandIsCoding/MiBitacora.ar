@@ -43,7 +43,7 @@ public abstract partial class JournalAiService : IJournalReflector
           "type": "object",
           "properties": {
             "title": { "type": "string", "description": "Etiqueta breve y fiel al asunto para organizar la conversación; no es un diagnóstico." },
-            "overview": { "type": "string", "description": "Respuesta conversacional en dos o tres párrafos breves, dirigida a la persona con voseo. Aporta una distinción o lectura útil sobre el último mensaje, no una paráfrasis. Hasta 1800 caracteres, sin la pregunta final." },
+            "overview": { "type": "string", "maxLength": 4200, "description": "Respuesta con voseo, cálida y específica. Desarrolla una hipótesis o distinción que aporte comprensión, explica su apoyo concreto y conecta antecedentes sólo cuando ayudan. Extensión proporcionada: normalmente 3 a 5 párrafos para material rico y menos para intercambios simples. Hasta 4200 caracteres, sin la pregunta final, sin inventar causas ni limitarse a parafrasear." },
             "themes": {
               "type": "array",
               "maxItems": 2,
@@ -137,7 +137,7 @@ public abstract partial class JournalAiService : IJournalReflector
             }
         }
 
-        var overview = Limit(parsed.Overview, 1800);
+        var overview = Limit(parsed.Overview, 4200);
         if (evidence.UnreadCurrentAttachments > 0)
         {
             var missing = evidence.UnreadCurrentAttachments == 1
@@ -150,7 +150,7 @@ public abstract partial class JournalAiService : IJournalReflector
             Limit(parsed.Title, 100),
             overview,
             themes,
-            TrimList(parsed.OpenQuestions).Take(1).ToArray(),
+            TrimList(parsed.OpenQuestions).Select(CompleteQuestion).OfType<string>().Take(1).ToArray(),
             TrimList(parsed.SessionTopics).Take(2).ToArray(),
             string.IsNullOrWhiteSpace(parsed.NextStep) ? null : Limit(parsed.NextStep, 240),
             IsDemo: false, ConversationVersion: JournalReflection.CurrentConversationVersion, GeneratedUtc: DateTime.UtcNow,
@@ -226,6 +226,17 @@ public abstract partial class JournalAiService : IJournalReflector
             length--;
         }
         return paragraph[..length].TrimEnd();
+    }
+
+    // This field is one Spanish question, not prose after a question or an unfinished fragment.
+    private static string? CompleteQuestion(string value)
+    {
+        var end = value.IndexOf('?');
+        if (end < 0) return null;
+        var start = value.IndexOf('¿');
+        if (start > end) return null;
+        var question = start >= 0 ? value[start..(end + 1)] : "¿" + value[..(end + 1)];
+        return question.Length > 2 ? question : null;
     }
 
     private static IReadOnlyList<string> TrimList(IReadOnlyList<string?> source) =>
