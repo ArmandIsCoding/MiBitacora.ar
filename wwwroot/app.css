@@ -378,6 +378,9 @@ a.mode-pill:hover { background: #e1e7d6; }
 .save-only { white-space: nowrap; }
 .composer-caption { display: flex; justify-content: space-between; align-items: center; gap: .15rem .45rem; padding: .38rem .25rem 0; color: var(--muted); font-size: .71rem; }
 .composer-caption span:first-child { display: inline-flex; align-items: center; gap: .3rem; }
+.composer-disclosures { display: grid; gap: .7rem; padding: .35rem .25rem .8rem; }
+.composer-disclosures > .topic-scope { margin: 0; }
+.composer-disclosures > .composer-caption { padding: 0; }
 .draft-files { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0 .7rem .55rem; }
 .file-chip { display: inline-flex; align-items: center; gap: .3rem; max-width: min(100%, 15rem); min-width: 0; padding: .08rem .14rem .08rem .4rem; border-radius: .45rem; background: #eeece1; color: var(--olive-dark); font-size: .78rem; }
 .file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
