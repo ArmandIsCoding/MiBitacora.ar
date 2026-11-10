@@ -75,6 +75,7 @@ internal static class TopicChecks
         services.AddSingleton<IComponentActivator>(components);
         services.AddSingleton<IJournalReflector, UnusedReflector>();
         services.AddSingleton<IJSRuntime, UnusedJavaScript>();
+        services.AddSingleton<NavigationManager, TestNavigation>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var factory = provider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
@@ -320,6 +321,11 @@ internal static class TopicChecks
             IComponentActivator componentActivator, IComponentRenderMode renderMode) =>
             renderMode is InteractiveServerRenderMode ? componentActivator.CreateInstance(componentType)
                 : throw new NotSupportedException("Este renderer de prueba solo admite InteractiveServer.");
+    }
+    private sealed class TestNavigation : NavigationManager
+    {
+        public TestNavigation() => Initialize("http://localhost/", "http://localhost/bitacora");
+        protected override void NavigateToCore(string uri, bool forceLoad) => Uri = ToAbsoluteUri(uri).ToString();
     }
     private sealed class TestAccount : AuthenticationStateProvider
     {

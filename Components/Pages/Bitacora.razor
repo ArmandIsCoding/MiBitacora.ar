@@ -3,7 +3,7 @@
 @attribute [Authorize]
 @rendermode InteractiveServer
 
-<PageTitle>Mi Bitácora · Tu conversación</PageTitle>
+<PageTitle>@SelectedNotebook.Name · Mi Bitácora</PageTitle>
 
 <div class="journal-app">
     <header class="journal-top">
@@ -71,11 +71,17 @@
 
                 @if (_section == WorkspaceSection.Conversation)
                 {
+                    <div class="notebook-toolbar">
+                        <button type="button" class="notebook-switcher" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy" aria-haspopup="dialog">
+                            <Icon Name="book" Size="21" /><span>Mis diarios</span><span class="notebook-total">@_notebooks.Count</span><Icon Name="chevron" Size="16" />
+                        </button>
+                        <button type="button" class="quiet-action" @onclick="() => EditNotebook()" disabled="@NotebookControlsBusy"><Icon Name="plus" Size="17" /> Nuevo diario</button>
+                    </div>
                     <header class="workspace-heading">
                         <div>
-                            <p class="eyebrow">UN ESPACIO PARA PENSAR</p>
-                            <h1 @ref="_sectionHeading" tabindex="-1">Tu conversación<span class="brand-period">.</span></h1>
-                            <p>Contá lo que te pasa. Podemos ir de a una cosa por vez.</p>
+                            <p class="eyebrow">TU CONVERSACIÓN · @EntryCountLabel(SelectedNotebook.EntryCount)</p>
+                            <h1 class="notebook-title" @ref="_sectionHeading" tabindex="-1">@SelectedNotebook.Name<span class="brand-period">.</span></h1>
+                            <p>Cada diario tiene su hilo. La IA conecta lo importante de todos.</p>
                         </div>
                         <a class="mode-pill" href="/Account/Manage" title="Configurar el modo de devolución">
                             <span class="status-dot"></span> @(IsAiEnabled ? Reflector.ProviderName : "Modo de muestra")
@@ -106,10 +112,10 @@
                     }
                     else
                     {
-                        <div class="journal-timeline" aria-label="Conversación continua">
+                        <div class="journal-timeline" aria-label="@($"Conversación en {SelectedNotebook.Name}")">
                             @if (_hasEarlier)
                             {
-                                <button type="button" class="btn btn-outline load-earlier" @onclick="LoadEarlierAsync" disabled="@_readingEarlier">
+                                <button type="button" class="btn btn-outline load-earlier" @onclick="LoadEarlierAsync" disabled="@(_readingEarlier || _busy)">
                                     <Icon Name="clock" Size="16" /> @(_readingEarlier ? "Cargando…" : "Ver entradas anteriores")
                                 </button>
                             }
@@ -136,7 +142,10 @@
                                                     <time datetime="@entry.CreatedUtc.ToString("O")">@LocalTime(entry.CreatedUtc)</time>
                                                 }
                                             </div>
-                                            <button type="button" class="icon-button" aria-label="Eliminar entrada" title="Eliminar entrada" disabled="@_busy" @onclick="() => OpenDialog(DialogKind.DeleteEntry, entry.Id)"><Icon Name="trash" Size="17" /></button>
+                                            <div class="entry-management">
+                                                <button type="button" class="icon-button" aria-label="Mover entrada a otro diario" title="Mover a otro diario" disabled="@NotebookControlsBusy" @onclick="() => StartMoveEntry(entry)"><Icon Name="book" Size="17" /></button>
+                                                <button type="button" class="icon-button" aria-label="Eliminar entrada" title="Eliminar entrada" disabled="@_busy" @onclick="() => OpenDialog(DialogKind.DeleteEntry, entry.Id)"><Icon Name="trash" Size="17" /></button>
+                                            </div>
                                         </header>
                                         @if (!string.IsNullOrWhiteSpace(entry.Text))
                                         {
@@ -203,7 +212,7 @@
                         <div class="composer">
                             <label class="visually-hidden" for="entry-text">Escribí una entrada</label>
                             <textarea id="entry-text" @ref="_composerInput" @bind="_draft" @bind:event="oninput" maxlength="@JournalStore.MaxTextLength" rows="3"
-                                      placeholder="@(RendererInfo.IsInteractive ? "¿Qué te está pasando? Podés contar algo o seguir la conversación…" : "Abriendo tu cuaderno…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
+                                      placeholder="@(RendererInfo.IsInteractive ? $"Escribí en «{SelectedNotebook.Name}» o seguí la conversación…" : "Abriendo tu cuaderno…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
                             @if (_files.Count > 0)
                             {
                                 <div class="draft-files">
@@ -222,6 +231,7 @@
                             }
                             <div class="composer-toolbar">
                                 <div class="composer-tools">
+                                    <button class="composer-tool diary-tool" type="button" aria-label="Cambiar diario" title="@($"Cambiar diario · {SelectedNotebook.Name}")" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy"><Icon Name="book" Size="19" /></button>
                                     <InputFile @key="(0, _pickerVersion)" id="file-picker" aria-label="Adjuntar fotos o archivos" class="visually-hidden file-input" OnChange="PickFilesAsync" multiple disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
                                     <label for="file-picker" class="composer-tool" title="Adjuntar fotos y archivos"><Icon Name="paperclip" Size="19" /><span>Adjuntar</span></label>
                                     <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
@@ -250,7 +260,7 @@
                         <div>
                             <p class="eyebrow">TU CUADERNO EN EL TIEMPO</p>
                             <h1 @ref="_sectionHeading" tabindex="-1">Calendario<span class="brand-period">.</span></h1>
-                            <p>Volvé a lo que escribiste, día por día.</p>
+                            <p>Volvé a lo que escribiste en todos tus diarios, día por día.</p>
                         </div>
                     </header>
                     <JournalCalendar EntryDays="_entryDays" Today="_today" Streak="_currentStreak"
@@ -373,7 +383,7 @@
 
 @if (_dialogKind != DialogKind.None)
 {
-    <dialog class="journal-dialog @(_dialogKind == DialogKind.Note ? "note-dialog" : "")" @ref="_dialog" aria-labelledby="dialog-title" @onkeydown="OnDialogKeyAsync">
+    <dialog @key="_dialogKind" class="journal-dialog @(_dialogKind == DialogKind.Note ? "note-dialog" : "")" @ref="_dialog" aria-labelledby="dialog-title" @onkeydown="OnDialogKeyAsync">
         <div class="dialog-inner">
             <button class="icon-button dialog-close" type="button" aria-label="Cerrar" @onclick="CloseDialogAsync" disabled="@_busy"><Icon Name="x" Size="21" /></button>
             @if (_dialogKind == DialogKind.Note)
@@ -387,6 +397,75 @@
                 <div class="dialog-actions">
                     <small>@_noteDraft.Length / @JournalStore.MaxNoteLength</small>
                     <button class="btn btn-primary" type="button" @onclick="SaveNoteAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_noteDraft))"><Icon Name="check" Size="19" /> Guardar notita</button>
+                </div>
+            }
+            else if (_dialogKind == DialogKind.Notebooks)
+            {
+                <p class="eyebrow"><Icon Name="book" Size="17" /> UN LUGAR PARA CADA TEMA</p>
+                <h2 id="dialog-title">Mis diarios.</h2>
+                <p>Elegí qué conversación querés continuar. El contexto relevante sigue conectando todos tus diarios.</p>
+                <label class="visually-hidden" for="notebook-search">Buscar un diario</label>
+                <input id="notebook-search" class="notebook-input" type="search" placeholder="Buscar un diario…" @bind="_notebookSearch" @bind:event="oninput" autofocus />
+                <div class="notebook-list" aria-label="Tus diarios">
+                    @foreach (var notebook in FilteredNotebooks)
+                    {
+                        <div class="notebook-row @(notebook.Id == _selectedNotebookId ? "selected" : "")" @key="notebook.Id ?? Guid.Empty">
+                            <button type="button" class="notebook-choice" @onclick="() => SwitchNotebookAsync(notebook.Id)" disabled="@_busy" aria-current="@(notebook.Id == _selectedNotebookId ? "true" : null)">
+                                <span class="notebook-cover"><Icon Name="book" Size="22" /></span>
+                                <span><strong>@notebook.Name</strong><small>@EntryCountLabel(notebook.EntryCount)@(HasNotebookDraft(notebook.Id) ? " · Borrador" : "")</small></span>
+                                @if (notebook.Id == _selectedNotebookId) { <Icon Name="check" Size="17" /> }
+                            </button>
+                            @if (notebook.Id is { } notebookId)
+                            {
+                                <button type="button" class="icon-button" aria-label="@($"Renombrar {notebook.Name}")" title="Renombrar diario" @onclick="() => EditNotebook(notebook)" disabled="@_busy"><Icon Name="pen" Size="17" /></button>
+                                <button type="button" class="icon-button" aria-label="@($"Quitar diario {notebook.Name}")" title="Quitar diario" @onclick="() => OpenDialog(DialogKind.DeleteNotebook, notebookId)" disabled="@_busy"><Icon Name="trash" Size="17" /></button>
+                            }
+                        </div>
+                    }
+                    @if (!FilteredNotebooks.Any()) { <p class="notebook-no-results">No hay diarios con ese nombre.</p> }
+                </div>
+                <div class="dialog-actions"><button type="button" class="btn btn-primary" @onclick="() => EditNotebook()" disabled="@_busy"><Icon Name="plus" Size="18" /> Nuevo diario</button></div>
+            }
+            else if (_dialogKind == DialogKind.EditNotebook)
+            {
+                <p class="eyebrow"><Icon Name="book" Size="17" /> TUS DIARIOS</p>
+                <h2 id="dialog-title">@(_editingNotebookId is null ? "Un nuevo diario." : "Un nombre para tu diario.")</h2>
+                <p>La casa nueva, los relojes, un viaje… Creá tantos como necesites.</p>
+                <form @onsubmit="SaveNotebookAsync" @onsubmit:preventDefault>
+                    <label class="notebook-label" for="notebook-name">Nombre del diario</label>
+                    <input id="notebook-name" class="notebook-input" maxlength="@JournalStore.MaxNotebookNameLength" @bind="_notebookNameDraft" @bind:event="oninput" placeholder="Por ejemplo, Casa nueva" autocomplete="off" autofocus disabled="@_busy" />
+                    <div class="dialog-actions">
+                        <button type="button" class="btn btn-outline" @onclick="CloseDialogAsync" disabled="@_busy">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" disabled="@(_busy || string.IsNullOrWhiteSpace(_notebookNameDraft))">@(_editingNotebookId is null ? "Crear diario" : "Guardar nombre")</button>
+                    </div>
+                </form>
+            }
+            else if (_dialogKind == DialogKind.MoveEntry)
+            {
+                <p class="eyebrow"><Icon Name="book" Size="17" /> ORGANIZAR</p>
+                <h2 id="dialog-title">Mover a otro diario.</h2>
+                <p>La entrada, sus adjuntos y su respuesta se moverán juntos, conservando su fecha.</p>
+                <label class="notebook-label" for="move-notebook">Diario de destino</label>
+                <select id="move-notebook" class="notebook-input" @bind="_moveNotebookValue" disabled="@_busy" autofocus>
+                    @foreach (var notebook in _notebooks)
+                    {
+                        <option value="@(notebook.Id?.ToString("D") ?? "")">@notebook.Name</option>
+                    }
+                </select>
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-outline" @onclick="CloseDialogAsync" disabled="@_busy">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="MoveEntryAsync" disabled="@(_busy || _moveNotebookValue == (_selectedNotebookId?.ToString("D") ?? ""))">Mover entrada</button>
+                </div>
+            }
+            else if (_dialogKind == DialogKind.DeleteNotebook)
+            {
+                var notebook = _notebooks.SingleOrDefault(n => n.Id == _targetId);
+                <p class="eyebrow"><Icon Name="book" Size="17" /> ORGANIZAR</p>
+                <h2 id="dialog-title">¿Quitar «@notebook?.Name»?</h2>
+                <p>Sus entradas, adjuntos y respuestas pasarán a «Mi diario». También conservaremos cualquier borrador que tengas abierto.</p>
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-outline" @onclick="CloseDialogAsync" disabled="@_busy" autofocus>Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="DeleteNotebookAsync" disabled="@_busy">Quitar diario</button>
                 </div>
             }
             else

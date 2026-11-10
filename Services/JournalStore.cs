@@ -115,7 +115,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     }
 
     public async Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Guid? notebookId = null)
     {
         text = text.Trim();
         RequireLength(text, MaxTextLength, "Tu entrada");
@@ -131,6 +131,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         {
             Id = Guid.NewGuid(),
             UserId = userId,
+            NotebookId = notebookId,
             Text = text,
             SearchText = NormalizeSearch(text),
             Attachments = PrepareAttachments(files, cancellationToken)
@@ -138,6 +139,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var notebookName = await RequireNotebookAsync(db, userId, notebookId, cancellationToken);
         if (entry.Attachments.Count > 0)
         {
             var quota = await db.JournalAttachments
@@ -179,7 +181,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         }
 
         return new JournalEntry(entry.Id, entry.Text, entry.CreatedUtc, null, false,
-            entry.Attachments.Select(ToAttachment).ToArray());
+            entry.Attachments.Select(ToAttachment).ToArray(), NotebookId: notebookId, NotebookName: notebookName);
     }
 
     public async Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection,
@@ -300,7 +302,9 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             ?? throw EntryUnavailable();
         var profile = await ReadProfileAsync(db, userId, cancellationToken);
         var terms = SearchTerms(current);
-        var earlier = owned.Where(row => row.CreatedUtc < current.CreatedUtc);
+        // Conversational continuity belongs to this diary. Semantic memory still searches
+        // the entire account through JournalCorpusReader, including all other diaries.
+        var earlier = owned.Where(row => row.CreatedUtc < current.CreatedUtc && row.NotebookId == current.NotebookId);
         var history = await FindHistoryAsync(earlier, terms, cancellationToken);
         var notes = SelectNotes(await ReadNotesAsync(db, userId, cancellationToken), terms);
 
@@ -440,13 +444,14 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         CancellationToken cancellationToken)
     {
         var rows = await entries.AsSplitQuery().Select(row => new EntryProjection(
-            row.Id, row.Text, row.CreatedUtc, row.ReflectionJson, row.ForSession, row.IsDateOnly, row.Attachments
+            row.Id, row.Text, row.CreatedUtc, row.ReflectionJson, row.ForSession, row.IsDateOnly,
+            row.NotebookId, row.Notebook == null ? DefaultNotebookName : row.Notebook.Name, row.Attachments
                 .OrderBy(attachment => attachment.Position)
                 .Select(attachment => new JournalAttachment(attachment.Id, attachment.EntryId, attachment.FileName,
                     attachment.ContentType, attachment.Size, attachment.ExtractionStatus, attachment.ExtractedText))
                 .ToList())).ToListAsync(cancellationToken);
         return rows.Select(row => new JournalEntry(row.Id, row.Text, AsUtc(row.CreatedUtc),
-            ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments, row.IsDateOnly)).ToList();
+            ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments, row.IsDateOnly, row.NotebookId, row.NotebookName)).ToList();
     }
 
     private static IQueryable<JournalAttachment> ProjectAttachments(IQueryable<JournalAttachmentRow> query) =>
@@ -552,5 +557,5 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     private static partial Regex SearchWord();
 
     private sealed record EntryProjection(Guid Id, string Text, DateTime CreatedUtc, string? ReflectionJson,
-        bool ForSession, bool IsDateOnly, List<JournalAttachment> Attachments);
+        bool ForSession, bool IsDateOnly, Guid? NotebookId, string NotebookName, List<JournalAttachment> Attachments);
 }

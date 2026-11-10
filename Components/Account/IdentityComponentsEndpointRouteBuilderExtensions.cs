@@ -57,8 +57,9 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
         var profile = await store.GetProfileAsync(user.Id, cancellationToken);
         var entries = await store.GetEntriesAsync(user.Id, take: int.MaxValue, cancellationToken: cancellationToken);
         var notes = await store.GetNotesAsync(user.Id, cancellationToken);
+        var notebooks = await store.GetNotebooksAsync(user.Id, cancellationToken);
         var topicOverview = await topics.GetAsync(user.Id, cancellationToken);
-        var data = new { user.Email, Profile = profile, Entries = entries, Notes = notes, TopicOverview = topicOverview };
+        var data = new { user.Email, Profile = profile, Notebooks = notebooks, Entries = entries, Notes = notes, TopicOverview = topicOverview };
 
         context.Response.Headers.CacheControl = "private, no-store";
         var contents = JsonSerializer.SerializeToUtf8Bytes(data, ExportJsonOptions);

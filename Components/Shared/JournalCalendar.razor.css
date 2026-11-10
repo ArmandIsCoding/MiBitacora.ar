@@ -308,12 +308,15 @@
 
 .calendar-entry-meta {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: .35rem;
     color: var(--olive-dark);
     font-size: .82rem;
     font-weight: 650;
 }
+
+.calendar-entry-meta a { margin-left: auto; max-width: 100%; overflow-wrap: anywhere; }
 
 .calendar-entry-text,
 .calendar-reflection-body p {

@@ -9,6 +9,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     internal DbSet<JournalMemoryRow> JournalMemories => Set<JournalMemoryRow>();
     internal DbSet<JournalTopicOverviewRow> JournalTopicOverviews => Set<JournalTopicOverviewRow>();
     internal DbSet<JournalEntryRow> JournalEntries => Set<JournalEntryRow>();
+    internal DbSet<JournalNotebookRow> JournalNotebooks => Set<JournalNotebookRow>();
     internal DbSet<JournalNoteRow> JournalNotes => Set<JournalNoteRow>();
     internal DbSet<JournalAttachmentRow> JournalAttachments => Set<JournalAttachmentRow>();
 
@@ -38,9 +39,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey<JournalProfileRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<JournalNotebookRow>(entity =>
+        {
+            entity.HasAlternateKey(row => new { row.UserId, row.Id });
+            entity.HasIndex(row => new { row.UserId, row.NormalizedName }).IsUnique();
+            entity.HasOne<ApplicationUser>().WithMany()
+                .HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<JournalEntryRow>(entity =>
         {
             entity.HasIndex(row => new { row.UserId, row.CreatedUtc }).IsUnique();
+            entity.HasIndex(row => new { row.UserId, row.NotebookId, row.CreatedUtc });
+            entity.HasOne(row => row.Notebook).WithMany()
+                .HasForeignKey(row => new { row.UserId, row.NotebookId })
+                .HasPrincipalKey(row => new { row.UserId, row.Id }).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ApplicationUser>().WithMany()
                 .HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });

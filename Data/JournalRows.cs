@@ -25,6 +25,15 @@ internal sealed class JournalProfileRow
     public bool GeminiConsent { get; set; }
 }
 
+internal sealed class JournalNotebookRow
+{
+    public Guid Id { get; set; }
+    public string UserId { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string NormalizedName { get; set; } = "";
+    public DateTime CreatedUtc { get; set; }
+}
+
 internal sealed class JournalEntryRow
 {
     public Guid Id { get; set; }
@@ -35,6 +44,8 @@ internal sealed class JournalEntryRow
     public bool IsDateOnly { get; set; }
     public string? ReflectionJson { get; set; }
     public bool ForSession { get; set; }
+    public Guid? NotebookId { get; set; }
+    public JournalNotebookRow? Notebook { get; set; }
     public List<JournalAttachmentRow> Attachments { get; set; } = [];
 }
 

@@ -81,8 +81,10 @@ public partial class Bitacora : IAsyncDisposable
 
         try
         {
+            _notebooks = await Store.GetNotebooksAsync(_userId, Lifetime);
+            _selectedNotebookId = RequestedNotebookId();
             var profile = Store.GetProfileAsync(_userId, Lifetime);
-            var entries = Store.GetEntriesAsync(_userId, PageSize, cancellationToken: Lifetime);
+            var entries = Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, cancellationToken: Lifetime);
             var notes = Store.GetNotesAsync(_userId, Lifetime);
             var selected = Store.GetSessionEntriesAsync(_userId, Lifetime);
             var entryDays = Store.GetEntryDaysAsync(_userId, JournalTimeZone, Lifetime);
@@ -160,6 +162,7 @@ public partial class Bitacora : IAsyncDisposable
     {
         if (_section == section)
         {
+            _focusSection = true;
             return;
         }
 
@@ -173,7 +176,7 @@ public partial class Bitacora : IAsyncDisposable
 
     private async Task LoadEarlierAsync()
     {
-        if (_readingEarlier || _entries.Count == 0)
+        if (_readingEarlier || _busy || _entries.Count == 0)
         {
             return;
         }
@@ -181,7 +184,7 @@ public partial class Bitacora : IAsyncDisposable
         _readingEarlier = true;
         try
         {
-            var earlier = await Store.GetEntriesAsync(_userId, PageSize, _entries[0].CreatedUtc, Lifetime);
+            var earlier = await Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, _entries[0].CreatedUtc, Lifetime);
             _entries.InsertRange(0, earlier);
             _hasEarlier = earlier.Count == PageSize;
         }
@@ -304,8 +307,9 @@ public partial class Bitacora : IAsyncDisposable
         {
             if (entryId is null)
             {
-                var entry = await Store.AddEntryAsync(_userId, _draft, _files.ToArray(), Lifetime);
+                var entry = await Store.AddEntryAsync(_userId, _draft, _files.ToArray(), Lifetime, _selectedNotebookId);
                 _entries.Add(entry);
+                ChangeNotebookCount(_selectedNotebookId, 1);
                 _draft = "";
                 _files.Clear();
                 entryId = entry.Id;
@@ -478,6 +482,7 @@ public partial class Bitacora : IAsyncDisposable
             else
             {
                 await Store.DeleteEntryAsync(_userId, id, Lifetime);
+                ChangeNotebookCount(_entries.FirstOrDefault(entry => entry.Id == id)?.NotebookId, -1);
                 _entries.RemoveAll(item => item.Id == id);
                 _sessionEntries.RemoveAll(item => item.Id == id);
                 _entryErrors.Remove(id);
@@ -649,5 +654,5 @@ public partial class Bitacora : IAsyncDisposable
 
     private enum WorkspaceSection { Conversation, Calendar, Topics, Notes, Session }
     private sealed class MemoryProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
-    private enum DialogKind { None, Note, DeleteNote, DeleteEntry }
+    private enum DialogKind { None, Note, DeleteNote, DeleteEntry, Notebooks, EditNotebook, DeleteNotebook, MoveEntry }
 }

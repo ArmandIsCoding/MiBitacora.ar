@@ -83,9 +83,11 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
             corpus = await JournalCorpusReader.ReadAsync(db, userId, context.Current.CreatedUtc, ct);
         var cards = await PrepareAsync(userId, corpus, progress, ct);
         progress?.Report("Conectando lo que contás con tus antecedentes…");
-        var recent = context.History.OrderByDescending(e => e.CreatedUtc).Take(analyzer.UsesExternalProvider ? 6 : 2).ToArray();
+        var recent = context.History.Where(e => e.NotebookId == context.Current.NotebookId)
+            .OrderByDescending(e => e.CreatedUtc).Take(analyzer.UsesExternalProvider ? 6 : 2).ToArray();
         var conversation = JsonSerializer.Serialize(new
         {
+            diario = context.Current.NotebookName,
             actual = Excerpt(context.Current.Text, analyzer.UsesExternalProvider ? 12000 : 1000),
             recientes = recent.Take(analyzer.UsesExternalProvider ? 3 : 1).Select(e => new { e.CreatedUtc,
                 texto = Excerpt(e.Text, analyzer.UsesExternalProvider ? 1800 : 650),

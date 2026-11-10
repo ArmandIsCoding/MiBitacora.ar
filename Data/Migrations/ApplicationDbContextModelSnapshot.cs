@@ -142,6 +142,9 @@ namespace MiBitacora.Migrations
                     b.Property<bool>("IsDateOnly")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid?>("NotebookId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ReflectionJson")
                         .HasColumnType("TEXT");
 
@@ -161,6 +164,8 @@ namespace MiBitacora.Migrations
 
                     b.HasIndex("UserId", "CreatedUtc")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "NotebookId", "CreatedUtc");
 
                     b.ToTable("JournalEntries");
                 });
@@ -221,6 +226,35 @@ namespace MiBitacora.Migrations
                     b.HasIndex("UserId", "CreatedUtc");
 
                     b.ToTable("JournalNotes");
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalNotebookRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("JournalNotebooks");
                 });
 
             modelBuilder.Entity("MiBitacora.Data.JournalProfileRow", b =>
@@ -429,6 +463,14 @@ namespace MiBitacora.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("MiBitacora.Data.JournalNotebookRow", "Notebook")
+                        .WithMany()
+                        .HasForeignKey("UserId", "NotebookId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Notebook");
                 });
 
             modelBuilder.Entity("MiBitacora.Data.JournalMemoryRow", b =>
@@ -451,6 +493,15 @@ namespace MiBitacora.Migrations
                 });
 
             modelBuilder.Entity("MiBitacora.Data.JournalNoteRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalNotebookRow", b =>
                 {
                     b.HasOne("MiBitacora.Data.ApplicationUser", null)
                         .WithMany()

@@ -146,6 +146,7 @@
                         <header class="calendar-entry-meta">
                             <Icon Name="clock" Size="17" />
                             <time datetime="@utc.ToString("O", CultureInfo.InvariantCulture)">@local.ToString("HH:mm", Spanish)</time>
+                            <a href="@(entry.NotebookId is { } notebookId ? $"/bitacora?diario={notebookId:D}" : "/bitacora")">@entry.NotebookName</a>
                         </header>
                         @if (!string.IsNullOrWhiteSpace(entry.Text))
                         {

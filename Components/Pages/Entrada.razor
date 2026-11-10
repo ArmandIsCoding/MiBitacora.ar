@@ -15,6 +15,7 @@
     @if (_entry is { } entry)
     {
         <h1>@Local(entry.CreatedUtc).ToString("d 'de' MMMM 'de' yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"))</h1>
+        <a class="entry-notebook-link" href="@NotebookUrl"><Icon Name="book" Size="17" /> @entry.NotebookName</a>
         <p class="topic-scope">Texto completo y archivos guardados. La devolución es una lectura de la IA; podés contrastarla con lo que escribiste.</p>
         <article class="entry-card" aria-label="Entrada completa">
             @if (!string.IsNullOrWhiteSpace(entry.Text)) { <p class="preserved-text">@entry.Text</p> }
@@ -60,7 +61,8 @@
     private JournalEntry? _entry;
     private bool _failed;
     [SupplyParameterFromQuery(Name = "origen")] public string? Origin { get; set; }
-    private string ReturnUrl => Origin == "chat" ? "/bitacora" : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
+    private string NotebookUrl => _entry?.NotebookId is { } id ? $"/bitacora?diario={id:D}" : "/bitacora";
+    private string ReturnUrl => Origin == "chat" ? NotebookUrl : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
     private string ReturnLabel => Origin == "chat" ? "Volver a la conversación" : "Volver a la devolución";
     private DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZone);
     protected override async Task OnParametersSetAsync()

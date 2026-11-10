@@ -2,6 +2,8 @@
 
 **Enviar** guarda la entrada y pide una respuesta a la IA configurada. Si falla, el texto queda guardado y aparece **Reintentar respuesta**; no se genera un turno ficticio ni se reintenta la API automáticamente. **Solo guardar** conserva la opción de escribir sin enviar contenido al proveedor. Abrir el cuaderno o una entrada no consume IA.
 
+La conversación se organiza en [diarios creados por la persona](diarios.md). Cada diario tiene sus propios turnos recientes; la memoria relevante y el informe para terapia siguen abarcando el cuaderno completo. Las entradas previas quedan en Mi diario y pueden moverse con sus respuestas y adjuntos.
+
 Sólo el editor y sus controles permanecen pegados al borde inferior al recorrer la conversación. Los avisos de privacidad, límites de adjuntos y alcance de la IA están fuera de ese bloque, en el flujo normal de la página: se pueden leer al llegar al final y no restan altura al chat durante el desplazamiento. El marcador `.journal-end` sigue inmediatamente antes de `.composer-wrap`, para que `journal.js` reserve únicamente la altura del editor al mostrar el último mensaje.
 
 La respuesta habla de «vos» como interlocutora, retoma un detalle concreto y aporta una distinción o lectura tentativa. Hay como máximo una pregunta visible para continuar. Las citas y apuntes complementarios quedan plegados. La síntesis por temas conserva la primera persona para leerla como propia en terapia. Ambas son propuestas de una IA, no diagnósticos ni tratamiento. El aviso que recomienda llevar el chat a terapia aparece junto al encabezado y al compositor.
