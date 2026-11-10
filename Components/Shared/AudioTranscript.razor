@@ -1,0 +1,16 @@
+@if (JournalAudio.HasTranscript(File))
+{
+    <details class="audio-transcript" open="@(File.IsVoiceMessage && !Compact)">
+        <summary>Transcripción · @File.FileName</summary>
+        <p class="preserved-text">@File.ExtractedText</p>
+        <p class="topic-scope">Transcripción automática: puede contener errores. Podés contrastarla con el audio original.</p>
+    </details>
+}
+else
+{
+    <p class="topic-scope audio-pending">@File.FileName · Se transcribe al pedir o volver a generar una respuesta.</p>
+}
+@code {
+    [Parameter, EditorRequired] public JournalAttachment File { get; set; } = default!;
+    [Parameter] public bool Compact { get; set; }
+}

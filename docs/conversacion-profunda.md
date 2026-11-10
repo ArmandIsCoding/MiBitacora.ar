@@ -16,7 +16,7 @@ La orientación psicodinámica toma como lentes posibles la ambivalencia, las ne
 
 El prompt incluye un ejemplo expresamente ficticio, separado de las fuentes de la persona. El cuerpo principal admite hasta 4200 caracteres, frente al corte anterior de 1800. Los dos turnos recientes conservan hasta 4200 caracteres de la respuesta anterior más su pregunta para continuar el hilo; los otros turnos mantienen el límite anterior. Ollama conserva sus presupuestos y recibe una instrucción de extensión más contenida. El campo de pregunta descarta fragmentos incompletos y texto suelto posterior al signo de cierre.
 
-El cambio se aplica a las próximas respuestas. No incrementa `ConversationVersion`, no ejecuta backfill, no reescribe entradas ni regenera el informe o respuestas existentes. No cambia proveedor, modelo, clave ni esfuerzo de razonamiento.
+El cambio se aplica a las próximas respuestas y a las que se pidan de nuevo con el icono [Volver a generar](audio-y-regeneracion.md). No incrementa `ConversationVersion`, no ejecuta backfill ni reescribe entradas. No cambia proveedor, modelo, clave ni esfuerzo de razonamiento. Las respuestas existentes y el informe se conservan hasta que se solicite su actualización.
 
 ## Evaluación reproducible
 

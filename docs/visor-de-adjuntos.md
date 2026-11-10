@@ -16,7 +16,7 @@ El diálogo nativo mantiene el foco dentro del visor y permite cerrar con Escape
 
 Antes de servir una vista, `JournalStore` comprueba la firma del archivo y permite sólo MIME de imágenes raster, medios y PDF. Una extensión `.mp3` no convierte HTML en contenido activo. Las respuestas usan `private, no-store`, `nosniff`, una política CSP restringida y `Content-Disposition: inline`. No se sirven HTML, SVG o XML subidos como páginas ejecutables. El texto extraído también se escapa al mostrarlo.
 
-Los audios y videos antiguos con MIME genérico eligen un reproductor por extensión y validan su contenido al entregar la vista. No hay migración, modificación de originales ni cambio de ubicación de uploads. Tampoco se agrega transcripción ni análisis de audio/video por la IA: **poder reproducir un archivo no significa que el modelo pueda interpretarlo**.
+Los audios y videos antiguos con MIME genérico eligen un reproductor por extensión y validan su contenido al entregar la vista. No se modifican originales ni su ubicación. Los audios ahora pueden [transcribirse al enviar o pedir una respuesta](audio-y-regeneracion.md); el visor muestra ese texto cuando está disponible. Los videos se reproducen, pero no se analizan ni transcriben.
 
 ## Validación
 

@@ -2,6 +2,7 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
+@rendermode InteractiveServer
 @inject IJournalStore Store
 @inject AuthenticationStateProvider Auth
 @inject TimeZoneInfo TimeZone
@@ -21,12 +22,12 @@
             @if (!string.IsNullOrWhiteSpace(entry.Text)) { <p class="preserved-text">@entry.Text</p> }
             @if (entry.Attachments.Count > 0)
             {
-                <AttachmentGallery Files="entry.Attachments" @rendermode="InteractiveServer" />
+                <AttachmentGallery Files="entry.Attachments" />
             }
         </article>
         @if (entry.Reflection is { } reflection)
         {
-            <ReflectionCard Reflection="reflection" />
+            <EntryReply Entry="entry" Updated="updated => _entry = updated" />
         }
         <p class="conversation-boundary">Esta conversación con IA puede ayudarte a reflexionar y puede equivocarse. No reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo.</p>
     }

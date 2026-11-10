@@ -53,6 +53,7 @@ internal static class AttachmentExtractor
         {
             return new AttachmentAnalysis(mediaType, null, CanAnalyzeLocally(mediaType)
                 ? "Disponible para analizar"
+                : AttachmentPresentation.IsInlineAudio(mediaType) ? "Audio guardado · pendiente de transcribir"
                 : "Guardado · formato sin análisis visual");
         }
 
@@ -105,7 +106,7 @@ internal static class AttachmentExtractor
         if (bytes.Length >= 7 && bytes[0] == 0xff && (bytes[1] & 0xf6) == 0xf0) return "audio/aac";
         if (bytes.StartsWith("OggS"u8)) return extension == ".ogv" ? "video/ogg" : "audio/ogg";
         if (bytes.StartsWith(new byte[] { 0x1a, 0x45, 0xdf, 0xa3 }) && bytes.IndexOf("webm"u8) >= 0)
-            return extension == ".weba" ? "audio/webm" : "video/webm";
+            return extension == ".weba" || WebmAudio.HasOnlyAudioTracks(bytes) ? "audio/webm" : "video/webm";
 
         if (bytes.Length >= 16 && bytes[4..8].SequenceEqual("ftyp"u8))
         {

@@ -68,6 +68,9 @@ internal static class TopicChecks
         services.AddSingleton<IJournalReportAnalyzer>(memoryAnalyzer);
         services.AddSingleton<JournalMemoryJobs>();
         services.AddScoped<JournalMemoryService>();
+        services.AddSingleton<IAudioTranscriber, RejectAudioTranscriber>();
+        services.AddSingleton<JournalConversationJobs>();
+        services.AddScoped<JournalConversationService>();
         services.AddScoped<JournalReportService>();
         var account = new TestAccount();
         var components = new CapturedComponents();
@@ -130,24 +133,30 @@ internal static class TopicChecks
             check(components.Topics?.UserId == a,
                 "Temas: la página entrega al componente el identificador real de la cuenta autenticada");
         }
-        await using (var renderer = new HtmlRenderer(scope.ServiceProvider, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()))
+        await using (var renderer = new PageRenderer(scope.ServiceProvider, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()))
         {
-            var html = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<JournalTopics>(
-                ParameterView.FromDictionary(new Dictionary<string, object?> { ["UserId"] = a, ["Active"] = true }))).ToHtmlString());
+            Task<string> RenderAsync<T>(ParameterView parameters) where T : IComponent => renderer.Dispatcher.InvokeAsync(async () =>
+            {
+                var page = renderer.BeginRenderingComponent(typeof(T), parameters);
+                await page.QuiescenceTask;
+                return page.ToHtmlString();
+            });
+            var html = await RenderAsync<JournalTopics>(
+                ParameterView.FromDictionary(new Dictionary<string, object?> { ["UserId"] = a, ["Active"] = true }));
             check(html.Contains("topic-card") && html.Contains("Ver fragmentos") && html.Contains("Actualizar") && !html.Contains("<script>"),
                 "Temas: se renderizan tarjetas guardadas, preguntas y evidencia con HTML escapado");
             check(html.Contains("Ver contexto adicional considerado") && html.Contains("44 entradas relacionadas") &&
-                !html.Contains("45 entradas relacionadas") && !html.Contains("0001"),
+                !html.Contains("45 entradas relacionadas") && !html.Contains("1/1/0001") && !html.Contains("01/01/0001") && !html.Contains("0001-01-01"),
                 "Temas: el contexto no infla el contador de entradas ni muestra fechas ficticias");
             check(html.Contains($"/entrada/{original.Id}?tema=t1") && html.Contains("target=\"_blank\"") &&
                 !html.Contains($"/entrada/{note.Id}"),
                 "Temas: los fragmentos de entradas abren el original, las notitas no inventan enlaces");
-            var entryHtml = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<Entrada>(
-                ParameterView.FromDictionary(new Dictionary<string, object?> { ["EntryId"] = longEntry.Id }))).ToHtmlString());
+            var entryHtml = await RenderAsync<Entrada>(
+                ParameterView.FromDictionary(new Dictionary<string, object?> { ["EntryId"] = longEntry.Id }));
             check(entryHtml.Contains("TU ENTRADA ORIGINAL") && entryHtml.Contains("seccion=temas") && WebUtility.HtmlDecode(entryHtml).Contains(longEntry.Text),
                 "Entrada completa: renderiza todo el texto y permite volver al tema sin generar IA");
-            var hiddenHtml = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<Entrada>(
-                ParameterView.FromDictionary(new Dictionary<string, object?> { ["EntryId"] = foreign.Id }))).ToHtmlString());
+            var hiddenHtml = await RenderAsync<Entrada>(
+                ParameterView.FromDictionary(new Dictionary<string, object?> { ["EntryId"] = foreign.Id }));
             check(hiddenHtml.Contains("Entrada no disponible") && !hiddenHtml.Contains("SECRETO_DE_OTRA_CUENTA"),
                 "Entrada completa: la página no revela contenido de otra cuenta");
         }

@@ -19,6 +19,10 @@
         </button>
     }
 </div>
+@foreach (var audio in Files.Where(JournalAudio.IsAudio))
+{
+    <AudioTranscript File="audio" Compact="Compact" @key="audio.Id" />
+}
 
 @if (Current is { } active)
 {
@@ -45,7 +49,7 @@
                 }
                 else if (kind == AttachmentViewKind.Audio)
                 {
-                    <div class="attachment-audio"><span class="audio-art"><Icon Name="audio" Size="64" /></span><p>Un momento para escuchar.</p><audio controls preload="metadata" src="@PreviewUrl(active)" @onerror="() => MediaFailed(active.Id)">Tu navegador no admite este reproductor.</audio></div>
+                    <div class="attachment-audio"><span class="audio-art"><Icon Name="audio" Size="64" /></span><p>Un momento para escuchar.</p><audio controls preload="metadata" src="@PreviewUrl(active)" @onerror="() => MediaFailed(active.Id)">Tu navegador no admite este reproductor.</audio><AudioTranscript File="active" Compact="true" /></div>
                 }
                 else if (kind == AttachmentViewKind.Video)
                 {

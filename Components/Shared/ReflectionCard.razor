@@ -2,6 +2,10 @@
     <header class="reflection-meta">
         <span class="reflection-mark"><Icon Name="spark" Size="19" /></span>
         <span class="eyebrow">MI BITÁCORA · IA</span>
+        @if (Regenerate.HasDelegate)
+        {
+            <button type="button" class="reply-regenerate @(Regenerating ? "is-regenerating" : "")" title="Volver a generar respuesta" aria-label="Volver a generar respuesta" @onclick="Regenerate" disabled="@(Busy || !RendererInfo.IsInteractive)"><Icon Name="refresh" Size="18" /></button>
+        }
         @if (Reflection.IsDemo)
         {
             <span class="soft-badge">Muestra</span>
@@ -107,4 +111,6 @@
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback SaveAsNote { get; set; }
     [Parameter] public EventCallback ToggleSession { get; set; }
+    [Parameter] public EventCallback Regenerate { get; set; }
+    [Parameter] public bool Regenerating { get; set; }
 }

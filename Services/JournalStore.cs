@@ -323,7 +323,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             ? await ReadMediaAsync(db, userId, attachments, cancellationToken)
             : [];
 
-        var boundedHistory = history.Select(entry => entry with { Attachments = [] }).ToArray();
+        var boundedHistory = history.Select(entry => entry with
+        { Attachments = entry.Attachments.Where(JournalAudio.HasTranscript).ToArray() }).ToArray();
         return new JournalContext(profile, current, boundedHistory, notes, attachments, media);
     }
 
@@ -460,7 +461,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             row.NotebookId, row.Notebook == null ? DefaultNotebookName : row.Notebook.Name, row.Attachments
                 .OrderBy(attachment => attachment.Position)
                 .Select(attachment => new JournalAttachment(attachment.Id, attachment.EntryId, attachment.FileName,
-                    attachment.ContentType, attachment.Size, attachment.ExtractionStatus, attachment.ExtractedText))
+                    attachment.ContentType, attachment.Size, attachment.ExtractionStatus, attachment.ExtractedText, attachment.IsVoiceMessage))
                 .ToList())).ToListAsync(cancellationToken);
         return rows.Select(row => new JournalEntry(row.Id, row.Text, AsUtc(row.CreatedUtc),
             ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments, row.IsDateOnly, row.NotebookId, row.NotebookName)).ToList();
@@ -468,7 +469,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
 
     private static IQueryable<JournalAttachment> ProjectAttachments(IQueryable<JournalAttachmentRow> query) =>
         query.Select(row => new JournalAttachment(row.Id, row.EntryId, row.FileName, row.ContentType, row.Size,
-            row.ExtractionStatus, row.ExtractedText));
+            row.ExtractionStatus, row.ExtractedText, row.IsVoiceMessage));
 
     private static JournalReflection? ReadReflection(string? json)
     {
@@ -484,7 +485,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     }
 
     private static JournalAttachment ToAttachment(JournalAttachmentRow row) =>
-        new(row.Id, row.EntryId, row.FileName, row.ContentType, row.Size, row.ExtractionStatus, row.ExtractedText);
+        new(row.Id, row.EntryId, row.FileName, row.ContentType, row.Size, row.ExtractionStatus, row.ExtractedText, row.IsVoiceMessage);
 
     private static JournalNote ToNote(JournalNoteRow row) => new(row.Id, row.Text, AsUtc(row.CreatedUtc), row.ForSession);
     private static DateTime AsUtc(DateTime date) => DateTime.SpecifyKind(date, DateTimeKind.Utc);
@@ -512,6 +513,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             var file = files[index];
             var name = AttachmentExtractor.CleanFileName(file.FileName);
             var analysis = AttachmentExtractor.Analyze(name, file.Content, cancellationToken);
+            if (file.IsVoiceMessage && !AttachmentPresentation.IsInlineAudio(analysis.ContentType))
+                throw new JournalInputException("La grabación no tiene un formato de audio reconocible.");
             rows.Add(new JournalAttachmentRow
             {
                 Id = Guid.NewGuid(),
@@ -521,6 +524,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
                 Size = file.Content.Length,
                 ExtractionStatus = analysis.Status,
                 ExtractedText = analysis.ExtractedText,
+                IsVoiceMessage = file.IsVoiceMessage,
                 SearchText = NormalizeSearch($"{name}\n{analysis.ExtractedText}")
             });
         }

@@ -88,9 +88,9 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
         var conversation = JsonSerializer.Serialize(new
         {
             diario = context.Current.NotebookName,
-            actual = Excerpt(context.Current.Text, analyzer.UsesExternalProvider ? 12000 : 1000),
+            actual = Excerpt(JournalAudio.ConversationText(context.Current), analyzer.UsesExternalProvider ? 24000 : 1000),
             recientes = recent.Take(analyzer.UsesExternalProvider ? 3 : 1).Select(e => new { e.CreatedUtc,
-                texto = Excerpt(e.Text, analyzer.UsesExternalProvider ? 1800 : 650),
+                texto = Excerpt(JournalAudio.ConversationText(e), analyzer.UsesExternalProvider ? 4000 : 650),
                 propuestaAnteriorDeLaIA = Excerpt(e.Reflection?.Overview ?? "", analyzer.UsesExternalProvider ? 1000 : 550), preguntaAnteriorDeLaIA = e.Reflection?.OpenQuestions })
         }, Json);
         var recentIds = recent.Select(e => e.Id).ToHashSet();

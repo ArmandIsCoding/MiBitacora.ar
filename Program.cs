@@ -79,6 +79,12 @@ builder.Services.AddOptions<OpenAiOptions>().Bind(builder.Configuration.GetSecti
 builder.Services.AddSingleton<JournalTopicJobs>();
 builder.Services.AddScoped<JournalTopicService>();
 builder.Services.AddSingleton<JournalMemoryJobs>();
+builder.Services.AddSingleton<JournalConversationJobs>();
+builder.Services.AddScoped<JournalConversationService>();
+builder.Services.AddOptions<AudioTranscriptionOptions>().Bind(builder.Configuration.GetSection("AudioTranscription"))
+    .Validate(options => options.IsValid(), "La transcripción requiere gpt-transcribe y un plazo válido.").ValidateOnStart();
+builder.Services.AddHttpClient<IAudioTranscriber, OpenAiAudioTranscriber>(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
 builder.Services.AddScoped<JournalMemoryService>();
 builder.Services.AddScoped<JournalReportService>();
 builder.Services.AddHttpClient<OllamaJournalService>(client =>

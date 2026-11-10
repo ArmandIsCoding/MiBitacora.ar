@@ -20,7 +20,7 @@ public static class JournalCorpusReader
             .Where(e => e.UserId == userId && (!beforeUtc.HasValue || e.CreatedUtc < beforeUtc.Value))
             .OrderBy(e => e.CreatedUtc).ThenBy(e => e.Id)
             .Select(e => new { e.Id, e.Text, e.CreatedUtc, e.IsDateOnly,
-                Files = e.Attachments.OrderBy(a => a.Position).Select(a => new { a.Id, a.FileName, a.ExtractedText }).ToList() })
+                Files = e.Attachments.OrderBy(a => a.Position).Select(a => new { a.Id, a.FileName, a.ContentType, a.ExtractedText, a.IsVoiceMessage }).ToList() })
             .ToListAsync(ct);
         var notes = await db.JournalNotes.AsNoTracking()
             .Where(n => n.UserId == userId && (!beforeUtc.HasValue || n.CreatedUtc <= beforeUtc.Value))
@@ -39,7 +39,10 @@ public static class JournalCorpusReader
             {
                 if (string.IsNullOrWhiteSpace(file.ExtractedText)) { unread++; continue; }
                 docs++; hasText = true;
-                Add("a" + file.Id, file.ExtractedText, "Documento: " + file.FileName, TopicSourceKind.Document, e.Id, e.CreatedUtc);
+                var attachment = new JournalAttachment(file.Id, e.Id, file.FileName, file.ContentType, 0, "", file.ExtractedText, file.IsVoiceMessage);
+                Add("a" + file.Id, file.ExtractedText,
+                    (JournalAudio.IsAudio(attachment) ? JournalAudio.Label(attachment) + ": " : "Documento: ") + file.FileName,
+                    file.IsVoiceMessage ? TopicSourceKind.Voice : TopicSourceKind.Document, e.Id, e.CreatedUtc);
             }
             if (hasText) textEntries++;
         }

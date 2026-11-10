@@ -27,6 +27,11 @@
             <p>Al pedir una devolución, la aplicación analiza tu entrada con un modelo instalado en el mismo servidor. Puede usar fragmentos de tu contexto, historial, notitas, texto extraído de archivos e imágenes compatibles de tu cuenta. Con este proveedor local no se envía ese contenido a proveedores de IA externos.</p>
         }
         <p>«Enviar» guarda tu mensaje y pide una respuesta de la IA. «Solo guardar» permite escribir sin pedirla. Si el análisis falla, tu entrada queda guardada para reintentar. Los formatos que el modelo no puede leer se conservan como adjuntos y se indica cuando quedan fuera de la devolución.</p>
+        @if (Reflector.UsesExternalProvider)
+        {
+            <p>Los mensajes de voz se graban al activar el micrófono y dar permiso al navegador. Podés escucharlos o descartarlos antes de adjuntarlos. Al enviar o volver a generar una respuesta, los audios pendientes se mandan a OpenAI para transcribirlos. Guardamos el texto transcrito junto con el original; se usa en la conversación, la memoria y el informe para terapia, igual que otros textos de tu cuaderno. La transcripción es automática y puede equivocarse. «Solo guardar» no transcribe ni envía el audio a OpenAI.</p>
+            <p>Volver a generar usa otra vez el mensaje y su contexto con las instrucciones vigentes y consume API. Reutiliza las transcripciones ya guardadas y reemplaza la respuesta únicamente si la nueva se completa; no cambia el mensaje original ni regenera los demás turnos.</p>
+        }
         <p>Si usaste una versión anterior con un proveedor externo, este cambio no borra lo que ya le hayas enviado.</p>
         <h2>Para qué sirve</h2>
         <p>Mi Bitácora te ayuda a escribir, explorar lo que te pasa y preparar temas para conversar. La IA puede equivocarse y no reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo. Revisá y elegí qué querés conservar o compartir.</p>

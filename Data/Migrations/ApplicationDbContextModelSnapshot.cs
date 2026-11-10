@@ -109,6 +109,9 @@ namespace MiBitacora.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsVoiceMessage")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Position")
                         .HasColumnType("INTEGER");
 

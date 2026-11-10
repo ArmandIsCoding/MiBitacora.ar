@@ -137,7 +137,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
         var entries = await db.JournalEntries.AsNoTracking().Where(e => e.UserId == userId)
             .OrderBy(e => e.CreatedUtc).ThenBy(e => e.Id)
             .Select(e => new { e.Id, e.Text, e.CreatedUtc, e.IsDateOnly,
-                Files = e.Attachments.OrderBy(a => a.Position).Select(a => new { a.Id, a.FileName, a.ExtractedText }).ToList() })
+                Files = e.Attachments.OrderBy(a => a.Position).Select(a => new { a.Id, a.FileName, a.ContentType, a.ExtractedText, a.IsVoiceMessage }).ToList() })
             .ToListAsync(ct);
         var notes = await db.JournalNotes.AsNoTracking().Where(n => n.UserId == userId)
             .OrderBy(n => n.CreatedUtc).ThenBy(n => n.Id)
@@ -161,7 +161,9 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 if (string.IsNullOrWhiteSpace(file.ExtractedText)) { unread++; continue; }
                 documents++;
                 hasText = true;
-                Add(file.ExtractedText, $"Documento: {file.FileName}", TopicSourceKind.Document, entry.Id, entry.CreatedUtc);
+                var attachment = new JournalAttachment(file.Id, entry.Id, file.FileName, file.ContentType, 0, "", file.ExtractedText, file.IsVoiceMessage);
+                Add(file.ExtractedText, (JournalAudio.IsAudio(attachment) ? JournalAudio.Label(attachment) + ": " : "Documento: ") + file.FileName,
+                    file.IsVoiceMessage ? TopicSourceKind.Voice : TopicSourceKind.Document, entry.Id, entry.CreatedUtc);
             }
             if (hasText) textEntries++;
         }

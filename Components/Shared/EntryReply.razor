@@ -1,0 +1,70 @@
+@using System.Security.Claims
+@implements IDisposable
+@inject IServiceProvider Services
+
+@if (_current.Reflection is { } reflection)
+{
+    <ReflectionCard Reflection="reflection" Selected="_current.ForSession" Busy="@(Busy || _generating)"
+                    SaveAsNote="SaveAsNote" ToggleSession="ToggleSession" Regenerating="_generating"
+                    Regenerate="@(CanRegenerate ? EventCallback.Factory.Create(this, RegenerateAsync) : default)" />
+}
+@if (_generating) { <p class="reply-progress" role="status"><span class="spinner"></span> @_progress</p> }
+@if (_error is not null) { <p class="entry-error" role="alert">@_error La respuesta anterior se conserva.</p> }
+
+@code {
+    [Parameter, EditorRequired] public JournalEntry Entry { get; set; } = default!;
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public bool CanRegenerate { get; set; } = true;
+    [Parameter] public EventCallback<JournalEntry> Updated { get; set; }
+    [Parameter] public EventCallback SaveAsNote { get; set; }
+    [Parameter] public EventCallback ToggleSession { get; set; }
+    private JournalEntry _current = default!;
+    private JournalEntry? _previous;
+    private bool _generating, _disposed;
+    private string? _error;
+    private string _progress = "Preparando una nueva lectura…";
+    private readonly CancellationTokenSource _lifetime = new();
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_previous, Entry)) { _previous = Entry; _current = Entry; }
+    }
+    private async Task RegenerateAsync()
+    {
+        if (_generating || Busy || !CanRegenerate) return;
+        _generating = true; _error = null;
+        string? userId = null;
+        try
+        {
+            var auth = Services.GetRequiredService<AuthenticationStateProvider>();
+            var id = (await auth.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? throw new JournalInputException("Tu sesión terminó. Volvé a ingresar.");
+            userId = id;
+            var conversation = Services.GetRequiredService<JournalConversationService>();
+            if (!conversation.IsConfigured) throw new JournalReflectionException("La IA no está configurada en esta instalación.");
+            _current = await conversation.GenerateAsync(id, Entry.Id, true, new ReplyProgress(message =>
+            {
+                if (!_disposed) _ = InvokeAsync(() => { _progress = message; StateHasChanged(); });
+            }), _lifetime.Token);
+            await Updated.InvokeAsync(_current);
+        }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (Exception ex) when (ex is JournalReflectionException or JournalInputException) { _error = ex.Message; }
+        catch (Exception) { _error = "No se pudo completar la nueva respuesta. Podés volver a intentarlo."; }
+        finally
+        {
+            // A transcript may have finished even when generating the response failed.
+            if (!_disposed && _error is not null && userId is not null)
+            {
+                try
+                {
+                    var entry = await Services.GetRequiredService<IJournalStore>().GetEntryAsync(userId, Entry.Id, _lifetime.Token);
+                    if (entry is not null) { _current = entry; await Updated.InvokeAsync(entry); }
+                }
+                catch (Exception) { /* Keep the last visible response if refreshing is also unavailable. */ }
+            }
+            _generating = false;
+        }
+    }
+    public void Dispose() { _disposed = true; _lifetime.Cancel(); _lifetime.Dispose(); }
+    private sealed class ReplyProgress(Action<string> callback) : IProgress<string> { public void Report(string message) => callback(message); }
+}

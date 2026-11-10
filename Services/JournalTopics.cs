@@ -1,6 +1,6 @@
 namespace MiBitacora.Services;
 
-public enum TopicSourceKind { Entry, Document, Note, Profile }
+public enum TopicSourceKind { Entry, Document, Note, Profile, Voice }
 
 public sealed record TopicSource(string Id, Guid? EntryId, DateTime? CreatedUtc, string Label, string Text,
     TopicSourceKind Kind = TopicSourceKind.Entry, Guid? NoteId = null);

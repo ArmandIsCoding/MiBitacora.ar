@@ -16,7 +16,7 @@ public partial class Bitacora
     private readonly Dictionary<Guid, NotebookDraft> _notebookDrafts = [];
     private JournalNotebook SelectedNotebook => _notebooks.FirstOrDefault(n => n.Id == _selectedNotebookId)
         ?? new(null, JournalStore.DefaultNotebookName, 0);
-    private bool NotebookControlsBusy => !RendererInfo.IsInteractive || _busy || _uploading || _readingEarlier;
+    private bool NotebookControlsBusy => !RendererInfo.IsInteractive || _busy || _uploading || _readingEarlier || _showAudio;
     private IEnumerable<JournalNotebook> FilteredNotebooks => _notebooks.Where(n =>
         Spanish.CompareInfo.IndexOf(n.Name, _notebookSearch.Trim(), System.Globalization.CompareOptions.IgnoreCase
             | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0);
@@ -58,7 +58,7 @@ public partial class Bitacora
 
     private async Task SwitchNotebookAsync(Guid? id)
     {
-        if (_busy || _uploading || _readingEarlier) return;
+        if (_busy || _uploading || _readingEarlier || _showAudio) return;
         if (id == _selectedNotebookId) { await CloseDialogAsync(); return; }
         await RunNotebookChangeAsync(async () =>
         {

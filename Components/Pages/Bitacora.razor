@@ -174,15 +174,10 @@
                                     }
                                     @if (entry.Reflection is { } reflection)
                                     {
-                                        <ReflectionCard Reflection="reflection"
-                                                        Selected="entry.ForSession"
+                                        <EntryReply Entry="entry" Updated="ReplyUpdated" CanRegenerate="IsAiEnabled"
                                                         Busy="_busy"
                                                         SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
                                                         ToggleSession="() => ToggleEntryAsync(entry)" />
-                                        @if (reflection.IsDemo && IsAiEnabled && _workingEntry != entry.Id)
-                                        {
-                                            <button type="button" class="quiet-action reflection-retry" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="16" /> Pedir devolución con @Reflector.ProviderName</button>
-                                        }
                                     }
                                 </div>
                             }
@@ -207,6 +202,10 @@
                                     }
                                 </div>
                             }
+                            @if (_showAudio)
+                            {
+                                <VoiceRecorder AttachmentReady="AddVoiceAttachmentAsync" Closed="() => _showAudio = false" />
+                            }
                             @if (_uploading)
                             {
                                 <p class="uploading" role="status"><span class="spinner"></span> Preparando tus adjuntos…</p>
@@ -218,11 +217,12 @@
                                     <label for="file-picker" class="composer-tool" title="Adjuntar fotos y archivos"><Icon Name="paperclip" Size="19" /><span>Adjuntar</span></label>
                                     <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
                                     <label for="camera-picker" class="composer-tool camera-tool" title="Sacar una foto"><Icon Name="camera" Size="19" /><span>Foto</span></label>
+                                    <button type="button" class="composer-tool voice-tool" title="Grabar o subir un audio" aria-label="Grabar o subir un audio" aria-expanded="@_showAudio" @onclick="() => _showAudio = true" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading || _showAudio)"><Icon Name="mic" Size="20" /></button>
                                     <button class="composer-tool" type="button" aria-label="Escribir una notita" @onclick="() => StartNote()" disabled="@(!RendererInfo.IsInteractive || _busy)"><Icon Name="note" Size="19" /><span>Notita</span></button>
                                 </div>
                                 <div class="composer-submit">
-                                    <button type="button" class="quiet-action save-only" @onclick="() => SaveOrReflectAsync(null, false, false)" disabled="@(!HasDraft || _busy || _uploading)">Solo guardar</button>
-                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading)"><Icon Name="arrow" Size="18" /> Enviar</button>
+                                    <button type="button" class="quiet-action save-only" @onclick="() => SaveOrReflectAsync(null, false, false)" disabled="@(!HasDraft || _busy || _uploading || _showAudio)">Solo guardar</button>
+                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading || _showAudio)"><Icon Name="arrow" Size="18" /> Enviar</button>
                                 </div>
                             </div>
                         </div>
@@ -230,7 +230,7 @@
                     <div class="composer-disclosures">
                         @if (Reflector.UsesExternalProvider)
                         {
-                            <p class="topic-scope">Al enviar, OpenAI recibe tu mensaje y contexto pertinente. Para mantener la memoria también procesa textos anteriores de tu cuaderno. «Solo guardar» no inicia ese análisis. <a href="privacidad">Ver privacidad</a>.</p>
+                            <p class="topic-scope">Al enviar, OpenAI transcribe los audios y recibe tu mensaje y contexto pertinente. Para mantener la memoria también procesa textos anteriores de tu cuaderno. «Solo guardar» no inicia ese análisis ni la transcripción. <a href="privacidad">Ver privacidad</a>.</p>
                         }
                         <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
                         <p class="topic-scope conversation-footnote">La IA puede equivocarse y no reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia. Podés marcar mensajes en «Para retomar».</p>
@@ -246,7 +246,7 @@
                         </div>
                     </header>
                     <JournalCalendar EntryDays="_entryDays" Today="_today" Streak="_currentStreak"
-                                     TimeZone="JournalTimeZone" LoadEntries="LoadCalendarEntriesAsync" WriteEntry="FocusComposer" />
+                                     TimeZone="JournalTimeZone" LoadEntries="LoadCalendarEntriesAsync" WriteEntry="FocusComposer" ReplyUpdated="ReplyUpdated" />
                 }
                 else if (_section == WorkspaceSection.Topics)
                 {

@@ -1,0 +1,49 @@
+using System.Collections.Concurrent;
+
+namespace MiBitacora.Services;
+
+public sealed class JournalConversationJobs
+{
+    private readonly ConcurrentDictionary<(string User, Guid Entry), byte> _running = new();
+    internal bool Start(string user, Guid entry) => _running.TryAdd((user, entry), 0);
+    internal void Finish(string user, Guid entry) => _running.TryRemove((user, entry), out _);
+}
+
+public sealed class JournalConversationService(IJournalStore store, IAudioTranscriber transcriber,
+    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs)
+{
+    public bool IsConfigured => reflector.IsConfigured;
+    public async Task<JournalEntry> GenerateAsync(string userId, Guid entryId, bool useAi = true,
+        IProgress<string>? progress = null, CancellationToken ct = default)
+    {
+        if (!jobs.Start(userId, entryId)) throw new JournalReflectionException("Ya se está preparando una respuesta para esta entrada. Esperá a que termine.");
+        try
+        {
+            var entry = await store.GetEntryAsync(userId, entryId, ct) ?? throw new JournalInputException("La entrada ya no está disponible.");
+            if (useAi)
+            {
+                var audios = entry.Attachments.Where(a => JournalAudio.IsAudio(a) && !JournalAudio.HasTranscript(a)).ToArray();
+                for (var i = 0; i < audios.Length; i++)
+                {
+                    progress?.Report($"Transcribiendo audio · {i + 1} de {audios.Length}…");
+                    var audio = await store.GetAttachmentPreviewAsync(userId, audios[i].Id, ct)
+                        ?? throw new JournalReflectionException("No pudimos leer el audio. El original se conserva; revisá su formato.");
+                    await using (audio.Content)
+                    {
+                        var transcript = await transcriber.TranscribeAsync(audio, ct);
+                        await store.SaveAudioTranscriptAsync(userId, audios[i].Id, transcript, ct);
+                    }
+                }
+            }
+            var context = await store.GetContextAsync(userId, entryId, useAi, ct);
+            if (useAi) context = await memory.EnrichAsync(userId, context, progress, ct);
+            progress?.Report("Mi Bitácora está preparando una respuesta…");
+            var response = await reflector.ReflectAsync(context, useAi, ct);
+            ct.ThrowIfCancellationRequested();
+            // Only replace after a complete, validated response. Failures keep the previous response.
+            await store.SaveReflectionAsync(userId, entryId, response, ct);
+            return await store.GetEntryAsync(userId, entryId, ct) ?? throw new JournalInputException("La entrada ya no está disponible.");
+        }
+        finally { jobs.Finish(userId, entryId); }
+    }
+}

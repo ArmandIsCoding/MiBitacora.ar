@@ -35,7 +35,7 @@ public abstract partial class JournalAiService
         var memories = new List<TopicEvidence>();
         var images = new List<JournalImage>();
         var remainingText = UsesExternalProvider ? 76_000 : 6500;
-        var currentText = Excerpt(context.Current.Text, UsesExternalProvider ? JournalStore.MaxTextLength : 3000);
+        var currentText = Excerpt(JournalAudio.ConversationText(context.Current), UsesExternalProvider ? 36_000 : 3000);
 
         AddSource("actual", "entrada actual", "Tu entrada actual", currentText);
 
@@ -47,7 +47,7 @@ public abstract partial class JournalAiService
         {
             var entry = recent[i];
             AddSource($"entrada{promptSources.Count}", "turno previo de la conversación", DateLabel("Entrada", entry.CreatedUtc),
-                Excerpt(entry.Text, UsesExternalProvider ? (i < 2 ? JournalStore.MaxTextLength : 1500) : 650),
+                Excerpt(JournalAudio.ConversationText(entry), UsesExternalProvider ? (i < 2 ? JournalStore.MaxTextLength : 1500) : 650),
                 priorResponse: entry.Reflection is { } previous
                     ? Excerpt(previous.Overview, UsesExternalProvider ? (i < 2 ? 4200 : 1800) : 550) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
         }
@@ -82,7 +82,9 @@ public abstract partial class JournalAiService
         var binaryFiles = 0;
         var unreadCurrentAttachments = 0;
         var media = context.Media.DistinctBy(file => file.AttachmentId).ToDictionary(file => file.AttachmentId);
-        foreach (var file in selectedAttachments)
+        var includedAudioIds = context.Current.Attachments.Concat(recent.SelectMany(e => e.Attachments))
+            .Where(JournalAudio.HasTranscript).Select(a => a.Id).ToHashSet();
+        foreach (var file in selectedAttachments.Where(a => !includedAudioIds.Contains(a.Id)))
         {
             var isCurrent = currentIds.Contains(file.Id);
             var id = $"archivo{promptSources.Count}";

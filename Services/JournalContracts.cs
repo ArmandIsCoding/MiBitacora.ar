@@ -17,7 +17,7 @@ public sealed record JournalEntry(
 
 public sealed record JournalNote(Guid Id, string Text, DateTime CreatedUtc, bool ForSession);
 
-public sealed record PendingAttachment(string FileName, byte[] Content);
+public sealed record PendingAttachment(string FileName, byte[] Content, bool IsVoiceMessage = false);
 
 public sealed record JournalAttachment(
     Guid Id,
@@ -26,7 +26,8 @@ public sealed record JournalAttachment(
     string ContentType,
     long Size,
     string ExtractionStatus,
-    string? ExtractedText);
+    string? ExtractedText,
+    bool IsVoiceMessage = false);
 
 public sealed record AttachmentContent(string FileName, string ContentType, Stream Content);
 
@@ -88,6 +89,7 @@ public interface IJournalStore
     Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files, CancellationToken cancellationToken = default,
         Guid? notebookId = null);
     Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default);
+    Task SaveAudioTranscriptAsync(string userId, Guid attachmentId, string transcript, CancellationToken cancellationToken = default);
     Task SetEntryForSessionAsync(string userId, Guid entryId, bool selected, CancellationToken cancellationToken = default);
     Task DeleteEntryAsync(string userId, Guid entryId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalNote>> GetNotesAsync(string userId, CancellationToken cancellationToken = default);

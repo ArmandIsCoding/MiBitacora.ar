@@ -20,7 +20,7 @@ public partial class Bitacora : IAsyncDisposable
     [Inject] private AuthenticationStateProvider Auth { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
     [Inject] private ILogger<Bitacora> Logger { get; set; } = default!;
-    [Inject] private JournalMemoryService Memory { get; set; } = default!;
+    [Inject] private JournalConversationService Conversation { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "seccion")] public string? InitialSection { get; set; }
 
     private readonly CancellationTokenSource _lifetime = new();
@@ -45,6 +45,7 @@ public partial class Bitacora : IAsyncDisposable
     private bool _ready;
     private bool _busy;
     private bool _uploading;
+    private bool _showAudio;
     private bool _hasEarlier;
     private bool _readingEarlier;
     private bool _scrollToEnd;
@@ -160,6 +161,7 @@ public partial class Bitacora : IAsyncDisposable
 
     private void ShowSection(WorkspaceSection section)
     {
+        if (_showAudio) return;
         if (_section == section)
         {
             _focusSection = true;
@@ -268,7 +270,7 @@ public partial class Bitacora : IAsyncDisposable
 
     private async Task BeginReflectionAsync(Guid? entryId = null)
     {
-        if (_busy || _uploading || (entryId is null && !HasDraft))
+        if (_busy || _uploading || _showAudio || (entryId is null && !HasDraft))
         {
             return;
         }
@@ -295,7 +297,7 @@ public partial class Bitacora : IAsyncDisposable
 
     private async Task SaveOrReflectAsync(Guid? entryId, bool organize, bool useAi)
     {
-        if (_busy || _uploading || (entryId is null && !HasDraft))
+        if (_busy || _uploading || _showAudio || (entryId is null && !HasDraft))
         {
             return;
         }
@@ -328,18 +330,11 @@ public partial class Bitacora : IAsyncDisposable
             _entryErrors.Remove(entryId.Value);
             await InvokeAsync(StateHasChanged);
 
-            var context = await Store.GetContextAsync(_userId, entryId.Value, useAi, Lifetime);
-            if (useAi)
-                context = await Memory.EnrichAsync(_userId, context, new MemoryProgress(message =>
+            var updated = await Conversation.GenerateAsync(_userId, entryId.Value, useAi, new MemoryProgress(message =>
                 {
                     if (!_disposed) _ = InvokeAsync(() => { _reflectionProgress = message; StateHasChanged(); });
                 }), Lifetime);
-            _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
-            await InvokeAsync(StateHasChanged);
-            var reflection = await Reflector.ReflectAsync(context, useAi, Lifetime);
-            await Store.SaveReflectionAsync(_userId, entryId.Value, reflection, Lifetime);
-
-            ReplaceEntry(context.Current with { Reflection = reflection });
+            ReplaceEntry(updated);
             if (_section == WorkspaceSection.Calendar)
             {
                 await RefreshEntryDaysAsync();
@@ -376,10 +371,28 @@ public partial class Bitacora : IAsyncDisposable
         }
         finally
         {
+            if (!_disposed && entryId.HasValue)
+            {
+                // A transcript may have succeeded even if memory or response generation failed.
+                try { if (await Store.GetEntryAsync(_userId, entryId.Value, Lifetime) is { } saved) ReplaceEntry(saved); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { Logger.LogWarning("No se pudo refrescar la entrada después de generar."); }
+            }
             _workingEntry = null;
             _busy = false;
         }
     }
+
+    private Task AddVoiceAttachmentAsync(PendingAttachment file)
+    {
+        if (file.Content.Length is <= 0 or > JournalStore.MaxFileBytes ||
+            _files.Sum(a => (long)a.Content.Length) + file.Content.Length > JournalStore.MaxEntryAttachmentBytes)
+            throw new JournalInputException("El audio supera el espacio disponible: 8 MB por archivo y 16 MB por entrada.");
+        _files.Add(file);
+        _showAudio = false;
+        return Task.CompletedTask;
+    }
+
+    private void ReplyUpdated(JournalEntry entry) { ReplaceEntry(entry); _sessionDraft = null; }
 
     private void ReplaceEntry(JournalEntry entry)
     {

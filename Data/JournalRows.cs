@@ -69,5 +69,6 @@ internal sealed class JournalAttachmentRow
     public long Size { get; set; }
     public string ExtractionStatus { get; set; } = "";
     public string? ExtractedText { get; set; }
+    public bool IsVoiceMessage { get; set; }
     public string SearchText { get; set; } = "";
 }

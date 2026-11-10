@@ -35,6 +35,9 @@ internal static class NotebookChecks
         services.AddSingleton<JournalMemoryJobs>();
         services.AddSingleton<JournalTopicJobs>();
         services.AddScoped<JournalMemoryService>();
+        services.AddSingleton<IAudioTranscriber, RejectAudioTranscriber>();
+        services.AddSingleton<JournalConversationJobs>();
+        services.AddScoped<JournalConversationService>();
         services.AddScoped<JournalReportService>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();

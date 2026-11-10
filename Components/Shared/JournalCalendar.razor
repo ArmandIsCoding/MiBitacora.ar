@@ -159,7 +159,7 @@
                         @if (entry.Reflection is { } reflection)
                         {
                             <details class="calendar-reflection">
-                                <summary><Icon Name="spark" Size="16" /> <span>Resumen de la devolución</span>
+                                <summary><Icon Name="spark" Size="16" /> <span>Respuesta de la IA</span>
                                     @if (reflection.IsDemo)
                                     {
                                         <small class="calendar-demo">Muestra</small>
@@ -167,8 +167,7 @@
                                     <Icon Name="chevron" Size="16" />
                                 </summary>
                                 <div class="calendar-reflection-body">
-                                    <h3>@reflection.Title</h3>
-                                    <p>@reflection.Overview</p>
+                                    <EntryReply Entry="entry" Updated="UpdateReplyAsync" />
                                 </div>
                             </details>
                         }
@@ -193,6 +192,12 @@
     [Parameter, EditorRequired] public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
     [Parameter, EditorRequired] public Func<DateOnly, Task<IReadOnlyList<JournalEntry>>> LoadEntries { get; set; } = default!;
     [Parameter, EditorRequired] public EventCallback WriteEntry { get; set; }
+    [Parameter] public EventCallback<JournalEntry> ReplyUpdated { get; set; }
+    private async Task UpdateReplyAsync(JournalEntry entry)
+    {
+        _entries = _entries.Select(current => current.Id == entry.Id ? entry : current).ToArray();
+        await ReplyUpdated.InvokeAsync(entry);
+    }
 
     private IReadOnlyDictionary<DateOnly, int>? _lastEntryDays;
     private IReadOnlyList<JournalEntry> _entries = [];
