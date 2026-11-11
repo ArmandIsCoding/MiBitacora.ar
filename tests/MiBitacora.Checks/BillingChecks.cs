@@ -356,6 +356,21 @@ internal static class BillingChecks
         errorStatus = HttpStatusCode.InternalServerError;
         try { await fixture.CreateAsync("opaque-ref", "payer@example.test", 800000, default); throw new Exception("Se esperaba fallo ambiguo"); }
         catch (SubscriptionException ex) { check(ex is not SubscriptionCreationRejectedException, "Mercado Pago: un 500 al crear permanece ambiguo para evitar duplicados"); }
+        using var stalledBody = new StalledResponseStream();
+        using var stalledHttp = new HttpClient(new Handler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        { Content = new StreamContent(stalledBody) }))) { Timeout = TimeSpan.FromMilliseconds(100) };
+        using var callerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var stalledGateway = new MercadoPagoGateway(stalledHttp, Options.Create(config), environment);
+        try
+        {
+            await stalledGateway.GetAsync("sub-test", callerTimeout.Token);
+            throw new Exception("Se esperaba un plazo de espera al leer el cuerpo de Mercado Pago");
+        }
+        catch (Exception ex) when (ex is SubscriptionException or OperationCanceledException)
+        {
+            check(ex is SubscriptionException && stalledBody.ReadStarted && !callerTimeout.IsCancellationRequested,
+                "Mercado Pago: el plazo HTTP también interrumpe un cuerpo de respuesta bloqueado");
+        }
         static HttpResponseMessage Json(object value) => new(HttpStatusCode.OK) { Content = JsonContent.Create(value) };
     }
 
@@ -375,6 +390,27 @@ internal static class BillingChecks
     }
     private sealed class Handler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) => send(request, ct); }
+
+    private sealed class StalledResponseStream : Stream
+    {
+        public bool ReadStarted { get; private set; }
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            ReadStarted = true;
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return 0;
+        }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
 
     private sealed class Gateway(Clock clock) : ISubscriptionGateway
     {

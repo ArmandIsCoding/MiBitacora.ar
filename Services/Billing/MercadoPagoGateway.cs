@@ -13,6 +13,19 @@ public sealed class MercadoPagoGateway(HttpClient client, IOptions<SubscriptionO
     private async Task<JsonElement> SendAsync(HttpMethod method, string path, object? body, CancellationToken ct,
         string? idempotencyKey = null)
     {
+        // ResponseHeadersRead ends HttpClient's timeout at the headers; cover the response body too.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(client.Timeout);
+        try { return await SendCoreAsync(method, path, body, deadline.Token, idempotencyKey); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new SubscriptionException("Mercado Pago tardó más de lo previsto. Actualizá el estado desde Mi plan antes de volver a intentar.");
+        }
+    }
+
+    private async Task<JsonElement> SendCoreAsync(HttpMethod method, string path, object? body, CancellationToken ct,
+        string? idempotencyKey)
+    {
         var config = options.Value;
         if (config.Provider != "MercadoPago" || !config.AllowLiveRequests || !config.IsValid(environment.IsDevelopment()))
             throw new SubscriptionException("Los cobros reales no están habilitados en esta instalación.");
