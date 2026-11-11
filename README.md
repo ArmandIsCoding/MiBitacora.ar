@@ -15,13 +15,23 @@ dotnet run --launch-profile http
 
 Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
-Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La respuesta usa el proveedor configurado. **Solo guardar** permite escribir sin IA. Si falla el proveedor, la entrada queda guardada y se muestra una opción para reintentar. Ver [conversación y actualización de entradas existentes](docs/conversacion.md).
+Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La respuesta usa IA local para las cuentas gratuitas y OpenAI para las cuentas con un período pago vigente. **Solo guardar** permite escribir sin IA. Si falla el proveedor, la entrada queda guardada y se muestra una opción para reintentar. Ver [conversación y actualización de entradas existentes](docs/conversacion.md).
+
+## Suscripciones: prueba local
+
+La rama incorpora **Mi cuenta → Mi plan**, contratación mensual, confirmación de pagos, cancelación y un simulador sin dinero ni credenciales de Mercado Pago. Producción conserva los cobros deshabilitados. Para abrir el simulador con una base separada:
+
+```powershell
+.\scripts\Run-SubscriptionsLocal.ps1
+```
+
+Abrí [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription), registrá una cuenta y probá autorización, aprobación, renovación, rechazo y devolución. ARS 8000 es un precio de prueba. La [guía de suscripciones](docs/suscripciones.md) explica el flujo, las pruebas automáticas y qué queda pendiente antes de activar Mercado Pago. No se desplegó esta funcionalidad ni se operó la cuenta real del propietario.
 
 ## IA local en Windows
 
-Esta sección corresponde a `AI:Provider=Ollama`, el valor predeterminado del repositorio. Para usar los créditos de API en el servidor, ver [OpenAI: configuración, privacidad y pruebas](docs/openai.md). La interfaz muestra el proveedor activo; no existe fallback automático entre proveedores.
+Las cuentas gratuitas usan Ollama, con `gemma4:12b` como valor predeterminado. Las cuentas pagas usan [OpenAI: configuración, privacidad y pruebas](docs/openai.md). La elección se consulta por cuenta en el servidor y ya no depende de `AI:Provider` para la web. La interfaz muestra el plan activo; no existe fallback automático entre proveedores.
 
-1. Instalá [Ollama para Windows](https://ollama.com/download/windows) si todavía no lo tenés. Qwen3-VL requiere Ollama 0.12.7 o posterior; en el piloto se verificó 0.40.15.
+1. Instalá una versión de [Ollama para Windows](https://ollama.com/download/windows) compatible con Gemma 4 12B si todavía no lo tenés.
 2. En los ajustes de la app de Ollama, desactivá **Expose Ollama to the network**. Fijá el contexto en 8192 si aparece esa opción: la app puede sobrescribir las variables de entorno con sus preferencias.
 3. Con Ollama sin consultas activas, ejecutá:
 
@@ -33,9 +43,9 @@ Esta sección corresponde a `AI:Provider=Ollama`, el valor predeterminado del re
 
 El script configura Ollama para el usuario actual: escucha exclusivamente en `127.0.0.1:11434`, desactiva funciones cloud, habilita Vulkan y la GPU integrada y limita la carga a un modelo y una generación simultánea. Reinicia Ollama y conserva la ubicación de sus modelos. Si hay un modelo cargado, primero terminá las consultas y liberalo con `ollama stop <modelo>`. Guarda los valores anteriores en `%LOCALAPPDATA%\MiBitacora\ollama`.
 
-La descarga inicial de `qwen3-vl:4b-instruct` ocupa aproximadamente 3,3 GB y requiere Internet. Las devoluciones posteriores usan el modelo instalado. Las actualizaciones de Ollama y las descargas son operaciones distintas de la inferencia; `OLLAMA_NO_CLOUD=1` no equivale a un firewall que bloquee toda salida.
+La descarga inicial de `gemma4:12b` requiere Internet y espacio para el modelo. Si ya se está descargando, dejá terminar esa descarga; el script anterior reinicia Ollama. Las devoluciones posteriores usan el modelo instalado. Las actualizaciones de Ollama y las descargas son operaciones distintas de la inferencia; `OLLAMA_NO_CLOUD=1` no equivale a un firewall que bloquee toda salida.
 
-La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y modelos distintos de `qwen3-vl:4b-instruct`. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan.
+La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y se permiten `gemma4:12b` y el modelo previo `qwen3-vl:4b-instruct` por compatibilidad; el audio local requiere Gemma. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan. Si Ollama y la web corren en equipos distintos, falta preparar el canal privado descrito en la guía de suscripciones antes de desplegar.
 
 Para verificar texto, imágenes sintéticas, errores, cancelación y separación entre cuentas:
 

@@ -1,6 +1,6 @@
 # OpenAI para las devoluciones
 
-`AI:Provider` selecciona `Ollama` u `OpenAI`. El repositorio conserva Ollama como valor predeterminado; cada instalación decide el proveedor con configuración privada. No hay cambio automático de proveedor si falla una solicitud.
+La web elige el proveedor según la cuenta: Ollama para el plan gratuito y OpenAI para un período pago vigente. `AI:Provider` se conserva por compatibilidad con herramientas anteriores; no habilita acceso pago. Ver [suscripciones y simulación local](suscripciones.md). No hay cambio automático de proveedor si falla una solicitud.
 
 OpenAI usa exclusivamente `https://api.openai.com/v1/responses`, con HTTPS, redirecciones y proxy deshabilitados. El modelo inicial es `gpt-6.1-terra`, esfuerzo `low`, un máximo de 4096 tokens de salida y 180 segundos incluyendo la espera en cola. Los límites y el modelo son configurables en el servidor. Una cola compartida permite una generación simultánea y ocho pendientes por proceso, igual que Ollama. No hay reintentos automáticos que puedan duplicar consumo.
 
@@ -28,7 +28,7 @@ Ejemplo sin credencial real:
 }
 ```
 
-Nunca incluir este archivo en un paquete de publicación. Los respaldos de `App_Data` pueden incluirlo: tratarlos como secretos y preservar sus permisos. El despliegue de código debe conservar `App_Data` y `uploads`; no copiar una base de desarrollo sobre producción. Una clave o proyecto ausentes impiden iniciar OpenAI, en lugar de producir una muestra silenciosa.
+Nunca incluir este archivo en un paquete de publicación. Los respaldos de `App_Data` pueden incluirlo: tratarlos como secretos y preservar sus permisos. El despliegue de código debe conservar `App_Data` y `uploads`; no copiar una base de desarrollo sobre producción. Una clave o proyecto ausentes impiden las solicitudes pagas a OpenAI, conservando las entradas y sin impedir que las cuentas gratuitas usen la web y Ollama.
 
 ## Qué se envía
 

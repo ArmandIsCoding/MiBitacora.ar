@@ -123,6 +123,8 @@ await NotebookChecks.RunAsync(Check);
 await AttachmentViewerChecks.RunAsync(Check);
 await ConversationDepthChecks.RunAsync(Check);
 await AudioConversationChecks.RunAsync(Check);
+await BillingChecks.RunAsync(Check);
+await BillingHttpChecks.RunAsync(Check);
 var heicContext = await StorageChecks.RunAsync(image, Check);
 await service.ReflectAsync(heicContext, true);
 Check(requestBody!.Value.GetProperty("messages")[1].GetProperty("images")[0].GetString()

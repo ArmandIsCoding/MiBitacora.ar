@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using MiBitacora.Components;
@@ -17,6 +18,9 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddCommandLine(args.Where(arg => arg != "--prepare-local-images").ToArray());
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+// Keep local authentication keys inside the isolated checkout; production keeps its existing configuration.
+if (builder.Environment.IsDevelopment()) builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, ".artifacts", "data-protection")));
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
@@ -69,13 +73,13 @@ builder.Services.AddOptions<OllamaOptions>()
     .Validate(options => options.IsValid(), "Ollama requiere una URL HTTP de loopback, un modelo local y límites válidos.")
     .ValidateOnStart();
 builder.Services.AddSingleton<LocalInferenceGate>();
+builder.Services.AddKeyedSingleton<LocalInferenceGate>("OpenAI");
+builder.AddBilling();
 builder.Services.AddOptions<JournalAiOptions>().Bind(builder.Configuration.GetSection("AI"))
     .Validate(options => options.Provider is "Ollama" or "OpenAI", "AI:Provider debe ser Ollama u OpenAI.")
     .ValidateOnStart();
-builder.Services.AddOptions<OpenAiOptions>().Bind(builder.Configuration.GetSection("OpenAI"))
-    .Validate(options => builder.Configuration["AI:Provider"] != "OpenAI" || options.IsValid(),
-        "OpenAI requiere una clave, un proyecto y un modelo con límites válidos.")
-    .ValidateOnStart();
+// Paid requests validate OpenAI at call time. An unconfigured paid provider must not stop the free site.
+builder.Services.AddOptions<OpenAiOptions>().Bind(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton<JournalTopicJobs>();
 builder.Services.AddScoped<JournalTopicService>();
 builder.Services.AddSingleton<JournalMemoryJobs>();
@@ -83,8 +87,29 @@ builder.Services.AddSingleton<JournalConversationJobs>();
 builder.Services.AddScoped<JournalConversationService>();
 builder.Services.AddOptions<AudioTranscriptionOptions>().Bind(builder.Configuration.GetSection("AudioTranscription"))
     .Validate(options => options.IsValid(), "La transcripción requiere gpt-transcribe y un plazo válido.").ValidateOnStart();
-builder.Services.AddHttpClient<IAudioTranscriber, OpenAiAudioTranscriber>(client => client.Timeout = Timeout.InfiniteTimeSpan)
+builder.Services.AddHttpClient("AccountOpenAI", client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+builder.Services.AddHttpClient("AccountOllama", client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+builder.Services.AddScoped<OllamaModelClient>(sp => new(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("AccountOllama"),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OllamaOptions>>(),
+    sp.GetRequiredService<LocalInferenceGate>(), sp.GetRequiredService<ILogger<OllamaModelClient>>()));
+builder.Services.AddScoped<OpenAiModelClient>(sp => new(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("AccountOpenAI"),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenAiOptions>>(),
+    sp.GetRequiredKeyedService<LocalInferenceGate>("OpenAI"), sp.GetRequiredService<ILogger<OpenAiModelClient>>()));
+builder.Services.AddScoped<OpenAiAudioTranscriber>(sp => new(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("AccountOpenAI"),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenAiOptions>>(),
+    Microsoft.Extensions.Options.Options.Create(new JournalAiOptions { Provider = "OpenAI" }),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AudioTranscriptionOptions>>(),
+    sp.GetRequiredKeyedService<LocalInferenceGate>("OpenAI"), sp.GetRequiredService<ILogger<OpenAiAudioTranscriber>>()));
+builder.Services.AddScoped<OllamaAudioTranscriber>(sp => new(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("AccountOllama"),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OllamaOptions>>(), sp.GetRequiredService<LocalInferenceGate>()));
+builder.Services.AddScoped<AccountAiRouter>();
+builder.Services.AddScoped<IAudioTranscriber, AccountAudioTranscriber>();
 builder.Services.AddScoped<JournalMemoryService>();
 builder.Services.AddScoped<JournalReportService>();
 builder.Services.AddHttpClient<OllamaJournalService>(client =>
@@ -102,10 +127,7 @@ builder.Services.AddHttpClient<OpenAiJournalService>(client =>
         UseProxy = false
     });
 
-builder.Services.AddScoped<JournalAiService>(provider =>
-    provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<JournalAiOptions>>().Value.Provider == "OpenAI"
-        ? provider.GetRequiredService<OpenAiJournalService>()
-        : provider.GetRequiredService<OllamaJournalService>());
+builder.Services.AddScoped<JournalAiService, AccountJournalService>();
 builder.Services.AddScoped<IJournalReflector>(provider => provider.GetRequiredService<JournalAiService>());
 builder.Services.AddScoped<IJournalTopicAnalyzer>(provider => provider.GetRequiredService<JournalAiService>());
 builder.Services.AddScoped<IJournalMemoryAnalyzer>(provider => provider.GetRequiredService<JournalAiService>());
@@ -200,6 +222,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapAdditionalIdentityEndpoints();
+app.MapSubscriptionEndpoints();
 
 app.MapJournalAttachments();
 

@@ -67,6 +67,6 @@ if ($listeners | Where-Object { $_.LocalAddress -notin @('127.0.0.1', '::1') }) 
 Write-Output "Ollama $($version.version), configurado en http://127.0.0.1:11434 con funciones cloud desactivadas."
 
 if ($DownloadModel) {
-    & $ollamaExe pull qwen3-vl:4b-instruct
-    if ($LASTEXITCODE -ne 0) { throw 'No se pudo descargar qwen3-vl:4b-instruct.' }
+    & $ollamaExe pull gemma4:12b
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo descargar gemma4:12b.' }
 }

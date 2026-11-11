@@ -20,13 +20,14 @@ public sealed class JournalMemoryJobs
 }
 
 public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext> factory,
-    IJournalMemoryAnalyzer analyzer, JournalMemoryJobs jobs)
+    IJournalMemoryAnalyzer analyzer, JournalMemoryJobs jobs, AccountAiRouter? routing = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<MemoryCard>> PrepareAsync(string userId, JournalCorpus corpus,
         IProgress<string>? progress = null, CancellationToken ct = default)
     {
+        using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
         var gate = jobs.For(userId);
         await gate.WaitAsync(ct);
         try
@@ -38,7 +39,7 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
             var missing = new List<TopicSource>();
             foreach (var source in corpus.Sources)
             {
-                if (cached.TryGetValue(source.Id, out var row) && row.SourceHash == JournalCorpusReader.SourceHash(source))
+                if (cached.TryGetValue(source.Id, out var row) && row.SourceHash == CacheHash(source))
                 {
                     var digest = JsonSerializer.Deserialize<MemoryDigest>(row.DigestJson, Json);
                     if (digest is not null) { ready[source.Id] = digest; continue; }
@@ -63,7 +64,7 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
                     var digest = digests.Single(d => d.SourceId == source.Id);
                     var row = await db.JournalMemories.SingleOrDefaultAsync(m => m.UserId == userId && m.SourceId == source.Id, ct);
                     if (row is null) { row = new() { UserId = userId, SourceId = source.Id, EntryId = source.EntryId, NoteId = source.NoteId }; db.JournalMemories.Add(row); }
-                    row.SourceHash = JournalCorpusReader.SourceHash(source);
+                    row.SourceHash = CacheHash(source);
                     row.DigestJson = JsonSerializer.Serialize(digest, Json);
                     ready[source.Id] = digest;
                 }
@@ -78,6 +79,7 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
     public async Task<JournalContext> EnrichAsync(string userId, JournalContext context,
         IProgress<string>? progress = null, CancellationToken ct = default)
     {
+        using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
         JournalCorpus corpus;
         await using (var db = await factory.CreateDbContextAsync(ct))
             corpus = await JournalCorpusReader.ReadAsync(db, userId, context.Current.CreatedUtc, ct);
@@ -122,5 +124,6 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
         }
         return [];
     }
+    private string CacheHash(TopicSource source) => (routing is null ? "" : analyzer.UsesExternalProvider ? "openai-v1:" : "local-v1:") + JournalCorpusReader.SourceHash(source);
     private static string Excerpt(string value, int limit) => value.Length <= limit ? value : value[..(char.IsHighSurrogate(value[limit - 1]) ? limit - 1 : limit)];
 }

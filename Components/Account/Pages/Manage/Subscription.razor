@@ -1,0 +1,103 @@
+@page "/Account/Manage/Subscription"
+@using System.Globalization
+@using System.Security.Claims
+@inject SubscriptionService Billing
+@inject TimeZoneInfo TimeZone
+
+<PageTitle>Mi plan · Mi Bitácora</PageTitle>
+<h2>Mi plan</h2>
+<p class="account-intro">Elegí cómo querés acompañar tu escritura. Tu cuaderno y tus informes guardados siguen siendo tuyos.</p>
+@if (Billing.IsSimulation)
+{
+    <p class="journal-notice" role="status"><strong>Prueba local.</strong> Todos los cobros de esta pantalla son simulados. No se conecta con Mercado Pago ni se mueve dinero. El precio mostrado es de prueba.</p>
+}
+@if (Error == "1")
+{
+    <p class="journal-alert" role="alert">No pudimos confirmar la operación. Tu cuaderno y tu período ya abonado se conservan. Actualizá el estado para volver a comprobarlo.</p>
+}
+else if (Returned == "1")
+{
+    <p class="journal-notice" role="status">Volviste de la contratación. El Plan Profundo se habilita cuando se confirma el pago. Podés actualizar el estado desde acá.</p>
+}
+else if (Updated == "1") { <p class="journal-notice" role="status">Actualizamos el estado de tu suscripción.</p> }
+
+<section class="subscription-current" aria-label="Tu acceso actual">
+    <span class="eyebrow">TU PLAN ACTUAL</span>
+    <h3>@(_access.IsPaid ? "Plan Profundo" : "Plan gratuito")</h3>
+    @if (_access.PaidThroughUtc is { } through)
+    { <p>Acceso pago hasta el <strong>@Date(through)</strong>.</p> }
+    @if (_subscription is { } subscription)
+    {
+        <p>Suscripción: <strong>@Status(subscription.Status)</strong>.</p>
+        @if (subscription.CancellationRequested || subscription.Status is "cancelled" or "canceled")
+        { <p>No se programarán nuevas renovaciones cuando la cancelación esté confirmada. Conservás el período que ya pagaste.</p> }
+        @if (subscription.CheckoutUrl is { } checkout && subscription.Status == "pending")
+        { <a class="btn btn-primary" href="@checkout">Continuar contratación</a> }
+        <form method="post" action="/Account/Subscription/Refresh"><AntiforgeryToken /><button class="quiet-action" type="submit">Actualizar estado</button></form>
+        @if (subscription.Status is not ("cancelled" or "canceled" or "creation_failed"))
+        {
+            <details class="subscription-cancel"><summary>Cancelar renovación</summary>
+                <p>Detenemos los futuros cobros. No borra tu cuaderno y conservás el acceso hasta terminar el período abonado.</p>
+                <form method="post" action="/Account/Subscription/Cancel"><AntiforgeryToken /><button class="btn btn-outline" type="submit">Confirmar cancelación de la renovación</button></form>
+            </details>
+        }
+        @if (Billing.IsSimulation && subscription.Status is not ("cancelled" or "canceled"))
+        { <a class="quiet-action" href="@($"/Account/Subscription/Simulate/{subscription.Id}")">Abrir simulador local</a> }
+    }
+</section>
+
+<div class="subscription-plans">
+    <section class="subscription-card"><h3>Gratuito</h3><p class="subscription-price">Sin cargo</p>
+        <p>Escribí, conversá, adjuntá archivos, guardá notitas y prepará tus informes con IA local.</p>
+        <p>Las devoluciones pueden demorar y tener menor precisión. Podés leer, exportar y borrar tu contenido.</p>
+    </section>
+    <section class="subscription-card subscription-card-paid"><h3>Profundo</h3>
+        @if (Billing.CanSubscribe) { <p class="subscription-price">@Money(Billing.Settings.PriceCents)<small> por mes</small></p> }
+        <p>Un modelo de IA de mayor capacidad, con OpenAI, para desarrollar tus ideas, explorar conexiones con el historial y elaborar informes completos para tu autodescubrimiento.</p>
+        <p>Renovación mensual automática. Podés cancelar futuras renovaciones desde esta pantalla.</p>
+        @if (!Billing.CanSubscribe) { <p>Las contrataciones todavía no están habilitadas. El plan gratuito sigue disponible.</p> }
+        else if (_access.IsPaid && _subscription?.Status is "cancelled" or "canceled")
+        { <p>Conservás el período abonado. Podés volver a contratar cuando termine para evitar cobros superpuestos.</p> }
+        else if (_subscription is null || _subscription.Status is "cancelled" or "canceled" or "creation_failed")
+        {
+            <form method="post" action="/Account/Subscription/Subscribe" class="account-form">
+                <AntiforgeryToken />
+                <label><input type="checkbox" name="accept" value="yes" required /> Acepto el cobro mensual de @Money(Billing.Settings.PriceCents) y que, al pedir una devolución con este plan, mi texto y el contexto pertinente se procesen con OpenAI. <a href="/privacidad">Ver privacidad</a>.</label>
+                <button class="account-button" type="submit">@(Billing.IsSimulation ? "Probar contratación simulada" : "Contratar con Mercado Pago")</button>
+            </form>
+        }
+    </section>
+</div>
+<p class="topic-scope">Ambos modelos pueden equivocarse. Revisá lo que te devuelven y llevá a terapia los temas que quieras profundizar.</p>
+
+@if (_payments.Count > 0)
+{
+    <h3>Historial de pagos</h3>
+    <div class="subscription-payments"><table><thead><tr><th>Período</th><th>Importe</th><th>Estado</th></tr></thead><tbody>
+    @foreach (var payment in _payments)
+    { <tr><td>@Date(payment.FromUtc) — @Date(payment.ThroughUtc)</td><td>@Money(payment.AmountCents)</td><td>@Status(payment.Status)</td></tr> }
+    </tbody></table></div>
+}
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "returned")] public string? Returned { get; set; }
+    [SupplyParameterFromQuery(Name = "updated")] public string? Updated { get; set; }
+    [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
+    private SubscriptionAccess _access = SubscriptionAccess.Free;
+    private SubscriptionSummary? _subscription;
+    private IReadOnlyList<SubscriptionPayment> _payments = [];
+    protected override async Task OnInitializedAsync()
+    {
+        var id = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (id is null) return;
+        _access = await Billing.GetAccessAsync(id, HttpContext.RequestAborted);
+        _subscription = await Billing.GetSummaryAsync(id, HttpContext.RequestAborted);
+        _payments = await Billing.GetPaymentsAsync(id, HttpContext.RequestAborted);
+    }
+    private static string Money(long cents) => (cents / 100m).ToString(cents % 100 == 0 ? "C0" : "C2", CultureInfo.GetCultureInfo("es-AR"));
+    private string Date(DateTime date) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(date, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy", CultureInfo.GetCultureInfo("es-AR"));
+    private static string Status(string status) => status switch
+    { "creating" => "Contratación por confirmar", "creation_failed" => "Contratación rechazada", "pending" => "Pendiente", "authorized" => "Autorizada", "approved" => "Aprobado",
+      "paused" => "Pausada", "cancelled" or "canceled" => "Cancelada", "refunded" => "Devuelto", "charged_back" => "Contracargo", "rejected" => "Rechazado", _ => "En proceso" };
+}

@@ -83,6 +83,7 @@ public partial class Bitacora : IAsyncDisposable
         try
         {
             _notebooks = await Store.GetNotebooksAsync(_userId, Lifetime);
+            if (Reflector is AccountJournalService accountAi) await accountAi.SelectAccountAsync(_userId, Lifetime);
             _selectedNotebookId = RequestedNotebookId();
             var profile = Store.GetProfileAsync(_userId, Lifetime);
             var entries = Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, cancellationToken: Lifetime);

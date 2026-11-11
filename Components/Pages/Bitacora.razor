@@ -60,6 +60,7 @@
             </aside>
 
             <main class="journal-main">
+                <PlanNotice IsPaid="Reflector.UsesExternalProvider" />
                 @if (_error is not null)
                 {
                     <div class="journal-alert" role="alert"><Icon Name="info" Size="19" /><span>@_error</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _error = null"><Icon Name="x" Size="17" /></button></div>
@@ -83,7 +84,7 @@
                             <h1 class="notebook-title" @ref="_sectionHeading" tabindex="-1">@SelectedNotebook.Name<span class="brand-period">.</span></h1>
                             <p>Cada diario tiene su hilo. La IA conecta lo importante de todos.</p>
                         </div>
-                        <a class="mode-pill" href="/Account/Manage" title="Configurar el modo de devolución">
+                        <a class="mode-pill" href="/Account/Manage/Subscription" title="Ver mi plan de devolución">
                             <span class="status-dot"></span> @(IsAiEnabled ? Reflector.ProviderName : "Modo de muestra")
                         </a>
                     </header>
@@ -204,7 +205,7 @@
                             }
                             @if (_showAudio)
                             {
-                                <VoiceRecorder AttachmentReady="AddVoiceAttachmentAsync" Closed="() => _showAudio = false" />
+                                <VoiceRecorder AttachmentReady="AddVoiceAttachmentAsync" Closed="() => _showAudio = false" UseLocalAudio="@(!Reflector.UsesExternalProvider)" />
                             }
                             @if (_uploading)
                             {

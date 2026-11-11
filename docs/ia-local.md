@@ -1,10 +1,10 @@
-# Ollama y Qwen3-VL 4B en Mi Bitácora
+# Ollama y Gemma 4 12B en Mi Bitácora
 
-Esta guía aplica a `AI:Provider=Ollama`. También se puede configurar [OpenAI](openai.md) explícitamente; la aplicación muestra el proveedor activo y sus condiciones de privacidad.
+Esta guía aplica a las cuentas gratuitas. Las cuentas con un período pago vigente usan [OpenAI](openai.md); la aplicación muestra el plan activo y sus condiciones de privacidad. Ver [suscripciones](suscripciones.md) para la selección por cuenta y el simulador.
 
 El backend Blazor (.NET 10) llama a `http://127.0.0.1:11434/api/chat`. Los navegadores se conectan a Mi Bitácora: los usuarios no necesitan instalar Ollama ni pueden elegir el servidor o el modelo desde el cliente.
 
-Se fija la variante **Instruct** de Qwen3-VL 4B. Al verificar este despliegue, la etiqueta genérica `qwen3-vl:4b` resolvía a Thinking y agotaba el presupuesto de salida antes de entregar una devolución; `think=false` no evitó ese comportamiento. La variante explícita hace reproducible la elección.
+La configuración nueva fija `gemma4:12b`. Se conserva `qwen3-vl:4b-instruct` como alternativa de compatibilidad para instalaciones anteriores, sin audio local. Las mediciones al final corresponden a ese modelo anterior: esta entrega no pudo verificar la inferencia real con Gemma porque el entorno de ejecución bloqueó el puerto de Ollama.
 
 ## Configuración del piloto
 
@@ -12,16 +12,16 @@ Se fija la variante **Instruct** de Qwen3-VL 4B. Al verificar este despliegue, l
 "Ollama": {
   "Enabled": true,
   "BaseUrl": "http://127.0.0.1:11434",
-  "Model": "qwen3-vl:4b-instruct",
+  "Model": "gemma4:12b",
   "ContextLength": 8192,
-  "MaxOutputTokens": 1536,
+  "MaxOutputTokens": 2300,
   "TimeoutSeconds": 300
 }
 ```
 
 `Ollama__Enabled=false` activa la muestra determinista identificada como tal. Con la IA activada, los errores se muestran para reintentar: no se sustituyen silenciosamente por muestras ni se envía contenido a la nube. Un semáforo compartido permite una generación y hasta ocho solicitudes en espera por proceso de aplicación. El tiempo máximo incluye la espera; la cancelación del componente libera su lugar en la cola. Si se despliegan varios procesos, este límite debe coordinarse entre ellos.
 
-Se envían fragmentos acotados de la entrada, antecedentes, notas, perfil y texto extraído. La selección textual tiene un presupuesto de 6500 caracteres, además de etiquetas e instrucciones; no incluye el cuaderno completo. Las imágenes JPEG, PNG y WebP se envían como base64: hasta dos y 12 MiB combinados por devolución. Para HEIC/HEIF se utiliza una copia JPG generada localmente, con el mismo identificador de adjunto y conservando el original. La copia se limita a 2048 píxeles de lado mayor y no incluye EXIF/GPS. Más detalles en [conversión de fotos](heic-jpg.md). El piloto no convierte PDF a imágenes ni analiza audio, videos, GIF o AVIF.
+Se envían fragmentos acotados de la entrada, antecedentes, notas, perfil y texto extraído. La selección textual tiene un presupuesto de 6500 caracteres, además de etiquetas e instrucciones; no incluye el cuaderno completo. Las imágenes JPEG, PNG y WebP se envían como base64: hasta dos y 12 MiB combinados por devolución. Para HEIC/HEIF se utiliza una copia JPG generada localmente, con el mismo identificador de adjunto y conservando el original. La copia se limita a 2048 píxeles de lado mayor y no incluye EXIF/GPS. Más detalles en [conversión de fotos](heic-jpg.md). Gemma puede transcribir WAV mediante `/v1/audio/transcriptions`; el grabador convierte el audio a WAV en el navegador. El piloto no convierte PDF a imágenes ni analiza videos, GIF o AVIF.
 
 El modelo devuelve JSON con un esquema explícito y `think=false`, para reservar el presupuesto de salida a la devolución. Las citas se contrastan con las fuentes enviadas y las fuentes inexistentes se descartan. Se rechazan respuestas incompletas o cortadas por el límite de generación. Esta validación no garantiza que toda interpretación del modelo sea correcta: la interfaz permite revisar las devoluciones.
 

@@ -10,12 +10,13 @@ public sealed class JournalConversationJobs
 }
 
 public sealed class JournalConversationService(IJournalStore store, IAudioTranscriber transcriber,
-    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs)
+    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs, AccountAiRouter? routing = null)
 {
     public bool IsConfigured => reflector.IsConfigured;
     public async Task<JournalEntry> GenerateAsync(string userId, Guid entryId, bool useAi = true,
         IProgress<string>? progress = null, CancellationToken ct = default)
     {
+        using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
         if (!jobs.Start(userId, entryId)) throw new JournalReflectionException("Ya se está preparando una respuesta para esta entrada. Esperá a que termine.");
         try
         {

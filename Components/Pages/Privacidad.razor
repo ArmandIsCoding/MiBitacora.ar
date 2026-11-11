@@ -1,39 +1,26 @@
 @page "/privacidad"
-@inject IJournalReflector Reflector
 
-<PageTitle>Privacidad del piloto · Mi Bitácora</PageTitle>
-
+<PageTitle>Privacidad · Mi Bitácora</PageTitle>
 <div class="reading-page">
     <header class="site-header wrap"><Brand /><a class="text-link" href="/bitacora">Volver a mi bitácora <Icon Name="arrow" Size="16" /></a></header>
     <main class="reading-paper">
-        <p class="eyebrow">MI BITÁCORA · PILOTO</p>
-        <h1>Privacidad del piloto</h1>
-        <p>Este piloto es para personas de 18 años o más. Tu cuaderno se guarda en el servidor de Mi Bitácora. El proveedor configurado para las devoluciones es <strong>@Reflector.ProviderName</strong>.</p>
-        <h2>Qué queda en tu cuaderno</h2>
-        <p>Tus entradas, notitas y adjuntos quedan asociados a tu cuenta en el servidor de este piloto. Desde tu cuenta podés descargar un registro en texto y eliminar tu cuenta con todo el contenido guardado.</p>
-        <h2>Qué puede ver la administración</h2>
-        <p>El panel del piloto se limita a códigos de cuenta, fechas por día y recuentos de entradas, notitas y adjuntos. Desde tu cuenta podés compartir tu código si querés que la administración identifique tus métricas.</p>
-        <p>El acceso técnico al servidor y a sus copias de seguridad puede permitir leer los datos guardados. Este piloto no ofrece cifrado de extremo a extremo.</p>
-        <h2>Cuándo se usa la IA</h2>
-        @if (Reflector.UsesExternalProvider)
-        {
-            <p>Al enviar un mensaje, Mi Bitácora comparte con OpenAI el texto actual, turnos recientes de la conversación, antecedentes pertinentes, contexto personal y hasta dos imágenes compatibles. Los archivos HEIC se convierten a JPG localmente antes de enviar una copia.</p>
-            <p>Para construir y actualizar la memoria, se procesan los textos de las entradas anteriores, sus documentos con texto disponible, notitas y perfil. Las síntesis se guardan en el servidor de Mi Bitácora y ayudan a encontrar originales, aunque hayan pasado meses. No se usan respuestas previas de la IA como recuerdos. Borrar una entrada o notita elimina su memoria asociada; las modificaciones invalidan las versiones anteriores antes de volver a usarlas.</p>
-            <p>«Actualizar devolución» prepara un informe integrado para terapia con los textos de todo el cuaderno. Se eligen originales que respaldan cada apartado; las fotos y adjuntos sin texto disponible quedan fuera. El informe distingue registros, hipótesis y propuestas, y no constituye una evaluación clínica.</p>
-            <p>Este análisis se realiza fuera del servidor de Mi Bitácora. Solicitamos que las respuestas no se guarden como estado de la API. OpenAI no usa los datos de la API para entrenar sus modelos de forma predeterminada; puede conservar contenido en registros de prevención de abusos hasta 30 días, o más en las excepciones que detalla su política. Esto no equivale a retención cero. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">Política de datos de OpenAI</a>.</p>
-        }
-        else
-        {
-            <p>Al pedir una devolución, la aplicación analiza tu entrada con un modelo instalado en el mismo servidor. Puede usar fragmentos de tu contexto, historial, notitas, texto extraído de archivos e imágenes compatibles de tu cuenta. Con este proveedor local no se envía ese contenido a proveedores de IA externos.</p>
-        }
-        <p>«Enviar» guarda tu mensaje y pide una respuesta de la IA. «Solo guardar» permite escribir sin pedirla. Si el análisis falla, tu entrada queda guardada para reintentar. Los formatos que el modelo no puede leer se conservan como adjuntos y se indica cuando quedan fuera de la devolución.</p>
-        @if (Reflector.UsesExternalProvider)
-        {
-            <p>Los mensajes de voz se graban al activar el micrófono y dar permiso al navegador. Podés escucharlos o descartarlos antes de adjuntarlos. Al enviar o volver a generar una respuesta, los audios pendientes se mandan a OpenAI para transcribirlos. Guardamos el texto transcrito junto con el original; se usa en la conversación, la memoria y el informe para terapia, igual que otros textos de tu cuaderno. La transcripción es automática y puede equivocarse. «Solo guardar» no transcribe ni envía el audio a OpenAI.</p>
-            <p>Volver a generar usa otra vez el mensaje y su contexto con las instrucciones vigentes y consume API. Reutiliza las transcripciones ya guardadas y reemplaza la respuesta únicamente si la nueva se completa; no cambia el mensaje original ni regenera los demás turnos.</p>
-        }
-        <p>Si usaste una versión anterior con un proveedor externo, este cambio no borra lo que ya le hayas enviado.</p>
+        <p class="eyebrow">MI BITÁCORA</p><h1>Tu cuaderno y tus datos</h1>
+        <p>Mi Bitácora es para personas de 18 años o más. Tu cuaderno se guarda asociado a tu cuenta. El plan activo determina qué proveedor procesa las nuevas devoluciones; podés verlo en <a href="/Account/Manage/Subscription">Mi plan</a>.</p>
+        <h2>Qué guardamos</h2>
+        <p>Guardamos tus entradas, notitas, adjuntos, transcripciones y devoluciones. Podés exportar tus textos, descargar originales y borrar tu cuenta. Los archivos compatibles pueden aportar texto o imágenes a una devolución. Los formatos no compatibles se conservan y se informa cuando quedan fuera.</p>
+        <h2>Plan gratuito: IA local</h2>
+        <p>Las nuevas devoluciones, la memoria y los informes se procesan con Gemma 4 12B mediante un servicio de IA local administrado por Mi Bitácora. Con este plan no enviamos esos contenidos a OpenAI. Las respuestas pueden demorar y ser menos precisas. La transcripción local necesita un modelo y una versión de Ollama compatibles con audio WAV.</p>
+        <h2>Plan Profundo: OpenAI</h2>
+        <p>Al contratar aceptás que, cuando pedís una devolución, se envíen a OpenAI tu mensaje, contexto personal, turnos recientes, antecedentes pertinentes y archivos compatibles. Para construir o actualizar la memoria también se procesan textos anteriores de tu cuaderno, documentos y notitas; el informe integra los textos disponibles de todo tu recorrido. Hasta dos imágenes compatibles pueden analizarse en la conversación; las fotos HEIC se convierten a JPG localmente.</p>
+        <p>Las síntesis ayudan a seleccionar los originales, aunque hayan pasado meses. Las respuestas anteriores de la IA no son recuerdos ni evidencia. Si cambiás de plan, el proveedor de las nuevas operaciones cambia; las devoluciones guardadas permanecen. El cambio de plan no borra información enviada previamente a un proveedor.</p>
+        <p>El procesamiento de OpenAI sucede fuera del servidor de Mi Bitácora. Solicitamos que las respuestas no se guarden como estado de la API. OpenAI no usa los datos de la API para entrenar sus modelos de forma predeterminada; puede conservar contenido en registros de prevención de abusos hasta 30 días, o más en las excepciones que detalla su política. Esto no equivale a retención cero. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">Política de datos de OpenAI</a>.</p>
+        <h2>Audio, regeneración y guardado</h2>
+        <p>El micrófono sólo se activa cuando lo pedís y el navegador solicita permiso. Podés escuchar o descartar la grabación antes de adjuntarla. Al enviar, los audios pendientes se transcriben con el proveedor de tu plan y se guarda el texto junto al original; la transcripción puede equivocarse. «Solo guardar» no transcribe ni analiza. Regenerar reutiliza las transcripciones guardadas y reemplaza la respuesta sólo cuando termina correctamente.</p>
+        <h2>Suscripciones y pagos</h2>
+        <p>Mercado Pago procesa la contratación y los cobros recurrentes. Recibe los datos necesarios para pagar y una referencia de contratación; no le enviamos tu diario, tus notitas ni tus informes. Mi Bitácora guarda identificadores de suscripción y pagos, importes, estados y períodos para administrar el acceso. No almacena números de tarjeta. Podés cancelar futuras renovaciones en Mi plan y conservar el período ya abonado.</p>
+        <h2>Administración y seguridad</h2>
+        <p>El panel del piloto muestra códigos de cuenta, fechas y recuentos de actividad. El acceso técnico al servidor y a sus respaldos puede permitir leer los datos guardados. Este piloto no ofrece cifrado de extremo a extremo. El borrado de una cuenta requiere confirmar antes la cancelación de sus cobros recurrentes.</p>
         <h2>Para qué sirve</h2>
-        <p>Mi Bitácora te ayuda a escribir, explorar lo que te pasa y preparar temas para conversar. La IA puede equivocarse y no reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo. Revisá y elegí qué querés conservar o compartir.</p>
+        <p>Mi Bitácora ayuda a escribir, ordenar ideas, explorar conexiones y preparar temas para conversar. La IA puede equivocarse y no reemplaza a un terapeuta. Los informes no son evaluaciones clínicas ni diagnósticos. Revisá y elegí qué conservar o compartir.</p>
     </main>
 </div>
