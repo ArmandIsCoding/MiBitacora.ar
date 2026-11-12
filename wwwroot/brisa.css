@@ -1,0 +1,145 @@
+/* Brisa: warm paper, a familiar face, room for an unhurried conversation. */
+:root { --canvas: #f8f4ec; --paper: #fffdf8; --ink: #3b352e; --muted: #6d6257; --olive: #51644c; --olive-dark: #3d503a; --clay: #ac644b; --line: #e5dbcc; }
+.brisa-portrait { display: inline-block; flex: none; vertical-align: middle; }
+.brisa-avatar { position: relative; width: 46px; height: 46px; overflow: hidden; border-radius: 50%; background: #f0e2cc; border: 1px solid #dac9b1; box-shadow: inset 0 0 0 3px #fff9ec; }
+.brisa-avatar.brisa-avatar-mini { width: 30px; height: 30px; }
+.brisa-avatar.brisa-avatar-large { width: 68px; height: 68px; }
+.brisa-avatar img, .brand .brisa-avatar img { position: absolute; width: 205%; max-width: none; height: auto; left: 50%; top: -3%; transform: translateX(-50%); }
+.brisa-illustration { display: block; }
+.brisa-illustration img { width: 100%; height: auto; }
+.brand-wordmark { display: grid; gap: .32rem; }
+.brand-wordmark small { font: 500 .66rem/1.1 var(--sans); letter-spacing: .045em; color: var(--muted); }
+.brisa-landing { background: radial-gradient(ellipse at 85% 14%, #e9ddc34f, transparent 45%), var(--canvas); }
+.brisa-landing .site-header { min-height: 100px; }
+.brisa-hero { grid-template-columns: 1.03fr 1fr; gap: 3rem; min-height: 620px; padding-block: 3rem 5.5rem; align-items: center; }
+.brisa-hero h1 { font-size: clamp(3.9rem, 6.9vw, 6.2rem); line-height: 1.08; letter-spacing: -.065em; margin: 1.2rem 0 1.35rem; }
+.brisa-hero h1 em { color: var(--clay); }
+.brisa-welcome-label { display: inline-flex; padding: .55rem .8rem; border: 1px solid #dfd9c4; border-radius: 99rem; background: #eeefdf; letter-spacing: .13em; font-size: .65rem; }
+.brisa-hero .hero-description { max-width: 42ch; font-size: 1.05rem; line-height: 1.8; }
+.brisa-hero .btn-primary { background: #53664d; }
+.brisa-identity { max-width: 48ch; margin-top: 1.4rem; font-size: .73rem; line-height: 1.6; color: var(--muted); }
+.brisa-hero-scene { position: relative; isolation: isolate; min-width: 0; padding: 2.5rem 0 .6rem; }
+.brisa-hero-scene::before { content: ''; position: absolute; z-index: -1; inset: 12% 0 7% 4%; background: #eddfcc; border-radius: 46% 46% 35% 35%; transform: rotate(-4deg); }
+.brisa-hero-scene .brisa-illustration { width: 100%; max-width: 490px; margin-inline: auto; filter: drop-shadow(0 16px 18px #80614416); }
+.brisa-scene-note { position: absolute; right: 1.1rem; top: .3rem; color: #806e59; font: italic 400 1rem/1.3 var(--display); transform: rotate(5deg); }
+.brisa-scene-sun { position: absolute; left: 2rem; top: 2.2rem; color: #b6924e; transform: rotate(12deg); }
+.brisa-hero-bubble { position: absolute; bottom: 1.1rem; left: -1.35rem; padding: .85rem 1.2rem; border: 1px solid #e4d8c8; border-radius: 1.2rem 1.2rem 1.2rem .25rem; background: #fffcf4f7; box-shadow: 0 10px 25px #79573510; transform: rotate(-2deg); }
+.brisa-bubble-name { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; font-size: .8rem; font-weight: 700; color: var(--olive-dark); }
+.brisa-hero-bubble p { font-size: .88rem; line-height: 1.55; }
+.brisa-method { background: #efeee3; border-block: 1px solid #e1decf; }
+.brisa-method .method-card { border-color: #e0d7c8; background: #fffcf5; border-radius: 1.15rem; }
+.brisa-invitation { display: flex; align-items: center; gap: 1.5rem; margin-block: 4.5rem; padding: 2.2rem; border: 1px solid #dfd6c4; border-radius: 1.5rem; background: #f2eadb; }
+.brisa-invitation > div { flex: 1; }
+.brisa-invitation h2 { margin-block: .5rem; font-size: clamp(1.8rem, 3vw, 2.6rem); }
+.brisa-invitation p:not(.eyebrow) { color: var(--muted); font-size: .9rem; }
+.brisa-invitation .btn { flex: none; }
+.journal-app { background: radial-gradient(ellipse at 50% 5%, #eee4d63b, transparent 65%), var(--canvas); }
+.journal-top { background: #fbf8f1ed; }
+.journal-main .plan-notice { margin-bottom: 1.4rem; border-radius: 1rem; padding: .75rem 1rem; background: #f0efe3; border-color: #e1ddcb; }
+.journal-main .plan-notice strong { font-size: .78rem; }
+.journal-main .plan-notice p { font-size: .75rem; max-width: 56ch; margin-top: .12rem; line-height: 1.5; }
+.journal-main .plan-notice .btn { font-size: .73rem; min-height: 2.3rem; background: #fbf8f0; }
+.brisa-conversation-intro { display: flex; align-items: center; gap: .9rem; }
+.brisa-conversation-intro h1 { font-size: clamp(1.85rem, 3.1vw, 2.8rem); letter-spacing: -.045em; }
+.brisa-conversation-intro .eyebrow { font-size: .61rem; letter-spacing: .13em; }
+.brisa-conversation-intro p:not(.eyebrow) { font-size: .82rem; }
+.journal-main .workspace-heading .mode-pill { flex: none; font-size: .7rem; text-decoration: none; white-space: nowrap; }
+.sidebar-reminder { position: relative; margin-top: 1.5rem; padding: .5rem .6rem 1rem; border: 1px solid #e4dac8; border-radius: 1rem; background: #f1e8d8; text-align: center; }
+.sidebar-reminder .brisa-illustration { width: 138px; max-width: 100%; margin: -.4rem auto .65rem; }
+.sidebar-reminder strong { display: block; font: 500 1.18rem/1.3 var(--display); }
+.sidebar-reminder p { color: var(--muted); font: 400 .78rem/1.6 var(--sans); margin-top: .4rem; }
+.journal-main .conversation-boundary { background: none; padding: 0 .2rem .5rem; border: 0; font-size: .74rem; color: #776c60; }
+.journal-streak { background: #f1ecdf; margin-bottom: 1.4rem; border-radius: 1rem; }
+.journal-turn { gap: 1rem; padding-bottom: 1.2rem; }
+.journal-timeline { gap: 1.5rem; }
+.timeline-date { margin-block: .2rem .5rem; opacity: .8; }
+.entry-card { width: min(91%, 630px); padding: 1rem 1.2rem; border-color: #dedfce; border-radius: 1.25rem 1.25rem .3rem 1.25rem; background: #eaf0e1; box-shadow: 0 2px 5px #4a5c3e05; }
+.entry-card .preserved-text { font-size: .98rem; line-height: 1.75; }
+.entry-meta { padding-bottom: .55rem; }
+.reflection-card { border-top: 1px solid #e6d8c6; border-color: #e6d8c6; border-radius: 1.3rem 1.3rem 1.3rem .3rem; background: #fffdf7; box-shadow: 0 5px 18px #72583c07; }
+.conversation-reply { width: min(97%, 700px); border-radius: 1.3rem 1.3rem 1.3rem .3rem; }
+.reflection-meta { align-items: center; gap: .7rem; margin-bottom: 1rem; }
+.brisa-reply-byline { display: grid; gap: .16rem; min-width: 0; }
+.brisa-reply-byline strong { color: var(--olive-dark); font: 550 1.2rem/1.1 var(--display); letter-spacing: -.025em; }
+.brisa-reply-byline small { color: var(--muted); font-size: .69rem; line-height: 1.3; }
+.conversation-reply .reflection-overview { font-size: 1rem; line-height: 1.85; }
+.conversation-question { padding: .8rem 1rem; background: #eef0e4; border: 0; border-radius: .9rem; margin-block: 1.1rem; }
+.reflection-actions { margin-top: 1rem; border-color: #ece3d5; }
+.reflection-details > summary { color: #6f6c59; font-size: .79rem; }
+.reply-pending .pending-heading { gap: .7rem; }
+.brisa-thinking { display: inline-flex; gap: 4px; margin-left: auto; padding-inline: .2rem; }
+.brisa-thinking i { width: 5px; height: 5px; border-radius: 50%; background: #849276; animation: brisa-think 2.8s ease-in-out infinite; }
+.brisa-thinking i:nth-child(2) { animation-delay: .35s; }
+.brisa-thinking i:nth-child(3) { animation-delay: .7s; }
+@keyframes brisa-think { 0%, 100% { opacity: .25; } 50% { opacity: .9; } }
+.composer-wrap { padding-top: .75rem; }
+.composer { border-radius: 1.3rem; border-color: #c7ceb9; box-shadow: 0 6px 28px #4e503414; background: #fffdf8; }
+.brisa-composer-greeting { display: flex; align-items: center; gap: .55rem; padding: .65rem .9rem 0; color: var(--olive-dark); font-size: .76rem; }
+.composer textarea { padding-top: .65rem; min-height: 85px; font-size: 1rem; line-height: 1.6; background: transparent; }
+.composer .composer-toolbar { border-color: #ebe5d7; padding: .45rem .6rem; }
+.composer-caption, .composer-disclosures .topic-scope { font-size: .7rem; }
+.blank-journal .blank-illustration { width: 235px; max-width: 68%; }
+.blank-journal .blank-illustration img { width: 100%; height: auto; }
+.blank-journal { background: #f2ebdf80; border-radius: 1.4rem; border-color: #ded2c0; }
+.account-note .brisa-illustration { max-width: 280px; margin: 0 auto 1.1rem; }
+.account-note { border-radius: 1.5rem; background: #efe5d5; }
+.account-note .account-note-phrase { font-size: clamp(2.1rem, 3.5vw, 3.1rem); color: #554533; }
+.account-note .account-kicker { font-size: .67rem; letter-spacing: .14em; }
+.account-card { border-radius: 1.4rem; }
+.account-card h1 { font-size: clamp(2rem, 4vw, 2.7rem); }
+.brisa-report-heading { display: flex; align-items: center; gap: .65rem; margin-bottom: .6rem; }
+.brisa-report-heading strong { font: 500 1.15rem/1.2 var(--display); }
+@media (max-width: 1100px) { .brisa-hero { gap: 1.5rem; } .brisa-hero-bubble { left: -.3rem; bottom: -.3rem; } .brisa-invitation { flex-wrap: wrap; } }
+@media (max-width: 880px) {
+    .brisa-hero { min-height: 0; grid-template-columns: 1fr 1fr; padding-block: 2rem 4rem; gap: 1.2rem; }
+    .brisa-hero h1 { font-size: clamp(3rem, 7.2vw, 4.8rem); }
+    .brisa-hero .hero-description { font-size: .92rem; }
+    .brisa-scene-note { font-size: .83rem; right: 0; }
+    .brisa-hero-bubble { padding: .7rem .9rem; }
+    .brisa-hero-bubble p { font-size: .77rem; }
+    .brisa-invitation { padding: 1.5rem; gap: 1rem; }
+    .brisa-conversation-intro .brisa-avatar-large { width: 55px; height: 55px; }
+}
+@media (max-width: 650px) {
+    .brand { gap: .5rem; font-size: 1.25rem; }
+    .brand .brisa-avatar { width: 39px; height: 39px; }
+    .brand-wordmark small { font-size: .58rem; }
+    .brisa-landing .site-header { min-height: 85px; }
+    .brisa-landing .site-nav { gap: .6rem; }
+    .brisa-landing .site-nav .text-link { font-size: .75rem; }
+    .brisa-hero { grid-template-columns: 1fr; gap: 1.5rem; padding-top: 1.3rem; padding-bottom: 3rem; }
+    .brisa-hero h1 { font-size: clamp(3.5rem, 13vw, 5rem); margin-block: 1rem; }
+    .brisa-hero .hero-description { max-width: 40ch; font-size: 1rem; }
+    .brisa-hero .hero-actions { gap: .55rem 1rem; }
+    .brisa-hero .hero-secondary { font-size: .8rem; }
+    .brisa-hero .brisa-identity { margin-top: 1rem; font-size: .7rem; }
+    .brisa-hero-scene { width: min(100%, 390px); margin-inline: auto; padding-top: 2rem; }
+    .brisa-hero-scene .brisa-illustration { width: 91%; }
+    .brisa-hero-bubble { bottom: .4rem; left: 0; }
+    .brisa-scene-note { right: .5rem; }
+    .brisa-invitation { margin-block: 2.7rem; padding: 1.2rem; }
+    .brisa-invitation > div { flex-basis: calc(100% - 100px); }
+    .brisa-invitation h2 { font-size: 1.75rem; }
+    .brisa-invitation .eyebrow { font-size: .58rem; }
+    .brisa-invitation .btn { width: 100%; }
+    .journal-main .workspace-heading { flex-wrap: wrap; gap: .65rem; }
+    .brisa-conversation-intro { gap: .6rem; }
+    .brisa-conversation-intro h1 { font-size: 1.95rem; }
+    .brisa-conversation-intro .eyebrow { font-size: .56rem; }
+    .journal-main .workspace-heading .mode-pill { margin-left: 65px; }
+    .journal-main .plan-notice { padding: .65rem .8rem; gap: .45rem; }
+    .journal-main .plan-notice p { font-size: .72rem; }
+    .journal-main .plan-notice .btn { font-size: .71rem; }
+    .entry-card { width: 94%; padding: .85rem .9rem; }
+    .conversation-reply { width: 99%; }
+    .journal-turn { gap: .8rem; }
+    .brisa-reply-byline small { font-size: .65rem; }
+    .brisa-composer-greeting { padding-top: .5rem; }
+    .composer textarea { min-height: 72px; }
+    .composer-submit .btn { font-size: .78rem; gap: .2rem; padding-inline: .55rem; }
+    .composer-submit .btn svg { width: 15px; }
+    .account-note .brisa-illustration { width: 150px; }
+}
+@media (max-width: 380px) { .composer-submit .btn { font-size: .73rem; } .composer-submit .btn svg { display: none; } .brisa-conversation-intro h1 { font-size: 1.75rem; } }
+@media (prefers-reduced-motion: reduce) { .brisa-thinking i { animation: none; opacity: .6; } }
+@media print { .brisa-avatar { box-shadow: none; } .brisa-hero-scene, .brisa-composer-greeting { display: none; } }

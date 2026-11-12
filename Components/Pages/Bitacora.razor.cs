@@ -41,7 +41,7 @@ public partial class Bitacora : IAsyncDisposable
     private Guid? _noteId;
     private Guid? _workingEntry;
     private Guid? _replyToReveal;
-    private string _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
+    private string _reflectionProgress = "Brisa está pensando en lo que le contaste…";
     private Guid? _targetId;
     private bool _ready;
     private bool _busy;
@@ -337,7 +337,7 @@ public partial class Bitacora : IAsyncDisposable
             }
 
             _workingEntry = entryId;
-            _reflectionProgress = "Buscando el hilo de la conversación…";
+            _reflectionProgress = "Brisa está retomando el hilo de la conversación…";
             _entryErrors.Remove(entryId.Value);
             await InvokeAsync(StateHasChanged);
 

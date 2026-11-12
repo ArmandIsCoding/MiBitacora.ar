@@ -1,0 +1,12 @@
+<span class="brisa-portrait @(Illustration ? "brisa-illustration" : $"brisa-avatar brisa-avatar-{Size}") @Class" aria-hidden="@(Decorative ? "true" : null)">
+    <img src="@Assets["brisa/brisa-cozy.png"]" alt="@(Decorative ? "" : "Brisa, una compañera ilustrada con lentes grandes, un cuaderno y una sonrisa amable")"
+         width="1254" height="1254" loading="@(Priority ? "eager" : "lazy")" fetchpriority="@(Priority ? "high" : "auto")" />
+</span>
+
+@code {
+    [Parameter] public bool Illustration { get; set; }
+    [Parameter] public bool Decorative { get; set; } = true;
+    [Parameter] public bool Priority { get; set; }
+    [Parameter] public string Size { get; set; } = "normal";
+    [Parameter] public string? Class { get; set; }
+}

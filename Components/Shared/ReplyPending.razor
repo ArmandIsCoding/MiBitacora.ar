@@ -1,7 +1,8 @@
-<section class="reply-pending" aria-label="Respuesta en preparación">
+<section class="reply-pending" aria-label="Brisa está pensando su respuesta">
     <div class="pending-heading" aria-hidden="true">
-        <span class="reflection-mark"><Icon Name="spark" Size="19" /></span>
-        <span class="eyebrow">MI BITÁCORA · IA</span>
+        <BrisaPortrait />
+        <span class="brisa-reply-byline"><strong>Brisa</strong><small>Un momento para pensar con vos</small></span>
+        <span class="brisa-thinking"><i></i><i></i><i></i></span>
     </div>
     <p class="pending-message" role="status" aria-atomic="true">@Message</p>
     <p class="pending-hint">Podés seguir leyendo esta conversación. Te llevaremos a la devolución cuando esté lista.</p>
@@ -11,13 +12,13 @@
     @if (OfferUpgrade)
     {
         <div class="pending-upgrade">
-            <p>La IA del plan gratuito puede tardar un poco. Con el Plan Profundo accedés a respuestas más completas y profundas y, por lo general, más rápidas.</p>
+            <p>Brisa puede necesitar un poco más de tiempo en el plan gratuito. Con el Plan Profundo podés explorar respuestas más completas y profundas y, por lo general, más rápidas.</p>
             <a href="/Account/Manage/Subscription" target="_blank" rel="noopener noreferrer">Conocer el Plan Profundo <Icon Name="arrow" Size="15" /></a>
         </div>
     }
 </section>
 
 @code {
-    [Parameter] public string Message { get; set; } = "Mi Bitácora está preparando una respuesta…";
+    [Parameter] public string Message { get; set; } = "Brisa está pensando en lo que le contaste…";
     [Parameter] public bool OfferUpgrade { get; set; }
 }

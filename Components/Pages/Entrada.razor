@@ -17,7 +17,7 @@
     {
         <h1>@Local(entry.CreatedUtc).ToString("d 'de' MMMM 'de' yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"))</h1>
         <a class="entry-notebook-link" href="@NotebookUrl"><Icon Name="book" Size="17" /> @entry.NotebookName</a>
-        <p class="topic-scope">Texto completo y archivos guardados. La devolución es una lectura de la IA; podés contrastarla con lo que escribiste.</p>
+        <p class="topic-scope">Tu mensaje y sus archivos, tal como los guardaste. La respuesta de Brisa es una mirada posible: podés contrastarla con tus propias palabras.</p>
         <article class="entry-card" aria-label="Entrada completa">
             <header class="entry-meta"><div><EntryEdit Entry="entry" Updated="updated => _entry = updated" /><strong>Tu entrada</strong></div></header>
             @if (!string.IsNullOrWhiteSpace(entry.Text)) { <p class="preserved-text">@entry.Text</p> }

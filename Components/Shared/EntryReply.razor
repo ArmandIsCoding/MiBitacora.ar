@@ -28,7 +28,7 @@
     private ElementReference _replyHost;
     private IJSObjectReference? _module;
     private string? _error;
-    private string _progress = "Preparando una nueva lectura…";
+    private string _progress = "Brisa está preparando una nueva mirada…";
     private readonly CancellationTokenSource _lifetime = new();
     protected override void OnParametersSet()
     {
@@ -50,7 +50,7 @@
             if (reflector is AccountJournalService accountAi) await accountAi.SelectAccountAsync(id, _lifetime.Token);
             _offerUpgrade = !reflector.UsesExternalProvider;
             var conversation = Services.GetRequiredService<JournalConversationService>();
-            if (!conversation.IsConfigured) throw new JournalReflectionException("La IA no está configurada en esta instalación.");
+            if (!conversation.IsConfigured) throw new JournalReflectionException("Brisa no puede responder en esta instalación por el momento.");
             _current = await conversation.GenerateAsync(id, Entry.Id, true, new ReplyProgress(message =>
             {
                 if (!_disposed) _ = InvokeAsync(() => { _progress = message; StateHasChanged(); });

@@ -58,7 +58,7 @@ public sealed class OllamaModelClient(
     public bool UsesExternalProvider => false;
 
     private const string InvalidReply =
-        "La IA local devolvió una respuesta incompleta. Tu entrada está guardada y podés reintentar.";
+        "La respuesta de Brisa quedó incompleta. Tu entrada está guardada y podés reintentar.";
 
     public async Task<string> GenerateAsync(string instruction, string prompt, JsonElement schema,
         IReadOnlyList<JournalImage> images, CancellationToken cancellationToken)
@@ -66,9 +66,9 @@ public sealed class OllamaModelClient(
         var settings = options.Value;
         // Also enforce this boundary if the service is constructed outside dependency injection.
         if (!settings.IsValid())
-            throw new JournalReflectionException("La configuración de la IA local no es válida. Tu entrada quedó guardada.");
+            throw new JournalReflectionException("Brisa necesita un ajuste de configuración para responder. Tu entrada quedó guardada; avisá a la administración.");
         if (!gate.TryJoin())
-            throw new JournalReflectionException("La IA local está atendiendo otras entradas. La tuya está guardada; probá de nuevo en un momento.");
+            throw new JournalReflectionException("Brisa está atendiendo otras conversaciones. Tu entrada está guardada; probá de nuevo en un momento.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(settings.TimeoutSeconds));
@@ -103,11 +103,11 @@ public sealed class OllamaModelClient(
                 logger.LogWarning("La IA local devolvió HTTP {StatusCode}.", (int)response.StatusCode);
                 throw new JournalReflectionException(response.StatusCode switch
                 {
-                    HttpStatusCode.NotFound => "Falta instalar el modelo de la IA local. Tu entrada está guardada; avisá a la administración.",
+                    HttpStatusCode.NotFound => "Falta instalar un recurso para que Brisa pueda responder. Tu entrada está guardada; avisá a la administración.",
                     HttpStatusCode.ServiceUnavailable or HttpStatusCode.TooManyRequests =>
-                        "La IA local está ocupada. Tu entrada está guardada y podés reintentar.",
-                    HttpStatusCode.BadRequest => "La IA local no pudo analizar esta entrada o una de sus imágenes. El original quedó guardado.",
-                    _ => "La IA local no está disponible en este momento. Tu entrada está guardada y podés reintentar."
+                        "Brisa está ocupada por el momento. Tu entrada está guardada y podés reintentar.",
+                    HttpStatusCode.BadRequest => "Brisa no pudo leer esta entrada o una de sus imágenes. El original quedó guardado.",
+                    _ => "Brisa no puede responder en este momento. Tu entrada está guardada y podés reintentar."
                 });
             }
 
@@ -129,11 +129,11 @@ public sealed class OllamaModelClient(
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new JournalReflectionException("La IA local tardó más de lo previsto. Tu entrada está guardada y podés reintentar.");
+            throw new JournalReflectionException("Brisa necesitó más tiempo del previsto. Tu entrada está guardada y podés reintentar.");
         }
         catch (HttpRequestException)
         {
-            throw new JournalReflectionException("No pudimos conectar con la IA local. Tu entrada quedó guardada; avisá a la administración.");
+            throw new JournalReflectionException("No pudimos conectar con Brisa. Tu entrada quedó guardada; podés reintentar en un momento.");
         }
         catch (JsonException)
         {

@@ -1,84 +1,25 @@
 @page "/"
-
-<PageTitle>Mi Bitácora · Escribí como salga</PageTitle>
-
-<div class="landing">
-    <header class="site-header wrap">
-        <Brand />
-        <nav aria-label="Navegación principal" class="site-nav">
-            <AuthorizeView>
-                <Authorized>
-                    <a class="btn btn-primary" href="/bitacora">Abrir mi bitácora <Icon Name="arrow" Size="17" /></a>
-                </Authorized>
-                <NotAuthorized>
-                    <a class="text-link" href="/Account/Login">Iniciar sesión</a>
-                    <a class="btn btn-outline" href="/Account/Register">Empezar <Icon Name="arrow" Size="16" /></a>
-                </NotAuthorized>
-            </AuthorizeView>
-        </nav>
-    </header>
-
+<PageTitle>Mi Bitácora con Brisa · Un espacio para vos</PageTitle>
+<div class="landing brisa-landing">
+    <header class="site-header wrap"><Brand /><nav aria-label="Navegación principal" class="site-nav"><AuthorizeView><Authorized><a class="btn btn-primary" href="/bitacora">Volver con Brisa <Icon Name="arrow" Size="17" /></a></Authorized><NotAuthorized><a class="text-link" href="/Account/Login">Ya tengo cuenta</a><a class="btn btn-outline" href="/Account/Register">Empezar <Icon Name="arrow" Size="16" /></a></NotAuthorized></AuthorizeView></nav></header>
     <main>
-        <section class="hero wrap">
+        <section class="hero brisa-hero wrap">
             <div class="hero-copy">
-                <p class="eyebrow"><span class="status-dot"></span> PILOTO PRIVADO</p>
-                <h1>Un lugar para<br />lo que <em>te pasa.</em></h1>
-                <p class="hero-description">Escribí como salga. Sumá una foto o un papelito. Tu bitácora te ayuda a ordenar lo que tenés en la cabeza y a volver a lo que importa.</p>
-                <div class="hero-actions">
-                    <AuthorizeView>
-                        <Authorized>
-                            <a class="btn btn-primary btn-large" href="/bitacora">Ir a mi bitácora <Icon Name="arrow" Size="19" /></a>
-                        </Authorized>
-                        <NotAuthorized>
-                            <a class="btn btn-primary btn-large" href="/Account/Register">Crear mi bitácora <Icon Name="arrow" Size="19" /></a>
-                        </NotAuthorized>
-                    </AuthorizeView>
-                    <a href="#como-funciona" class="text-link hero-secondary">Cómo funciona <Icon Name="chevron" Size="14" /></a>
-                </div>
-                <p class="hero-foot"><Icon Name="leaf" Size="18" /> A tu ritmo, con tus propias palabras.</p>
+                <p class="eyebrow brisa-welcome-label"><span class="status-dot"></span> UN RATITO PARA VOS</p>
+                <h1>Soy Brisa.<br /><em>¿Charlamos?</em></h1>
+                <p class="hero-description">A veces, poner en palabras lo que te pasa es un buen comienzo. Podés escribirme, dejarme un audio o traer algo que quieras mirar con más calma. Lo pensamos juntos, a tu ritmo.</p>
+                <div class="hero-actions"><AuthorizeView><Authorized><a class="btn btn-primary btn-large" href="/bitacora">Seguir nuestra conversación <Icon Name="arrow" Size="19" /></a></Authorized><NotAuthorized><a class="btn btn-primary btn-large" href="/Account/Register">Empezar a conversar <Icon Name="arrow" Size="19" /></a></NotAuthorized></AuthorizeView><a href="#como-funciona" class="text-link hero-secondary">Conocé este espacio <Icon Name="chevron" Size="14" /></a></div>
+                <p class="hero-foot"><Icon Name="leaf" Size="18" /> Sin apuro. Con tus propias palabras.</p>
+                <p class="brisa-identity">Brisa es tu compañera de IA para reflexionar. Puede equivocarse y no reemplaza una terapia.</p>
             </div>
-
-            <div class="hero-art" aria-hidden="true">
-                <div class="art-caption"><span>EL CUADERNO</span><span>01 / 03</span></div>
-                <img src="cuaderno.svg" alt="" width="560" height="438" fetchpriority="high" />
-                <div class="art-annotation"><Icon Name="spark" Size="18" /><span>Hay lugar para todo lo que traigas.</span></div>
-            </div>
+            <div class="brisa-hero-scene"><span class="brisa-scene-note">Hay lugar para lo que traigas.</span><div class="brisa-scene-sun" aria-hidden="true"><Icon Name="spark" Size="33" /></div><BrisaPortrait Illustration="true" Decorative="false" Priority="true" /><div class="brisa-hero-bubble"><span class="brisa-bubble-name">Brisa <Icon Name="leaf" Size="15" /></span><p>No hace falta tenerlo todo claro.<br />Podemos empezar por acá.</p></div></div>
         </section>
-
-        <section id="como-funciona" class="landing-method">
-            <div class="wrap">
-                <div class="method-heading">
-                    <p class="eyebrow">TU CUADERNO, TU RITMO</p>
-                    <h2>Escribí. Ordená. <em>Retomá.</em></h2>
-                    <p>Una conversación que podés continuar cada vez que vuelvas.</p>
-                </div>
-                <div class="method-grid">
-                    <article class="method-card">
-                        <span class="method-icon clay"><Icon Name="pen" Size="24" /></span>
-                        <span class="method-number">01</span>
-                        <h3>Volcá lo que traés</h3>
-                        <p>Una idea a medias, una foto, un PDF o las cuentas que te quedaron dando vueltas. Empezá por donde te salga.</p>
-                    </article>
-                    <article class="method-card">
-                        <span class="method-icon sage"><Icon Name="spark" Size="24" /></span>
-                        <span class="method-number">02</span>
-                        <h3>Encontrá tu hilo</h3>
-                        <p>Pedí una devolución en forma de apuntes, con los temas y las preguntas que aparecen en lo que escribiste.</p>
-                    </article>
-                    <article class="method-card">
-                        <span class="method-icon honey"><Icon Name="bookmark" Size="24" /></span>
-                        <span class="method-number">03</span>
-                        <h3>Llevate lo importante</h3>
-                        <p>Marcá ideas para volver a leerlas. Reuní lo que querés conversar en terapia en una hoja lista para copiar o imprimir.</p>
-                    </article>
-                </div>
-            </div>
-        </section>
+        <section id="como-funciona" class="landing-method brisa-method"><div class="wrap"><div class="method-heading"><p class="eyebrow">UN CUADERNO. UNA CONVERSACIÓN. TU PROPIO RITMO.</p><h2>Un lugar para <em>encontrarte.</em></h2><p>Brisa te acompaña a mirar lo que vivís, una conversación a la vez.</p></div><div class="method-grid">
+            <article class="method-card"><span class="method-icon clay"><Icon Name="pen" Size="24" /></span><span class="method-number">01</span><h3>Contame como salga</h3><p>Una idea a medias, un audio, una foto o eso que te quedó dando vueltas. No necesitás preparar nada para empezar.</p></article>
+            <article class="method-card"><span class="method-icon sage"><Icon Name="spark" Size="24" /></span><span class="method-number">02</span><h3>Lo miramos juntos</h3><p>Te leo con atención, acerco otra perspectiva y te propongo preguntas para seguir pensando. Vos elegís qué te sirve.</p></article>
+            <article class="method-card"><span class="method-icon honey"><Icon Name="bookmark" Size="24" /></span><span class="method-number">03</span><h3>Llevate lo que importa</h3><p>Guardá una notita, volvé a una charla o armemos una hoja con lo que quieras llevar a terapia. Tu recorrido tiene su lugar.</p></article>
+        </div></div></section>
+        <section class="brisa-invitation wrap"><BrisaPortrait Size="large" /><div><p class="eyebrow">PODEMOS IR DE A POCO</p><h2>¿Qué te gustaría contarme hoy?</h2><p>No tiene que ser algo grande. Lo cotidiano también merece un espacio.</p></div><a class="btn btn-primary" href="/bitacora">Conversar con Brisa <Icon Name="arrow" Size="18" /></a></section>
     </main>
-
-    <footer class="site-footer wrap">
-        <Brand />
-        <p>Cuaderno digital · Piloto para mayores de 18 años</p>
-        <a href="/privacidad" class="text-link">Privacidad del piloto</a>
-    </footer>
+    <footer class="site-footer wrap"><Brand /><p>Tu cuaderno, con Brisa · Para mayores de 18 años</p><a href="/privacidad" class="text-link">Tu privacidad</a></footer>
 </div>

@@ -38,7 +38,7 @@ public sealed class JournalConversationService(IJournalStore store, IAudioTransc
             }
             var context = await store.GetContextAsync(userId, entryId, useAi, ct);
             if (useAi) context = await memory.EnrichAsync(userId, context, progress, ct);
-            progress?.Report("Mi Bitácora está preparando una respuesta…");
+            progress?.Report("Brisa está pensando en lo que le contaste…");
             var response = (await reflector.ReflectAsync(context, useAi, ct)) with { LimitedMemory = useAi && context.LimitedMemory };
             ct.ThrowIfCancellationRequested();
             // Only replace after a complete, validated response. Failures keep the previous response.

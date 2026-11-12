@@ -13,7 +13,7 @@
 <PageTitle>Tu perfil | Mi Bitácora</PageTitle>
 
 <h2>Tu perfil</h2>
-<p class="account-intro">Elegí cómo querés que te llamemos y agregá contexto si te sirve.</p>
+<div class="brisa-report-heading"><BrisaPortrait /><p class="account-intro">Contale a Brisa cómo querés que te llame y qué te gustaría que tenga en cuenta.</p></div>
 <StatusMessage Message="@errorMessage" IsError="@(errorMessage is not null)" />
 
 <EditForm Model="Input" FormName="profile" OnValidSubmit="SaveProfileAsync" method="post" class="account-form">
@@ -41,14 +41,14 @@
     </div>
 
     <div class="account-consent">
-        <strong>Devoluciones con @Reflector.ProviderName</strong>
+        <strong>Cómo piensa Brisa con vos</strong>
         @if (Reflector.UsesExternalProvider)
         {
             <p>Cuando pedís una devolución, la aplicación envía a OpenAI fragmentos de tu contexto, cuaderno y archivos compatibles. La devolución por temas usa los textos de todas tus entradas y documentos.</p>
         }
         else
         {
-            <p>Cuando pedís ordenar tus ideas, el análisis se hace en el servidor de Mi Bitácora. Puede usar fragmentos de tu contexto, cuaderno y archivos compatibles, asociados a tu cuenta.</p>
+            <p>Cuando conversás con Brisa, el procesamiento usa la IA local administrada por Mi Bitácora. Puede tener en cuenta fragmentos de tu contexto, cuaderno y archivos compatibles, asociados a tu cuenta.</p>
         }
         <small>Podés guardar tus entradas sin pedir una devolución. <a href="privacidad">Privacidad del piloto</a>.</small>
     </div>

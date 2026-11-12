@@ -1,7 +1,7 @@
-<article class="reflection-card @(IsConversation ? "conversation-reply" : "")" aria-label="Respuesta de Mi Bitácora">
+<article class="reflection-card @(IsConversation ? "conversation-reply" : "")" aria-label="Respuesta de Brisa">
     <header class="reflection-meta">
-        <span class="reflection-mark"><Icon Name="spark" Size="19" /></span>
-        <span class="eyebrow">MI BITÁCORA · IA</span>
+        <BrisaPortrait />
+        <span class="brisa-reply-byline"><strong>Brisa</strong><small>Una mirada para pensar con vos</small></span>
         @if (Regenerate.HasDelegate)
         {
             <button type="button" class="reply-regenerate @(Regenerating ? "is-regenerating" : "")" title="Volver a generar respuesta" aria-label="Volver a generar respuesta" @onclick="Regenerate" disabled="@(Busy || !RendererInfo.IsInteractive)"><Icon Name="refresh" Size="18" /></button>
@@ -82,7 +82,7 @@
     {
         <details class="reflection-details conversation-sources">
             <summary>Antecedentes consultados (@memories.Count) <Icon Name="chevron" Size="16" /></summary>
-            <p class="topic-scope">Fragmentos que la IA tuvo a mano para responder. Podés revisar si la conexión tiene sentido para vos.</p>
+            <p class="topic-scope">Estos son los fragmentos que Brisa tuvo a mano. Podés revisar si la conexión tiene sentido para vos.</p>
             @foreach (var memory in memories)
             {
                 <figure><figcaption>@memory.Label @if (memory.CreatedUtc is { } date) { <span>· @date.ToString("d/M/yyyy")</span> }</figcaption>
@@ -94,7 +94,7 @@
     }
     @if (Reflection.GeneratedUtc is { } generated)
     {
-        <small class="reply-date">Respuesta generada el @TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(generated, DateTimeKind.Utc), TimeZone).ToString("d/M/yyyy")</small>
+        <small class="reply-date">Una conversación del @TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(generated, DateTimeKind.Utc), TimeZone).ToString("d/M/yyyy")</small>
     }
     @if (SaveAsNote.HasDelegate || ToggleSession.HasDelegate)
     {

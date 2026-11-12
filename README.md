@@ -1,5 +1,7 @@
 # Mi Bitácora
 
+Un espacio para conversar con **Brisa**, una compañera de IA amable, ilustrada y con lentes grandes. [Identidad, voz y assets de Brisa](docs/brisa.md).
+
 Piloto de un cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. Las devoluciones pueden usar Ollama local u OpenAI, según la configuración privada de la instalación.
 
 ![Inicio de Mi Bitácora, con un cuaderno ilustrado y una vista de cómo funciona el piloto](docs/inicio-mi-bitacora.png)

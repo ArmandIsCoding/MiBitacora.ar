@@ -7,9 +7,9 @@
 
 <div class="topic-workspace">
     <div class="topic-toolbar">
-        <p>Un informe completo de tu recorrido, para leer con calma y llevar a terapia.</p>
+        <div><div class="brisa-report-heading"><BrisaPortrait /><strong>Podemos mirar todo el recorrido.</strong></div><p>Brisa reúne los hilos de tu cuaderno en una lectura para vos o para llevar a terapia.</p></div>
         <button type="button" class="btn btn-primary" @onclick="GenerateAsync" disabled="@(_busy || _loading || !Analyzer.IsConfigured || !RendererInfo.IsInteractive)">
-            <Icon Name="spark" Size="18" /> @(_state.Snapshot is null ? "Generar devolución" : "Actualizar devolución")
+            <Icon Name="spark" Size="18" /> @(_state.Snapshot is null ? "Pensarlo con Brisa" : "Actualizar devolución")
         </button>
     </div>
     @if (Analyzer.UsesExternalProvider)
@@ -19,7 +19,7 @@
     <p class="topic-scope">Integra los textos de todo tu cuaderno, documentos, notitas y contexto personal. Distingue lo registrado de las hipótesis y propuestas para terapia. Las fotos se analizan en la conversación.</p>
     @if (!Analyzer.IsConfigured)
     {
-        <p class="journal-alert" role="status">La IA está desactivada. Podés consultar la última devolución guardada.</p>
+        <p class="journal-alert" role="status">Brisa no puede preparar otra mirada por el momento. Podés consultar la última devolución guardada.</p>
     }
     @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
     @if (_message is not null) { <p class="journal-notice" role="status">@_message</p> }
@@ -106,7 +106,7 @@
     }
     else if (!_loading && !_busy)
     {
-        <div class="blank-journal blank-small topic-empty"><span class="empty-note-icon sage"><Icon Name="book" Size="40" /></span><h2>Tu recorrido, con perspectiva.</h2><p>Prepará un informe con tu evolución, emociones, vínculos, recursos y asuntos para trabajar en terapia. Incluye fragmentos originales para revisar cada lectura.</p><p>Se genera con @Analyzer.ProviderName.</p></div>
+        <div class="blank-journal blank-small topic-empty"><BrisaPortrait Size="large" /><h2>Hay un hilo en lo que venís viviendo.</h2><p>Brisa puede ayudarte a mirar tus emociones, vínculos y recursos con un poco de perspectiva. Vamos a incluir fragmentos originales para que puedas revisar cada lectura.</p></div>
     }
 </div>
 

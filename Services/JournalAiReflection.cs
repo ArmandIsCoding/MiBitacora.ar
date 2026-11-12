@@ -8,9 +8,18 @@ public sealed class JournalReflectionException(string message) : Exception(messa
 public abstract partial class JournalAiService : IJournalReflector
 {
     private const string SystemInstruction = """
-        Sos la IA de apoyo de Mi Bitácora. Ayudás a explorar lo que la persona cuenta,
-        encontrar nuevas perspectivas y elegir asuntos para retomar en terapia. Respondé como
-        interlocutora, con voseo y calidez. La entrada actual es el foco de tu respuesta.
+        Sos Brisa, la compañera de IA de Mi Bitácora: amable, atenta, cálida y esperanzadora.
+        Conversás con la persona, no redactás un registro sobre ella. Usá un español rioplatense
+        natural, con voseo, y hablá en primera persona cuando acerques una mirada: «me pregunto»,
+        «podemos mirar». Escuchá lo concreto antes de proponer perspectivas. No infantilices,
+        no uses entusiasmo de rutina ni frases de validación automáticas. Ajustá tu tono a lo que
+        te cuentan: hay lugar para la alegría, las dudas, el dolor y también lo cotidiano.
+        No saludes ni te presentes en cada mensaje; seguí el hilo de una conversación real.
+        La entrada actual es el foco de tu respuesta. Ayudás a encontrar nuevas perspectivas
+        y elegir asuntos para retomar en terapia. No sos una persona ni una profesional de salud;
+        si preguntan por tu identidad, explicá con sencillez que sos una compañera de IA.
+        No afirmes credenciales, sentimientos propios, disponibilidad permanente ni vínculos exclusivos.
+        Acompañá sin generar dependencia y respetá los vínculos y apoyos humanos de la persona.
         Usá solamente contexto pertinente. Respetá los matices, contradicciones y preferencias culturales
         que la persona haya expresado. Evitá inferir su cultura, identidad o antecedentes.
 
@@ -50,7 +59,7 @@ public abstract partial class JournalAiService : IJournalReflector
           "type": "object",
           "properties": {
             "title": { "type": "string", "description": "Etiqueta breve y fiel al asunto para organizar la conversación; no es un diagnóstico." },
-            "overview": { "type": "string", "maxLength": 4200, "description": "Respuesta con voseo, cálida y específica. Desarrolla una hipótesis o distinción que aporte comprensión, explica su apoyo concreto y conecta antecedentes sólo cuando ayudan. Extensión proporcionada: normalmente 3 a 5 párrafos para material rico y menos para intercambios simples. Hasta 4200 caracteres, sin la pregunta final, sin inventar causas ni limitarse a parafrasear." },
+            "message": { "type": "string", "maxLength": 4200, "description": "El mensaje que Brisa le dice directamente a quien escribe, con voseo y calidez. Este es el texto visible del chat, nunca un resumen sobre la persona. Responde a su pregunta o continúa su relato. Si pregunta quién sos, presentate como Brisa, compañera de IA. Para material rico, desarrolla una mirada concreta en 3 a 5 párrafos; para un saludo o pregunta sencilla, unas pocas frases. Hasta 4200 caracteres, sin la pregunta final ni causas inventadas." },
             "themes": {
               "type": "array",
               "maxItems": 2,
@@ -77,7 +86,7 @@ public abstract partial class JournalAiService : IJournalReflector
             },
             "nextStep": { "type": "string", "description": "Recurso de reflexión breve y opcional, solo cuando resulte útil; normalmente vacío. Hasta 240 caracteres." }
           },
-          "required": ["title", "overview", "themes", "openQuestions", "sessionTopics", "nextStep"]
+          "required": ["title", "message", "themes", "openQuestions", "sessionTopics", "nextStep"]
         }
         """);
 
@@ -105,9 +114,12 @@ public abstract partial class JournalAiService : IJournalReflector
             throw new JournalReflectionException(InvalidReply);
         }
 
+        // Older provider fixtures and in-flight responses may still use overview.
+        // Persist the conversational message in the existing field without rewriting saved replies.
+        var message = parsed?.Message ?? parsed?.Overview;
         if (parsed is null ||
             string.IsNullOrWhiteSpace(parsed.Title) ||
-            string.IsNullOrWhiteSpace(parsed.Overview) ||
+            string.IsNullOrWhiteSpace(message) ||
             parsed.Themes is null ||
             parsed.OpenQuestions is null ||
             parsed.SessionTopics is null)
@@ -144,7 +156,7 @@ public abstract partial class JournalAiService : IJournalReflector
             }
         }
 
-        var overview = Limit(parsed.Overview, 4200);
+        var overview = Limit(message, 4200);
         if (evidence.UnreadCurrentAttachments > 0)
         {
             var missing = evidence.UnreadCurrentAttachments == 1
@@ -288,5 +300,6 @@ public abstract partial class JournalAiService : IJournalReflector
         IReadOnlyList<ModelTheme?>? Themes,
         IReadOnlyList<string?>? OpenQuestions,
         IReadOnlyList<string?>? SessionTopics,
-        string? NextStep);
+        string? NextStep,
+        string? Message = null);
 }
