@@ -15,6 +15,8 @@ Implementación preparada en una rama separada, sin despliegue, credenciales de 
 
 Todas las funciones del cuaderno siguen disponibles para cuentas gratuitas. El aviso del plan gratuito y **Mi cuenta → Mi plan** explican las diferencias. No se promete exactitud de ninguna IA. Las devoluciones ya guardadas siguen disponibles al cambiar de plan.
 
+La espera de una devolución gratuita también presenta el Plan Profundo y explica que el procesamiento local puede tardar. El enlace abre la página del plan en otra pestaña para conservar la generación en curso. Se habla de respuestas por lo general más rápidas, sin garantizar un tiempo ni resultados. Las cuentas con un período pago vigente no reciben esa invitación.
+
 Cada operación obtiene la cuenta desde la sesión autenticada y consulta el acceso en SQLite. El cliente no decide si una cuenta es paga. Antes de cada solicitud a OpenAI se vuelve a verificar la vigencia; si cambió durante un informe, la operación se interrumpe conservando el informe previo. No hay cambio silencioso entre proveedores. Las colas de Ollama y OpenAI son independientes. La [memoria de conversación usa embeddings locales](memoria-vectorial.md) en ambos planes y no se reconstruye al cambiar de plan. El informe completo conserva síntesis generativas diferenciadas por proveedor.
 
 `AI:Provider` se conserva por compatibilidad con herramientas anteriores; la web elige por plan. Configurar `AI:Provider=OpenAI` no convierte cuentas gratuitas en pagas.

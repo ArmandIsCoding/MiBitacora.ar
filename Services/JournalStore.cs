@@ -184,6 +184,33 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             entry.Attachments.Select(ToAttachment).ToArray(), NotebookId: notebookId, NotebookName: notebookName);
     }
 
+    public async Task<JournalEntry> UpdateEntryAsync(string userId, Guid entryId, string text,
+        CancellationToken cancellationToken = default, string? expectedText = null)
+    {
+        text = text.Trim();
+        RequireLength(text, MaxTextLength, "Tu entrada");
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var row = await db.JournalEntries.Include(e => e.Attachments)
+            .SingleOrDefaultAsync(e => e.UserId == userId && e.Id == entryId, cancellationToken) ?? throw EntryUnavailable();
+        if (expectedText is not null && row.Text != expectedText)
+            throw new JournalInputException("La entrada cambió mientras la editabas. Cerrá el editor y volvé a abrirlo antes de guardar.");
+        if (text.Length == 0 && row.Attachments.Count == 0)
+            throw new JournalInputException("Escribí algo para guardar la entrada.");
+        if (row.Text != text)
+        {
+            row.Text = text;
+            row.ReflectionJson = null;
+            row.SearchText = NormalizeSearch(text);
+            // SQLite triggers retire old vectors/queries and queue the edited originals atomically.
+            await db.SaveChangesAsync(cancellationToken);
+            await db.JournalMemories.Where(m => m.UserId == userId && m.EntryId == entryId).ExecuteDeleteAsync(cancellationToken);
+        }
+        var updated = (await ReadEntriesAsync(db.JournalEntries.Where(e => e.UserId == userId && e.Id == entryId), cancellationToken)).Single();
+        await transaction.CommitAsync(cancellationToken);
+        return updated;
+    }
+
     public async Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection,
         CancellationToken cancellationToken = default, long? expectedMemoryRevision = null)
     {

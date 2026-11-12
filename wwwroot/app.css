@@ -298,7 +298,9 @@ a.mode-pill:hover { background: #e1e7d6; }
 .entry-card, .reflection-card { min-width: 0; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 1rem; box-shadow: 0 2px 7px #4f3d2007; }
 .entry-card { width: min(100%, 640px); justify-self: end; padding: .85rem 1rem 1rem; background: #f5ede0; }
 .entry-meta, .entry-meta > div { display: flex; align-items: center; gap: .48rem; }
-.entry-meta { justify-content: space-between; margin: -.25rem -.28rem .25rem 0; color: var(--olive-dark); font-size: .88rem; }
+.entry-meta { justify-content: space-between; flex-wrap: wrap; margin: -.25rem -.28rem .25rem 0; color: var(--olive-dark); font-size: .88rem; }
+.entry-meta > div:first-child { min-width: 0; flex-wrap: wrap; }
+.entry-management { margin-inline-start: auto; }
 .entry-meta time { color: var(--muted); font-size: .76rem; font-weight: 400; margin-inline-start: .22rem; }
 .entry-meta .icon-button { min-width: 2.25rem; min-height: 2.25rem; }
 .preserved-text { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -353,6 +355,7 @@ a.mode-pill:hover { background: #e1e7d6; }
 .conversation-reply .reflection-overview { color: var(--ink); line-height: 1.75; }
 .conversation-question { margin: 1rem 0 .75rem; padding-left: .85rem; border-left: 2px solid #aab79e; color: var(--olive-dark); font-weight: 500; line-height: 1.65; }
 .reply-date { display: block; margin-top: .65rem; color: var(--muted); font-size: .7rem; }
+.entry-reply { display: grid; gap: .7rem; min-width: 0; }
 .reply-ready { display: grid; min-width: 0; animation: reply-emerge .65s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes reply-emerge {
     from { opacity: 0; transform: translateY(6px); }

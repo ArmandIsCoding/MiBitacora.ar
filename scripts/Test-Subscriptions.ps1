@@ -14,8 +14,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Falló la compilación.' }
     dotnet tests/MiBitacora.Checks/bin/Debug/net10.0/MiBitacora.Checks.dll
     if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones de .NET.' }
-    node --test tests/voice-recorder.test.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones de audio del navegador.' }
+    node --test tests/voice-recorder.test.mjs tests/journal-scroll.test.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones del navegador.' }
 }
 finally {
     Pop-Location

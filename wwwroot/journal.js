@@ -17,12 +17,31 @@ export function reveal(element) {
     element?.scrollIntoView({ block: "nearest" });
 }
 
-export function isNearEnd(element) {
-    if (!element?.isConnected) return false;
-    const composer = element.nextElementSibling;
-    const inset = composer?.classList.contains("composer-wrap") ? composer.getBoundingClientRect().height : 0;
-    const top = element.getBoundingClientRect().top;
-    return top >= 0 && top <= Math.max(0, window.innerHeight - inset) + 80;
+export function centerReply(target) {
+    const host = typeof target === "string" ? document.getElementById(target) : target;
+    if (!host?.isConnected) return;
+    const card = host.querySelector(".reflection-card") ?? host;
+    const modal = document.querySelector("dialog[open]");
+    if (modal && !modal.contains(card)) return;
+    const header = document.querySelector(".journal-top");
+    const composer = document.querySelector(".composer-wrap");
+    const top = header ? header.getBoundingClientRect().height + 16 : 16;
+    const bottom = composer ? composer.getBoundingClientRect().height + 16 : 16;
+    let available = Math.max(120, window.innerHeight - top - bottom);
+    let scrollParent = null;
+    for (let parent = card.parentElement; parent; parent = parent.parentElement) {
+        if (/(auto|scroll)/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight) {
+            available = Math.min(available, parent.clientHeight - 32);
+            scrollParent ??= parent;
+        }
+    }
+    const nested = scrollParent && scrollParent !== document.documentElement && scrollParent !== document.body;
+    const padding = scrollParent ?? document.documentElement;
+    const style = padding ? getComputedStyle(padding) : null;
+    card.style.scrollMarginTop = `${Math.max(0, (nested ? 16 : top) - (parseFloat(style?.scrollPaddingTop) || 0))}px`;
+    card.style.scrollMarginBottom = `${Math.max(0, (nested ? 16 : bottom) - (parseFloat(style?.scrollPaddingBottom) || 0))}px`;
+    card.scrollIntoView({ block: card.getBoundingClientRect().height > available ? "start" : "center",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 
 export function focusSection(heading) {

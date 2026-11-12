@@ -91,6 +91,8 @@ public interface IJournalStore
     Task<IReadOnlyList<JournalEntry>> GetEntriesInRangeAsync(string userId, DateTime fromUtc, DateTime untilUtc, CancellationToken cancellationToken = default);
     Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files, CancellationToken cancellationToken = default,
         Guid? notebookId = null);
+    Task<JournalEntry> UpdateEntryAsync(string userId, Guid entryId, string text, CancellationToken cancellationToken = default,
+        string? expectedText = null);
     Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default,
         long? expectedMemoryRevision = null);
     Task SaveAudioTranscriptAsync(string userId, Guid attachmentId, string transcript, CancellationToken cancellationToken = default);

@@ -40,6 +40,7 @@ public partial class Bitacora : IAsyncDisposable
     private string? _fatalError;
     private Guid? _noteId;
     private Guid? _workingEntry;
+    private Guid? _replyToReveal;
     private string _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
     private Guid? _targetId;
     private bool _ready;
@@ -147,6 +148,12 @@ public partial class Bitacora : IAsyncDisposable
                 _scrollToEnd = false;
                 var module = await GetModuleAsync();
                 await module.InvokeVoidAsync("reveal", Lifetime, _end);
+            }
+            if (_replyToReveal is { } ready)
+            {
+                _replyToReveal = null;
+                if (_section == WorkspaceSection.Conversation && _dialogKind == DialogKind.None)
+                    await (await GetModuleAsync()).InvokeVoidAsync("centerReply", Lifetime, $"reply-{ready:N}");
             }
         }
         catch (JSDisconnectedException)
@@ -304,6 +311,7 @@ public partial class Bitacora : IAsyncDisposable
         }
 
         var newEntry = entryId is null;
+        var completed = false;
         _scrollToEnd = false;
         _busy = true;
         _notice = null;
@@ -337,10 +345,8 @@ public partial class Bitacora : IAsyncDisposable
                 {
                     if (!_disposed) _ = InvokeAsync(() => { _reflectionProgress = message; StateHasChanged(); });
                 }), Lifetime);
-            // Follow a newly submitted message only while the person is still at the end.
-            // Asking about an existing entry must never move them away from that entry.
-            _scrollToEnd = newEntry && _section == WorkspaceSection.Conversation && await IsFollowingConversationAsync();
             ReplaceEntry(updated);
+            completed = true;
             if (_section == WorkspaceSection.Calendar)
             {
                 await RefreshEntryDaysAsync();
@@ -384,18 +390,8 @@ public partial class Bitacora : IAsyncDisposable
             }
             _workingEntry = null;
             _busy = false;
+            if (completed) { _scrollToEnd = false; _replyToReveal = entryId; }
         }
-    }
-
-    private async Task<bool> IsFollowingConversationAsync()
-    {
-        try
-        {
-            var module = await GetModuleAsync();
-            return await module.InvokeAsync<bool>("isNearEnd", Lifetime, _end);
-        }
-        catch (JSException) { return false; }
-        catch (OperationCanceledException) when (_disposed) { return false; }
     }
 
     private Task AddVoiceAttachmentAsync(PendingAttachment file)
@@ -409,6 +405,14 @@ public partial class Bitacora : IAsyncDisposable
     }
 
     private void ReplyUpdated(JournalEntry entry) { ReplaceEntry(entry); _sessionDraft = null; }
+    private void EntryEdited(JournalEntry entry)
+    {
+        ReplaceEntry(entry);
+        _entryErrors.Remove(entry.Id);
+        _contextRevision++;
+        _sessionDraft = null;
+        _notice = "Entrada actualizada. Podés pedir una nueva respuesta.";
+    }
 
     private void ReplaceEntry(JournalEntry entry)
     {

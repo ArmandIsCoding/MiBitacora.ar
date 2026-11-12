@@ -144,6 +144,7 @@
                     var local = TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZone);
                     <article class="calendar-entry" aria-label="@($"Entrada de las {local:HH:mm}")" @key="entry.Id">
                         <header class="calendar-entry-meta">
+                            <EntryEdit Entry="entry" Updated="UpdateReplyAsync" />
                             <Icon Name="clock" Size="17" />
                             <time datetime="@utc.ToString("O", CultureInfo.InvariantCulture)">@local.ToString("HH:mm", Spanish)</time>
                             <a href="@(entry.NotebookId is { } notebookId ? $"/bitacora?diario={notebookId:D}" : "/bitacora")">@entry.NotebookName</a>

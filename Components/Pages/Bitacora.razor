@@ -133,7 +133,7 @@
                                 <div class="journal-turn" @key="entry.Id">
                                     <article class="entry-card" aria-label="Tu entrada">
                                         <header class="entry-meta">
-                                            <div><Icon Name="pen" Size="17" /> <strong>Vos</strong>
+                                            <div><EntryEdit Entry="entry" Updated="EntryEdited" Busy="_busy" /> <strong>Vos</strong>
                                                 @if (entry.IsDateOnly)
                                                 {
                                                     <span title="La exportación original conserva la fecha, pero no la hora">Importado de Diario</span>
@@ -167,7 +167,7 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <ReplyPending Message="@_reflectionProgress" />
+                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.UsesExternalProvider)" />
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {

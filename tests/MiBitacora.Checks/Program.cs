@@ -120,6 +120,7 @@ await OpenAiChecks.RunAsync(Check, context, args.Contains("--live-openai"));
 await TopicChecks.RunAsync(Check, args.Contains("--live-topics"));
 await MemoryReportChecks.RunAsync(Check);
 await VectorMemoryChecks.RunAsync(Check, args.Contains("--live-embeddings"));
+await EntryEditingChecks.RunAsync(Check);
 await NotebookChecks.RunAsync(Check);
 await AttachmentViewerChecks.RunAsync(Check);
 await ConversationDepthChecks.RunAsync(Check);
