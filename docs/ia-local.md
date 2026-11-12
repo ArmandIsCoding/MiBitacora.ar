@@ -4,7 +4,7 @@ Esta guía aplica a las cuentas gratuitas. Las cuentas con un período pago vige
 
 El backend Blazor (.NET 10) llama a `http://127.0.0.1:11434/api/chat`. Los navegadores se conectan a Mi Bitácora: los usuarios no necesitan instalar Ollama ni pueden elegir el servidor o el modelo desde el cliente.
 
-La configuración nueva fija `gemma4:12b`. Se conserva `qwen3-vl:4b-instruct` como alternativa de compatibilidad para instalaciones anteriores, sin audio local. Las mediciones al final corresponden a ese modelo anterior: esta entrega no pudo verificar la inferencia real con Gemma porque el entorno de ejecución bloqueó el puerto de Ollama.
+La configuración fija `gemma4:12b`. Se conserva `qwen3-vl:4b-instruct` como alternativa de compatibilidad para instalaciones anteriores, sin audio local. Las mediciones históricas al final corresponden al modelo anterior; la [evaluación de memoria vectorial](memoria-vectorial.md) incluye una devolución completa con Gemma 4 y EmbeddingGemma reales, con datos ficticios.
 
 ## Configuración del piloto
 
@@ -43,13 +43,15 @@ Variables persistidas para el usuario de Windows:
 | `OLLAMA_NO_CLOUD` | `1` |
 | `OLLAMA_CONTEXT_LENGTH` | `8192` |
 | `OLLAMA_NUM_PARALLEL` | `1` |
-| `OLLAMA_MAX_LOADED_MODELS` | `1` |
+| `OLLAMA_MAX_LOADED_MODELS` | `2` |
 | `OLLAMA_MAX_QUEUE` | `8` |
 | `OLLAMA_VULKAN` | `1` |
 | `OLLAMA_IGPU_ENABLE` | `1` |
 | `OLLAMA_DEBUG_LOG_REQUESTS` | `false` |
 
-Ollama debe ejecutarse con esa cuenta de Windows. En un servicio de Windows independiente hay que configurar el entorno de su cuenta de servicio. Este piloto usa la app de Ollama de la sesión del usuario; no instala un servicio del sistema. Revisá que Ollama arranque al iniciar sesión. Si el equipo se suspende o el proceso se cierra, las devoluciones quedan temporalmente fuera de servicio.
+Ollama debe ejecutarse con esa cuenta de Windows. En un servicio de Windows independiente hay que configurar el entorno de su cuenta de servicio. El script inicia `ollama serve` oculto y no instala un servicio del sistema. La app gráfica puede aplicar sus propias preferencias de red y carga; el comando evita esas sustituciones. `-ModelsPath` permite conservar una carpeta de modelos personalizada y persistirla en `OLLAMA_MODELS`. Si el equipo se reinicia o el proceso se cierra, volvé a iniciar el servidor configurado; si se suspende, las devoluciones quedan temporalmente fuera de servicio.
+
+La [memoria vectorial](memoria-vectorial.md) añade `embeddinggemma` en CPU y permite mantenerlo cargado junto a Gemma 4. La cola persistente indexa sólo textos nuevos o modificados y recupera antecedentes sin llamadas generativas. Un clic de conversación hace una sola generación; los informes completos conservan varias llamadas. `--live-embeddings` evalúa el modelo de embeddings con textos ficticios.
 
 ## Privacidad y acceso compartido
 

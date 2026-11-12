@@ -75,6 +75,7 @@ builder.Services.AddOptions<OllamaOptions>()
 builder.Services.AddSingleton<LocalInferenceGate>();
 builder.Services.AddKeyedSingleton<LocalInferenceGate>("OpenAI");
 builder.AddBilling();
+builder.AddVectorMemory();
 builder.Services.AddOptions<JournalAiOptions>().Bind(builder.Configuration.GetSection("AI"))
     .Validate(options => options.Provider is "Ollama" or "OpenAI", "AI:Provider debe ser Ollama u OpenAI.")
     .ValidateOnStart();

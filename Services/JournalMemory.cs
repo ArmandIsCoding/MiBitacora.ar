@@ -20,7 +20,8 @@ public sealed class JournalMemoryJobs
 }
 
 public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext> factory,
-    IJournalMemoryAnalyzer analyzer, JournalMemoryJobs jobs, AccountAiRouter? routing = null)
+    IJournalMemoryAnalyzer analyzer, JournalMemoryJobs jobs, AccountAiRouter? routing = null,
+    VectorMemoryService? vectors = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -80,6 +81,7 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
         IProgress<string>? progress = null, CancellationToken ct = default)
     {
         using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
+        if (vectors is not null) return await vectors.EnrichAsync(userId, context, analyzer.UsesExternalProvider, progress, ct);
         JournalCorpus corpus;
         await using (var db = await factory.CreateDbContextAsync(ct))
             corpus = await JournalCorpusReader.ReadAsync(db, userId, context.Current.CreatedUtc, ct);

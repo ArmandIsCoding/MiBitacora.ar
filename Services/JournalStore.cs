@@ -185,9 +185,13 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     }
 
     public async Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, long? expectedMemoryRevision = null)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (expectedMemoryRevision.HasValue && !await db.JournalVectorStates.AnyAsync(
+            row => row.UserId == userId && row.Revision == expectedMemoryRevision.Value, cancellationToken))
+            throw new JournalInputException("Tu cuaderno cambió mientras preparábamos la respuesta. Volvé a pedirla.");
         var entry = await db.JournalEntries.SingleOrDefaultAsync(row => row.Id == entryId && row.UserId == userId,
             cancellationToken);
         if (entry is null)
@@ -199,6 +203,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         var themes = string.Join(" ", reflection.Themes.Select(theme => theme.Title));
         entry.SearchText = NormalizeSearch($"{entry.Text}\n{reflection.Title}\n{reflection.Overview}\n{themes}");
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task SetEntryForSessionAsync(string userId, Guid entryId, bool selected,
@@ -297,6 +302,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var revision = await db.JournalVectorStates.Where(s => s.UserId == userId)
+            .Select(s => (long?)s.Revision).SingleOrDefaultAsync(cancellationToken);
         var owned = db.JournalEntries.Where(row => row.UserId == userId);
         var current = (await ReadEntriesAsync(owned.Where(row => row.Id == entryId), cancellationToken)).SingleOrDefault()
             ?? throw EntryUnavailable();
@@ -325,7 +332,9 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
 
         var boundedHistory = history.Select(entry => entry with
         { Attachments = entry.Attachments.Where(JournalAudio.HasTranscript).ToArray() }).ToArray();
-        return new JournalContext(profile, current, boundedHistory, notes, attachments, media);
+        if (revision.HasValue && !await db.JournalVectorStates.AnyAsync(s => s.UserId == userId && s.Revision == revision.Value, cancellationToken))
+            throw new JournalInputException("Tu cuaderno cambió mientras preparábamos el contexto. Volvé a pedir la respuesta.");
+        return new JournalContext(profile, current, boundedHistory, notes, attachments, media, MemoryRevision: revision);
     }
 
     public async Task<AttachmentContent?> GetAttachmentAsync(string userId, Guid attachmentId,

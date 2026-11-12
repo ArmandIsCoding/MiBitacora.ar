@@ -1,4 +1,7 @@
-param([switch]$DownloadModel)
+param(
+    [switch]$DownloadModel,
+    [string]$ModelsPath = [Environment]::GetEnvironmentVariable('OLLAMA_MODELS', 'User')
+)
 
 $ErrorActionPreference = 'Stop'
 $ollamaExe = (Get-Command ollama -ErrorAction Stop).Source
@@ -8,11 +11,16 @@ $settings = [ordered]@{
     OLLAMA_NO_CLOUD = '1'
     OLLAMA_CONTEXT_LENGTH = '8192'
     OLLAMA_NUM_PARALLEL = '1'
-    OLLAMA_MAX_LOADED_MODELS = '1'
+    OLLAMA_MAX_LOADED_MODELS = '2'
     OLLAMA_MAX_QUEUE = '8'
     OLLAMA_VULKAN = '1'
     OLLAMA_IGPU_ENABLE = '1'
     OLLAMA_DEBUG_LOG_REQUESTS = 'false'
+}
+if (-not [string]::IsNullOrWhiteSpace($ModelsPath)) {
+    $modelDirectory = [IO.Path]::GetFullPath($ModelsPath)
+    if (-not (Test-Path -LiteralPath $modelDirectory -PathType Container)) { throw 'No existe la carpeta indicada para los modelos.' }
+    $settings.OLLAMA_MODELS = $modelDirectory
 }
 
 # Refuse to interrupt another application's active model.
@@ -42,13 +50,11 @@ foreach ($processName in @('ollama app', 'ollama')) {
         Where-Object { $_.SessionId -eq $ownerSession -and $_.Path -in @($appExe, $ollamaExe) } |
         Stop-Process
 }
-if (Test-Path -LiteralPath $appExe) {
-    Start-Process -FilePath $appExe -WindowStyle Hidden
-} else {
-    Start-Process -FilePath $ollamaExe -ArgumentList 'serve' -WindowStyle Hidden `
-        -RedirectStandardOutput (Join-Path $stateDir 'server.out.log') `
-        -RedirectStandardError (Join-Path $stateDir 'server.err.log')
-}
+# The desktop app can override OLLAMA_HOST and model limits with its own preferences.
+# Run the supported server command directly so the configuration above is authoritative.
+Start-Process -FilePath $ollamaExe -ArgumentList 'serve' -WindowStyle Hidden `
+    -RedirectStandardOutput (Join-Path $stateDir 'server.out.log') `
+    -RedirectStandardError (Join-Path $stateDir 'server.err.log')
 
 $ready = $false
 for ($attempt = 0; $attempt -lt 30; $attempt++) {
@@ -69,4 +75,6 @@ Write-Output "Ollama $($version.version), configurado en http://127.0.0.1:11434 
 if ($DownloadModel) {
     & $ollamaExe pull gemma4:12b
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo descargar gemma4:12b.' }
+    & $ollamaExe pull embeddinggemma
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo descargar embeddinggemma.' }
 }

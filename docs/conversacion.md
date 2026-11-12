@@ -1,6 +1,6 @@
 # Conversación y entradas originales
 
-**Enviar** guarda la entrada y pide una respuesta a la IA configurada. Si falla, el texto queda guardado y aparece **Reintentar respuesta**; no se genera un turno ficticio ni se reintenta la API automáticamente. **Solo guardar** conserva la opción de escribir sin enviar contenido al proveedor. Abrir el cuaderno o una entrada no consume IA.
+**Enviar** guarda la entrada y pide una respuesta al proveedor del plan activo. Si falla, el texto queda guardado y aparece **Reintentar respuesta**; no se genera un turno ficticio ni se reintenta la API automáticamente. **Solo guardar** no pide una devolución ni transcribe audio; los textos disponibles se indexan localmente en segundo plano. Abrir el cuaderno o una entrada no inicia una generación.
 
 La conversación se organiza en [diarios creados por la persona](diarios.md). Cada diario tiene sus propios turnos recientes; la memoria relevante y el informe para terapia siguen abarcando el cuaderno completo. Las entradas previas quedan en Mi diario y pueden moverse con sus respuestas y adjuntos.
 
@@ -8,7 +8,7 @@ Sólo el editor y sus controles permanecen pegados al borde inferior al recorrer
 
 La respuesta habla de «vos» como interlocutora, retoma un detalle concreto y aporta una distinción o lectura tentativa. Hay como máximo una pregunta visible para continuar. Las citas y apuntes complementarios quedan plegados. La síntesis por temas conserva la primera persona para leerla como propia en terapia. Ambas son propuestas de una IA, no diagnósticos ni tratamiento. El aviso que recomienda llevar el chat a terapia aparece junto al encabezado y al compositor.
 
-`JournalAiVoice.cs` contiene la voz de conversación. `JournalAiReflection.cs` define el contrato y valida citas y fuentes. La [memoria del cuaderno](memoria-e-informe.md) combina turnos recientes con una búsqueda por significado en todos los textos anteriores. Las respuestas previas se identifican como propuestas de la IA, no como vivencias confirmadas. **Antecedentes consultados** permite abrir los originales recuperados.
+`JournalAiVoice.cs` contiene la voz de conversación. `JournalAiReflection.cs` define el contrato y valida citas y fuentes. La [memoria vectorial local](memoria-vectorial.md) combina turnos recientes con búsqueda por significado y palabras en los originales anteriores. Se reutilizan los embeddings y se hace una sola generación por devolución, además de transcribir audios pendientes de la entrada elegida. Las respuestas previas se identifican como propuestas de la IA, no como vivencias confirmadas. **Antecedentes consultados** permite abrir los originales recuperados. Si faltó parte de la memoria semántica, el aviso queda guardado junto a la respuesta.
 
 La [revisión de profundidad y calidez](conversacion-profunda.md) desarrolla el enfoque de la conversación: una lectura específica, con apoyo en el texto y antecedentes pertinentes, que pueda discutirse o descartarse. El cuerpo admite hasta 4200 caracteres; los intercambios sencillos siguen siendo breves. Las respuestas ya guardadas se conservan. El [visor de adjuntos](visor-de-adjuntos.md) permite revisar fotos, reproducir medios y abrir documentos desde la conversación, el calendario y la entrada completa, sin iniciar una descarga por defecto.
 

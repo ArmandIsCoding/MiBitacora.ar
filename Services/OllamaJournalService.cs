@@ -30,6 +30,7 @@ public sealed class LocalInferenceGate : IDisposable
 {
     internal SemaphoreSlim Semaphore { get; } = new(1, 1);
     private int _requests;
+    internal bool IsBusy => Volatile.Read(ref _requests) > 0;
 
     internal bool TryJoin()
     {
@@ -121,7 +122,9 @@ public sealed class OllamaModelClient(
                 string.IsNullOrWhiteSpace(content.GetString()))
                 throw new JournalReflectionException(InvalidReply);
 
-            logger.LogInformation("La IA local completó una devolución.");
+            logger.LogInformation("Generación local completada: entrada {InputTokens} tokens, salida {OutputTokens} tokens; carga {LoadMs} ms, lectura {PromptMs} ms, generación {GenerationMs} ms.",
+                Metric(root, "prompt_eval_count"), Metric(root, "eval_count"), Metric(root, "load_duration") / 1_000_000,
+                Metric(root, "prompt_eval_duration") / 1_000_000, Metric(root, "eval_duration") / 1_000_000);
             return content.GetString()!;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -142,4 +145,7 @@ public sealed class OllamaModelClient(
             gate.Leave();
         }
     }
+
+    private static long Metric(JsonElement root, string name) => root.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) ? number : 0;
 }

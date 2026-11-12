@@ -41,7 +41,9 @@ public sealed record JournalContext(
     IReadOnlyList<JournalAttachment> Attachments,
     IReadOnlyList<JournalMediaFile> Media,
     IReadOnlyList<TopicSource>? MemorySources = null,
-    int IndexedSourceCount = 0);
+    int IndexedSourceCount = 0,
+    long? MemoryRevision = null,
+    bool LimitedMemory = false);
 
 public sealed record ReflectionTheme(string Title, string Detail, string? Quote, string? Source);
 
@@ -55,7 +57,8 @@ public sealed record JournalReflection(
     bool IsDemo,
     int ConversationVersion = 0,
     DateTime? GeneratedUtc = null,
-    IReadOnlyList<TopicEvidence>? ContextSources = null)
+    IReadOnlyList<TopicEvidence>? ContextSources = null,
+    bool LimitedMemory = false)
 {
     public const int CurrentConversationVersion = 1;
 }
@@ -88,7 +91,8 @@ public interface IJournalStore
     Task<IReadOnlyList<JournalEntry>> GetEntriesInRangeAsync(string userId, DateTime fromUtc, DateTime untilUtc, CancellationToken cancellationToken = default);
     Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files, CancellationToken cancellationToken = default,
         Guid? notebookId = null);
-    Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default);
+    Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default,
+        long? expectedMemoryRevision = null);
     Task SaveAudioTranscriptAsync(string userId, Guid attachmentId, string transcript, CancellationToken cancellationToken = default);
     Task SetEntryForSessionAsync(string userId, Guid entryId, bool selected, CancellationToken cancellationToken = default);
     Task DeleteEntryAsync(string userId, Guid entryId, CancellationToken cancellationToken = default);

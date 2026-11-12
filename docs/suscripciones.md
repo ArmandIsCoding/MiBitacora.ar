@@ -4,7 +4,7 @@ Implementación preparada en una rama separada, sin despliegue, credenciales de 
 
 ## Comportamiento
 
-| Cuenta | Nuevas devoluciones, memoria, informes y transcripción |
+| Cuenta | Nuevas devoluciones, informes y transcripción |
 | --- | --- |
 | Gratuita, sin pago o período vencido | Ollama local, `gemma4:12b` |
 | Con una cuota aprobada que cubre el momento actual | OpenAI, con el modelo y las credenciales ya configurados |
@@ -15,7 +15,7 @@ Implementación preparada en una rama separada, sin despliegue, credenciales de 
 
 Todas las funciones del cuaderno siguen disponibles para cuentas gratuitas. El aviso del plan gratuito y **Mi cuenta → Mi plan** explican las diferencias. No se promete exactitud de ninguna IA. Las devoluciones ya guardadas siguen disponibles al cambiar de plan.
 
-Cada operación obtiene la cuenta desde la sesión autenticada y consulta el acceso en SQLite. El cliente no decide si una cuenta es paga. Antes de cada solicitud a OpenAI se vuelve a verificar la vigencia; si cambió durante un informe, la operación se interrumpe conservando el informe previo. No hay cambio silencioso entre proveedores. Las colas de Ollama y OpenAI son independientes. El índice de memoria diferencia el proveedor para reconstruir los resúmenes al cambiar de plan.
+Cada operación obtiene la cuenta desde la sesión autenticada y consulta el acceso en SQLite. El cliente no decide si una cuenta es paga. Antes de cada solicitud a OpenAI se vuelve a verificar la vigencia; si cambió durante un informe, la operación se interrumpe conservando el informe previo. No hay cambio silencioso entre proveedores. Las colas de Ollama y OpenAI son independientes. La [memoria de conversación usa embeddings locales](memoria-vectorial.md) en ambos planes y no se reconstruye al cambiar de plan. El informe completo conserva síntesis generativas diferenciadas por proveedor.
 
 `AI:Provider` se conserva por compatibilidad con herramientas anteriores; la web elige por plan. Configurar `AI:Provider=OpenAI` no convierte cuentas gratuitas en pagas.
 

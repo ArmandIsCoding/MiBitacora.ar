@@ -2,7 +2,7 @@
 
 En **Conversación**, el micrófono abre **Grabar** y **Subir audio**. Al grabar, se puede detener, escuchar el borrador, descartarlo o adjuntarlo con **Usar audio**. Nada se envía a OpenAI hasta tocar **Enviar**. El navegador pide permiso de micrófono y requiere HTTPS (o localhost); el selector de archivos sigue disponible si no hay micrófono o permiso.
 
-**Enviar** guarda el original, transcribe los audios pendientes de esa entrada, actualiza la memoria y genera la respuesta. **Solo guardar** conserva los archivos sin transcribir ni analizar. Luego se puede tocar **Pedir una respuesta**. Los límites siguen siendo 8 MiB por archivo y 16 MiB por entrada, sin cupo de cantidad.
+**Enviar** guarda el original, transcribe los audios pendientes de esa entrada, busca antecedentes y genera una respuesta. **Solo guardar** conserva los archivos sin transcribir ni generar devoluciones; el texto disponible se indexa localmente en segundo plano. Luego se puede tocar **Pedir una respuesta**. La [memoria vectorial](memoria-vectorial.md) incorpora las transcripciones guardadas sin volver a procesar el audio. Los límites siguen siendo 8 MiB por archivo y 16 MiB por entrada, sin cupo de cantidad.
 
 ## Contexto y privacidad
 
