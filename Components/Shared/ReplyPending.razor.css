@@ -1,0 +1,43 @@
+.reply-pending {
+    width: min(100%, 700px);
+    min-width: 0;
+    justify-self: start;
+    padding: clamp(1rem, 3vw, 1.55rem);
+    border: 1px solid var(--line);
+    border-radius: .35rem 1.1rem 1.1rem;
+    background: var(--paper);
+    box-shadow: 0 2px 7px #4f3d2007;
+    overflow: hidden;
+    overflow-anchor: none;
+    animation: pending-emerge .65s cubic-bezier(.2, .7, .2, 1) both;
+}
+.pending-heading { display: flex; align-items: center; gap: .55rem; margin-bottom: .8rem; }
+.pending-message { margin: 0; min-height: 3.1em; max-width: 46ch; color: var(--olive-dark); font-size: .9rem; line-height: 1.65; overflow-wrap: anywhere; }
+.pending-lines { display: grid; gap: .65rem; margin-top: .75rem; padding-block: .1rem .3rem; }
+.pending-lines span { position: relative; height: .55rem; width: 94%; border-radius: 1rem; overflow: hidden; background: #e7e9df; }
+.pending-lines span:nth-child(2) { width: 83%; }
+.pending-lines span:nth-child(3) { width: 61%; }
+.pending-lines span::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 10%, #fffdf7b3 50%, transparent 90%);
+    transform: translateX(-100%);
+    animation: pending-light 5.5s ease-in-out infinite;
+}
+.pending-lines span:nth-child(2)::after { animation-delay: .3s; }
+.pending-lines span:nth-child(3)::after { animation-delay: .6s; }
+@keyframes pending-emerge {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pending-light {
+    0%, 12% { transform: translateX(-100%); opacity: 0; }
+    25% { opacity: 1; }
+    65%, 100% { transform: translateX(100%); opacity: 0; }
+}
+@keyframes pending-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .reply-pending { animation: pending-fade .35s ease-out both !important; }
+    .pending-lines span::after { animation: none; }
+}

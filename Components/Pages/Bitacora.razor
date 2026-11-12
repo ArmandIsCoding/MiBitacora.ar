@@ -156,7 +156,7 @@
                                         {
                                             <AttachmentGallery Files="entry.Attachments" />
                                         }
-                                        @if (entry.Reflection is null && _workingEntry != entry.Id)
+                                        @if (entry.Reflection is null)
                                         {
                                             <div class="entry-actions">
                                                 <button type="button" class="quiet-action" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="17" /> @(_entryErrors.ContainsKey(entry.Id) ? "Reintentar respuesta" : "Pedir una respuesta")</button>
@@ -167,13 +167,13 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <div class="organizing" role="status"><span class="spinner"></span> @_reflectionProgress</div>
+                                        <ReplyPending Message="@_reflectionProgress" />
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {
                                         <p class="entry-error" role="alert"><Icon Name="info" Size="17" /> @entryError</p>
                                     }
-                                    @if (entry.Reflection is { } reflection)
+                                    @if (entry.Reflection is { } reflection && _workingEntry != entry.Id)
                                     {
                                         <EntryReply Entry="entry" Updated="ReplyUpdated" CanRegenerate="IsAiEnabled"
                                                         Busy="_busy"

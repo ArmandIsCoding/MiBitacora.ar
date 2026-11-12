@@ -4,11 +4,13 @@
 
 @if (_current.Reflection is { } reflection)
 {
+    <div class="reply-ready" @key="reflection.GeneratedUtc">
     <ReflectionCard Reflection="reflection" Selected="_current.ForSession" Busy="@(Busy || _generating)"
                     SaveAsNote="SaveAsNote" ToggleSession="ToggleSession" Regenerating="_generating"
                     Regenerate="@(CanRegenerate ? EventCallback.Factory.Create(this, RegenerateAsync) : default)" />
+    </div>
 }
-@if (_generating) { <p class="reply-progress" role="status"><span class="spinner"></span> @_progress</p> }
+@if (_generating) { <ReplyPending Message="@_progress" /> }
 @if (_error is not null) { <p class="entry-error" role="alert">@_error La respuesta anterior se conserva.</p> }
 
 @code {

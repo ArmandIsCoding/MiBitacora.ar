@@ -17,6 +17,14 @@ export function reveal(element) {
     element?.scrollIntoView({ block: "nearest" });
 }
 
+export function isNearEnd(element) {
+    if (!element?.isConnected) return false;
+    const composer = element.nextElementSibling;
+    const inset = composer?.classList.contains("composer-wrap") ? composer.getBoundingClientRect().height : 0;
+    const top = element.getBoundingClientRect().top;
+    return top >= 0 && top <= Math.max(0, window.innerHeight - inset) + 80;
+}
+
 export function focusSection(heading) {
     window.scrollTo({ top: 0 });
     heading?.focus({ preventScroll: true });

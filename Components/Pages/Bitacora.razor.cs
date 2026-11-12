@@ -303,6 +303,8 @@ public partial class Bitacora : IAsyncDisposable
             return;
         }
 
+        var newEntry = entryId is null;
+        _scrollToEnd = false;
         _busy = true;
         _notice = null;
         _error = null;
@@ -319,7 +321,7 @@ public partial class Bitacora : IAsyncDisposable
                 await RefreshEntryDaysAsync();
             }
 
-            _scrollToEnd = true;
+            _scrollToEnd = newEntry;
             if (!organize)
             {
                 _notice = "Entrada guardada.";
@@ -335,6 +337,9 @@ public partial class Bitacora : IAsyncDisposable
                 {
                     if (!_disposed) _ = InvokeAsync(() => { _reflectionProgress = message; StateHasChanged(); });
                 }), Lifetime);
+            // Follow a newly submitted message only while the person is still at the end.
+            // Asking about an existing entry must never move them away from that entry.
+            _scrollToEnd = newEntry && _section == WorkspaceSection.Conversation && await IsFollowingConversationAsync();
             ReplaceEntry(updated);
             if (_section == WorkspaceSection.Calendar)
             {
@@ -342,7 +347,6 @@ public partial class Bitacora : IAsyncDisposable
             }
 
             _sessionDraft = null;
-            _scrollToEnd = true;
         }
         catch (JournalInputException ex)
         {
@@ -381,6 +385,17 @@ public partial class Bitacora : IAsyncDisposable
             _workingEntry = null;
             _busy = false;
         }
+    }
+
+    private async Task<bool> IsFollowingConversationAsync()
+    {
+        try
+        {
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<bool>("isNearEnd", Lifetime, _end);
+        }
+        catch (JSException) { return false; }
+        catch (OperationCanceledException) when (_disposed) { return false; }
     }
 
     private Task AddVoiceAttachmentAsync(PendingAttachment file)

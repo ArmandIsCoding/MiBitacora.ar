@@ -1,0 +1,14 @@
+<section class="reply-pending" aria-label="Respuesta en preparación">
+    <div class="pending-heading" aria-hidden="true">
+        <span class="reflection-mark"><Icon Name="spark" Size="19" /></span>
+        <span class="eyebrow">MI BITÁCORA · IA</span>
+    </div>
+    <p class="pending-message" role="status" aria-atomic="true">@Message</p>
+    <div class="pending-lines" aria-hidden="true">
+        <span></span><span></span><span></span>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Message { get; set; } = "Mi Bitácora está preparando una respuesta…";
+}
