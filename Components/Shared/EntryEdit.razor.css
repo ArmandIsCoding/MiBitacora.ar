@@ -1,0 +1,6 @@
+.entry-edit { flex: none; color: var(--olive-dark); }
+.entry-edit-error { color: var(--danger); font-size: .8rem; }
+.entry-edit-dialog { width: min(94vw, 44rem); text-align: start; }
+.entry-edit-dialog textarea { min-height: 10rem; max-height: 45dvh; padding: .8rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--paper); font-size: 1rem; line-height: 1.6; }
+.entry-edit-dialog .dialog-actions { flex-wrap: wrap; gap: .6rem; }
+.entry-edit-dialog .dialog-actions small { margin-inline-end: auto; }

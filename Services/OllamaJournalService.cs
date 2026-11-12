@@ -9,9 +9,9 @@ public sealed class OllamaOptions
 {
     public bool Enabled { get; set; } = true;
     public string BaseUrl { get; set; } = "http://127.0.0.1:11434";
-    public string Model { get; set; } = "qwen3-vl:4b-instruct";
+    public string Model { get; set; } = "gemma4:12b";
     public int ContextLength { get; set; } = 8192;
-    public int MaxOutputTokens { get; set; } = 1536;
+    public int MaxOutputTokens { get; set; } = 2300;
     public int TimeoutSeconds { get; set; } = 300;
 
     public bool IsValid() =>
@@ -19,7 +19,7 @@ public sealed class OllamaOptions
         uri.Scheme == "http" &&
         uri.Host is "127.0.0.1" or "[::1]" &&
         uri.AbsolutePath == "/" && uri.Query.Length == 0 && uri.Fragment.Length == 0 && uri.UserInfo.Length == 0 &&
-        Model == "qwen3-vl:4b-instruct" &&
+        (Model is "gemma4:12b" or "qwen3-vl:4b-instruct") &&
         ContextLength is >= 8192 and <= 16384 &&
         MaxOutputTokens is >= 512 and <= 2300 &&
         TimeoutSeconds is >= 30 and <= 600;
@@ -30,6 +30,7 @@ public sealed class LocalInferenceGate : IDisposable
 {
     internal SemaphoreSlim Semaphore { get; } = new(1, 1);
     private int _requests;
+    internal bool IsBusy => Volatile.Read(ref _requests) > 0;
 
     internal bool TryJoin()
     {
@@ -121,7 +122,9 @@ public sealed class OllamaModelClient(
                 string.IsNullOrWhiteSpace(content.GetString()))
                 throw new JournalReflectionException(InvalidReply);
 
-            logger.LogInformation("La IA local completó una devolución.");
+            logger.LogInformation("Generación local completada: entrada {InputTokens} tokens, salida {OutputTokens} tokens; carga {LoadMs} ms, lectura {PromptMs} ms, generación {GenerationMs} ms.",
+                Metric(root, "prompt_eval_count"), Metric(root, "eval_count"), Metric(root, "load_duration") / 1_000_000,
+                Metric(root, "prompt_eval_duration") / 1_000_000, Metric(root, "eval_duration") / 1_000_000);
             return content.GetString()!;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -142,4 +145,7 @@ public sealed class OllamaModelClient(
             gate.Leave();
         }
     }
+
+    private static long Metric(JsonElement root, string name) => root.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) ? number : 0;
 }

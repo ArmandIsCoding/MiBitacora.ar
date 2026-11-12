@@ -16,7 +16,7 @@ public sealed class JournalTopicJobs
 }
 
 public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> factory,
-    IJournalTopicAnalyzer analyzer, JournalTopicJobs jobs)
+    IJournalTopicAnalyzer analyzer, JournalTopicJobs jobs, AccountAiRouter? routing = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const int SourceLength = 2400;
@@ -39,6 +39,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
     public async Task<JournalTopicSnapshot> GenerateAsync(string userId, IProgress<string>? progress = null,
         CancellationToken ct = default)
     {
+        using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
         if (!analyzer.IsConfigured) throw new JournalInputException("Activá la IA para generar la devolución por temas.");
         if (!jobs.Start(userId)) throw new JournalInputException("Ya se está generando una devolución para tu cuenta. Esperá a que termine.");
         try

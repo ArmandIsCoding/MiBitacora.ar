@@ -1,10 +1,10 @@
-# Ollama y Qwen3-VL 4B en Mi Bitácora
+# Ollama y Gemma 4 12B en Mi Bitácora
 
-Esta guía aplica a `AI:Provider=Ollama`. También se puede configurar [OpenAI](openai.md) explícitamente; la aplicación muestra el proveedor activo y sus condiciones de privacidad.
+Esta guía aplica a las cuentas gratuitas. Las cuentas con un período pago vigente usan [OpenAI](openai.md); la aplicación muestra el plan activo y sus condiciones de privacidad. Ver [suscripciones](suscripciones.md) para la selección por cuenta y el simulador.
 
 El backend Blazor (.NET 10) llama a `http://127.0.0.1:11434/api/chat`. Los navegadores se conectan a Mi Bitácora: los usuarios no necesitan instalar Ollama ni pueden elegir el servidor o el modelo desde el cliente.
 
-Se fija la variante **Instruct** de Qwen3-VL 4B. Al verificar este despliegue, la etiqueta genérica `qwen3-vl:4b` resolvía a Thinking y agotaba el presupuesto de salida antes de entregar una devolución; `think=false` no evitó ese comportamiento. La variante explícita hace reproducible la elección.
+La configuración fija `gemma4:12b`. Se conserva `qwen3-vl:4b-instruct` como alternativa de compatibilidad para instalaciones anteriores, sin audio local. Las mediciones históricas al final corresponden al modelo anterior; la [evaluación de memoria vectorial](memoria-vectorial.md) incluye una devolución completa con Gemma 4 y EmbeddingGemma reales, con datos ficticios.
 
 ## Configuración del piloto
 
@@ -12,16 +12,16 @@ Se fija la variante **Instruct** de Qwen3-VL 4B. Al verificar este despliegue, l
 "Ollama": {
   "Enabled": true,
   "BaseUrl": "http://127.0.0.1:11434",
-  "Model": "qwen3-vl:4b-instruct",
+  "Model": "gemma4:12b",
   "ContextLength": 8192,
-  "MaxOutputTokens": 1536,
+  "MaxOutputTokens": 2300,
   "TimeoutSeconds": 300
 }
 ```
 
 `Ollama__Enabled=false` activa la muestra determinista identificada como tal. Con la IA activada, los errores se muestran para reintentar: no se sustituyen silenciosamente por muestras ni se envía contenido a la nube. Un semáforo compartido permite una generación y hasta ocho solicitudes en espera por proceso de aplicación. El tiempo máximo incluye la espera; la cancelación del componente libera su lugar en la cola. Si se despliegan varios procesos, este límite debe coordinarse entre ellos.
 
-Se envían fragmentos acotados de la entrada, antecedentes, notas, perfil y texto extraído. La selección textual tiene un presupuesto de 6500 caracteres, además de etiquetas e instrucciones; no incluye el cuaderno completo. Las imágenes JPEG, PNG y WebP se envían como base64: hasta dos y 12 MiB combinados por devolución. Para HEIC/HEIF se utiliza una copia JPG generada localmente, con el mismo identificador de adjunto y conservando el original. La copia se limita a 2048 píxeles de lado mayor y no incluye EXIF/GPS. Más detalles en [conversión de fotos](heic-jpg.md). El piloto no convierte PDF a imágenes ni analiza audio, videos, GIF o AVIF.
+Se envían fragmentos acotados de la entrada, antecedentes, notas, perfil y texto extraído. La selección textual tiene un presupuesto de 6500 caracteres, además de etiquetas e instrucciones; no incluye el cuaderno completo. Las imágenes JPEG, PNG y WebP se envían como base64: hasta dos y 12 MiB combinados por devolución. Para HEIC/HEIF se utiliza una copia JPG generada localmente, con el mismo identificador de adjunto y conservando el original. La copia se limita a 2048 píxeles de lado mayor y no incluye EXIF/GPS. Más detalles en [conversión de fotos](heic-jpg.md). Gemma puede transcribir WAV mediante `/v1/audio/transcriptions`; el grabador convierte el audio a WAV en el navegador. El piloto no convierte PDF a imágenes ni analiza videos, GIF o AVIF.
 
 El modelo devuelve JSON con un esquema explícito y `think=false`, para reservar el presupuesto de salida a la devolución. Las citas se contrastan con las fuentes enviadas y las fuentes inexistentes se descartan. Se rechazan respuestas incompletas o cortadas por el límite de generación. Esta validación no garantiza que toda interpretación del modelo sea correcta: la interfaz permite revisar las devoluciones.
 
@@ -43,13 +43,15 @@ Variables persistidas para el usuario de Windows:
 | `OLLAMA_NO_CLOUD` | `1` |
 | `OLLAMA_CONTEXT_LENGTH` | `8192` |
 | `OLLAMA_NUM_PARALLEL` | `1` |
-| `OLLAMA_MAX_LOADED_MODELS` | `1` |
+| `OLLAMA_MAX_LOADED_MODELS` | `2` |
 | `OLLAMA_MAX_QUEUE` | `8` |
 | `OLLAMA_VULKAN` | `1` |
 | `OLLAMA_IGPU_ENABLE` | `1` |
 | `OLLAMA_DEBUG_LOG_REQUESTS` | `false` |
 
-Ollama debe ejecutarse con esa cuenta de Windows. En un servicio de Windows independiente hay que configurar el entorno de su cuenta de servicio. Este piloto usa la app de Ollama de la sesión del usuario; no instala un servicio del sistema. Revisá que Ollama arranque al iniciar sesión. Si el equipo se suspende o el proceso se cierra, las devoluciones quedan temporalmente fuera de servicio.
+Ollama debe ejecutarse con esa cuenta de Windows. En un servicio de Windows independiente hay que configurar el entorno de su cuenta de servicio. El script inicia `ollama serve` oculto y no instala un servicio del sistema. La app gráfica puede aplicar sus propias preferencias de red y carga; el comando evita esas sustituciones. `-ModelsPath` permite conservar una carpeta de modelos personalizada y persistirla en `OLLAMA_MODELS`. Si el equipo se reinicia o el proceso se cierra, volvé a iniciar el servidor configurado; si se suspende, las devoluciones quedan temporalmente fuera de servicio.
+
+La [memoria vectorial](memoria-vectorial.md) añade `embeddinggemma` en CPU y permite mantenerlo cargado junto a Gemma 4. La cola persistente indexa sólo textos nuevos o modificados y recupera antecedentes sin llamadas generativas. Un clic de conversación hace una sola generación; los informes completos conservan varias llamadas. `--live-embeddings` evalúa el modelo de embeddings con textos ficticios.
 
 ## Privacidad y acceso compartido
 

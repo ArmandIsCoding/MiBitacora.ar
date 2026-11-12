@@ -1,4 +1,41 @@
-export function create(root, receiver, maxBytes) {
+export function encodeWav(buffer, maxBytes) {
+    const length = buffer.length;
+    if (length * 2 + 44 > maxBytes) throw new Error('El audio WAV supera los 8 MB. Probá con un audio más corto.');
+    const data = new ArrayBuffer(44 + length * 2), view = new DataView(data);
+    const ascii = (offset, value) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
+    ascii(0, 'RIFF'); view.setUint32(4, 36 + length * 2, true); ascii(8, 'WAVE'); ascii(12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, buffer.sampleRate, true); view.setUint32(28, buffer.sampleRate * 2, true);
+    view.setUint16(32, 2, true); view.setUint16(34, 16, true); ascii(36, 'data'); view.setUint32(40, length * 2, true);
+    const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i));
+    for (let i = 0; i < length; i++) {
+        const sample = Math.max(-1, Math.min(1, channels.reduce((sum, channel) => sum + channel[i], 0) / channels.length));
+        view.setInt16(44 + i * 2, Math.round(sample * (sample < 0 ? 32768 : 32767)), true);
+    }
+    return new Blob([data], { type: 'audio/wav' });
+}
+
+async function localWav(blob, maxBytes) {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context || !window.OfflineAudioContext) throw new Error('Este navegador no puede preparar el audio local. Podés subir un WAV.');
+    const context = new Context();
+    let decoded;
+    try { decoded = await context.decodeAudioData(await blob.arrayBuffer()); }
+    finally { await context.close(); }
+    const length = Math.ceil(decoded.duration * 16000);
+    if (length * 2 + 44 > maxBytes) throw new Error('El audio convertido supera los 8 MB. Probá con un audio más corto.');
+    const offline = new window.OfflineAudioContext(1, length, 16000);
+    const source = offline.createBufferSource(); source.buffer = decoded; source.connect(offline.destination); source.start();
+    return encodeWav(await offline.startRendering(), maxBytes);
+}
+
+export async function convertFile(inputId, maxBytes) {
+    const file = document.getElementById(inputId)?.files?.[0];
+    if (!file || file.size > maxBytes) throw new Error('El audio no está disponible o supera los 8 MB.');
+    return DotNet.createJSStreamReference(await localWav(file, maxBytes));
+}
+
+export function create(root, receiver, maxBytes, preferWav = false) {
     let disposed = false, stream, recorder, chunks = [], size = 0, blob, url, timer, started, discard = false;
     const notify = (method, value) => { if (!disposed) receiver.invokeMethodAsync(method, value).catch(dispose); };
     const release = () => { clearInterval(timer); stream?.getTracks().forEach(track => track.stop()); stream = null; };
@@ -33,9 +70,15 @@ export function create(root, receiver, maxBytes) {
                 if (disposed || discard) { clearPreview(); return; }
                 blob = new Blob(chunks, { type: recorder.mimeType }); chunks = [];
                 if (!blob.size || blob.size > maxBytes) { clearPreview(); notify('RecordingFailed', 'La grabación quedó vacía o superó los 8 MB. Probá con un audio más corto.'); return; }
-                url = URL.createObjectURL(blob);
-                const ext = recorder.mimeType.includes('mp4') ? 'm4a' : recorder.mimeType.includes('ogg') ? 'ogg' : 'weba';
-                notify('RecordingReady', { fileName: `Mensaje de voz ${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`, url, size: blob.size });
+                const recorded = blob;
+                const publish = (ready, ext) => {
+                    if (disposed || discard || blob !== recorded) return;
+                    blob = ready; url = URL.createObjectURL(blob);
+                    notify('RecordingReady', { fileName: `Mensaje de voz ${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`, url, size: blob.size });
+                };
+                if (preferWav) localWav(recorded, maxBytes).then(ready => publish(ready, 'wav'))
+                    .catch(() => { if (!disposed && !discard && blob === recorded) { clearPreview(); notify('RecordingFailed', 'No pudimos preparar el audio para la IA local. Probá con un WAV o una grabación más corta.'); } });
+                else publish(recorded, recorder.mimeType.includes('mp4') ? 'm4a' : recorder.mimeType.includes('ogg') ? 'ogg' : 'weba');
             });
             recorder.start(1000); started = Date.now();
             timer = setInterval(() => {

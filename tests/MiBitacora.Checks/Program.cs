@@ -119,10 +119,14 @@ Check(calls == 2, "La cancelación libera correctamente la cola");
 await OpenAiChecks.RunAsync(Check, context, args.Contains("--live-openai"));
 await TopicChecks.RunAsync(Check, args.Contains("--live-topics"));
 await MemoryReportChecks.RunAsync(Check);
+await VectorMemoryChecks.RunAsync(Check, args.Contains("--live-embeddings"));
+await EntryEditingChecks.RunAsync(Check);
 await NotebookChecks.RunAsync(Check);
 await AttachmentViewerChecks.RunAsync(Check);
 await ConversationDepthChecks.RunAsync(Check);
 await AudioConversationChecks.RunAsync(Check);
+await BillingChecks.RunAsync(Check);
+await BillingHttpChecks.RunAsync(Check);
 var heicContext = await StorageChecks.RunAsync(image, Check);
 await service.ReflectAsync(heicContext, true);
 Check(requestBody!.Value.GetProperty("messages")[1].GetProperty("images")[0].GetString()

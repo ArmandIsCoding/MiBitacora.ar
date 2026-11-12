@@ -1,0 +1,23 @@
+.plan-notice { display: flex; align-items: center; gap: 1.2rem; padding: 1rem 1.2rem; margin: 0 0 1.5rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--sage); }
+.plan-notice p { margin-top: .35rem; font-size: .88rem; line-height: 1.5; color: var(--muted); }
+.plan-notice .btn { flex-shrink: 0; font-size: .84rem; }
+.subscription-current { padding: 1.4rem; margin: 1.5rem 0; border-radius: 1rem; background: var(--sage); }
+.subscription-current h3 { margin: .5rem 0; font-size: 1.9rem; }
+.subscription-current p, .subscription-card p { margin: .8rem 0; }
+.subscription-current form { margin-top: .7rem; }
+.subscription-plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.subscription-card { padding: 1.5rem; border: 1px solid var(--line); border-radius: 1rem; }
+.subscription-card-paid { border-color: var(--olive); background: var(--paper); }
+.subscription-card h3 { font-size: 1.8rem; }
+.subscription-price { font-size: 1.65rem; font-weight: 600; color: var(--olive-dark); }
+.subscription-price small { font-size: .85rem; font-weight: 400; }
+.subscription-card label { font-size: .88rem; line-height: 1.5; }
+.subscription-card input[type="checkbox"] { width: auto; display: inline; margin-right: .4rem; }
+.subscription-cancel { margin: 1rem 0; }
+.subscription-cancel summary { cursor: pointer; color: var(--olive-dark); text-decoration: underline; }
+.subscription-payments { overflow-x: auto; }
+.subscription-payments table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.subscription-payments th, .subscription-payments td { padding: .8rem .6rem; border-bottom: 1px solid var(--line); text-align: left; }
+.subscription-simulation { max-width: 45rem; margin: 3rem auto; }
+.subscription-simulation form { margin: 1rem 0; }
+@media (max-width: 760px) { .plan-notice { align-items: flex-start; flex-direction: column; } .subscription-plans { grid-template-columns: 1fr; } }

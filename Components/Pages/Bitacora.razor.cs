@@ -40,6 +40,7 @@ public partial class Bitacora : IAsyncDisposable
     private string? _fatalError;
     private Guid? _noteId;
     private Guid? _workingEntry;
+    private Guid? _replyToReveal;
     private string _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
     private Guid? _targetId;
     private bool _ready;
@@ -83,6 +84,7 @@ public partial class Bitacora : IAsyncDisposable
         try
         {
             _notebooks = await Store.GetNotebooksAsync(_userId, Lifetime);
+            if (Reflector is AccountJournalService accountAi) await accountAi.SelectAccountAsync(_userId, Lifetime);
             _selectedNotebookId = RequestedNotebookId();
             var profile = Store.GetProfileAsync(_userId, Lifetime);
             var entries = Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, cancellationToken: Lifetime);
@@ -146,6 +148,12 @@ public partial class Bitacora : IAsyncDisposable
                 _scrollToEnd = false;
                 var module = await GetModuleAsync();
                 await module.InvokeVoidAsync("reveal", Lifetime, _end);
+            }
+            if (_replyToReveal is { } ready)
+            {
+                _replyToReveal = null;
+                if (_section == WorkspaceSection.Conversation && _dialogKind == DialogKind.None)
+                    await (await GetModuleAsync()).InvokeVoidAsync("centerReply", Lifetime, $"reply-{ready:N}");
             }
         }
         catch (JSDisconnectedException)
@@ -302,6 +310,9 @@ public partial class Bitacora : IAsyncDisposable
             return;
         }
 
+        var newEntry = entryId is null;
+        var completed = false;
+        _scrollToEnd = false;
         _busy = true;
         _notice = null;
         _error = null;
@@ -318,7 +329,7 @@ public partial class Bitacora : IAsyncDisposable
                 await RefreshEntryDaysAsync();
             }
 
-            _scrollToEnd = true;
+            _scrollToEnd = newEntry;
             if (!organize)
             {
                 _notice = "Entrada guardada.";
@@ -335,13 +346,13 @@ public partial class Bitacora : IAsyncDisposable
                     if (!_disposed) _ = InvokeAsync(() => { _reflectionProgress = message; StateHasChanged(); });
                 }), Lifetime);
             ReplaceEntry(updated);
+            completed = true;
             if (_section == WorkspaceSection.Calendar)
             {
                 await RefreshEntryDaysAsync();
             }
 
             _sessionDraft = null;
-            _scrollToEnd = true;
         }
         catch (JournalInputException ex)
         {
@@ -379,6 +390,7 @@ public partial class Bitacora : IAsyncDisposable
             }
             _workingEntry = null;
             _busy = false;
+            if (completed) { _scrollToEnd = false; _replyToReveal = entryId; }
         }
     }
 
@@ -393,6 +405,14 @@ public partial class Bitacora : IAsyncDisposable
     }
 
     private void ReplyUpdated(JournalEntry entry) { ReplaceEntry(entry); _sessionDraft = null; }
+    private void EntryEdited(JournalEntry entry)
+    {
+        ReplaceEntry(entry);
+        _entryErrors.Remove(entry.Id);
+        _contextRevision++;
+        _sessionDraft = null;
+        _notice = "Entrada actualizada. Podés pedir una nueva respuesta.";
+    }
 
     private void ReplaceEntry(JournalEntry entry)
     {

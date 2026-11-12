@@ -5,13 +5,14 @@ using MiBitacora.Data;
 namespace MiBitacora.Services;
 
 public sealed class JournalReportService(IDbContextFactory<ApplicationDbContext> factory,
-    JournalMemoryService memory, IJournalReportAnalyzer analyzer, JournalTopicJobs jobs)
+    JournalMemoryService memory, IJournalReportAnalyzer analyzer, JournalTopicJobs jobs, AccountAiRouter? routing = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public static string Fingerprint(JournalCorpus corpus) => "report-v1:" + corpus.Fingerprint;
 
     public async Task<JournalTopicSnapshot> GenerateAsync(string userId, IProgress<string>? progress = null, CancellationToken ct = default)
     {
+        using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
         if (!analyzer.IsConfigured) throw new JournalInputException("Activá la IA para preparar el informe.");
         if (!jobs.Start(userId)) throw new JournalInputException("Ya hay una devolución en preparación para tu cuenta.");
         try

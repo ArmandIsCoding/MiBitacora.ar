@@ -1,0 +1,36 @@
+@page "/Account/Subscription/Simulate/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using System.Net
+@using System.Security.Claims
+@inject SubscriptionService Billing
+
+<PageTitle>Prueba de suscripción · Mi Bitácora</PageTitle>
+@if (!_available)
+{
+    <main class="reading-page"><h1>Simulación no disponible</h1><a href="/Account/Manage/Subscription">Volver a Mi plan</a></main>
+}
+else
+{
+    <main class="reading-paper subscription-simulation">
+        <p class="eyebrow">DESARROLLO LOCAL · SIN DINERO REAL</p>
+        <h1>Probar una suscripción</h1>
+        <p>Este simulador no abre Mercado Pago, no usa credenciales y no realiza cobros. Los estados quedan en la base de pruebas.</p>
+        <p>Autorizar una suscripción sin pagar todavía mantiene el plan gratuito. Aprobar una cuota habilita un mes de Plan Profundo.</p>
+        @foreach (var action in new[] { ("authorize", "Autorizar sin pagar"), ("approve", "Aprobar una cuota"), ("renew", "Aprobar renovación"), ("reject", "Rechazar una cuota"), ("refund", "Devolver último pago") })
+        {
+            <form method="post" action="@($"/Account/Subscription/Simulate/{Id}/{action.Item1}")"><AntiforgeryToken /><button class="btn btn-outline" type="submit">@action.Item2</button></form>
+        }
+        <a href="/Account/Manage/Subscription">Volver a Mi plan</a>
+    </main>
+}
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    private bool _available;
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Billing.IsSimulation || HttpContext.Connection.RemoteIpAddress is not { } ip || !IPAddress.IsLoopback(ip)) return;
+        var userId = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        _available = userId is not null && (await Billing.GetSummaryAsync(userId, HttpContext.RequestAborted))?.Id == Id;
+    }
+}

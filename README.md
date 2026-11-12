@@ -15,13 +15,23 @@ dotnet run --launch-profile http
 
 Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
-Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La respuesta usa el proveedor configurado. **Solo guardar** permite escribir sin IA. Si falla el proveedor, la entrada queda guardada y se muestra una opción para reintentar. Ver [conversación y actualización de entradas existentes](docs/conversacion.md).
+Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La respuesta usa IA local para las cuentas gratuitas y OpenAI para las cuentas con un período pago vigente. **Solo guardar** permite escribir sin pedir una devolución ni transcribir audio; los textos disponibles se organizan localmente en segundo plano. Si falla el proveedor, la entrada queda guardada y se muestra una opción para reintentar. Ver [conversación y actualización de entradas existentes](docs/conversacion.md).
+
+## Suscripciones: prueba local
+
+La rama incorpora **Mi cuenta → Mi plan**, contratación mensual, confirmación de pagos, cancelación y un simulador sin dinero ni credenciales de Mercado Pago. Producción conserva los cobros deshabilitados. Para abrir el simulador con una base separada:
+
+```powershell
+.\scripts\Run-SubscriptionsLocal.ps1
+```
+
+Abrí [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription), registrá una cuenta y probá autorización, aprobación, renovación, rechazo y devolución. ARS 8000 es un precio de prueba. La [guía de suscripciones](docs/suscripciones.md) explica el flujo, las pruebas automáticas y qué queda pendiente antes de activar Mercado Pago. No se desplegó esta funcionalidad ni se operó la cuenta real del propietario.
 
 ## IA local en Windows
 
-Esta sección corresponde a `AI:Provider=Ollama`, el valor predeterminado del repositorio. Para usar los créditos de API en el servidor, ver [OpenAI: configuración, privacidad y pruebas](docs/openai.md). La interfaz muestra el proveedor activo; no existe fallback automático entre proveedores.
+Las cuentas gratuitas usan Ollama, con `gemma4:12b` como valor predeterminado. Las cuentas pagas usan [OpenAI: configuración, privacidad y pruebas](docs/openai.md). La elección se consulta por cuenta en el servidor y ya no depende de `AI:Provider` para la web. La interfaz muestra el plan activo; no existe fallback automático entre proveedores.
 
-1. Instalá [Ollama para Windows](https://ollama.com/download/windows) si todavía no lo tenés. Qwen3-VL requiere Ollama 0.12.7 o posterior; en el piloto se verificó 0.40.15.
+1. Instalá una versión de [Ollama para Windows](https://ollama.com/download/windows) compatible con Gemma 4 12B si todavía no lo tenés.
 2. En los ajustes de la app de Ollama, desactivá **Expose Ollama to the network**. Fijá el contexto en 8192 si aparece esa opción: la app puede sobrescribir las variables de entorno con sus preferencias.
 3. Con Ollama sin consultas activas, ejecutá:
 
@@ -31,11 +41,13 @@ Esta sección corresponde a `AI:Provider=Ollama`, el valor predeterminado del re
    dotnet run --launch-profile http
    ```
 
-El script configura Ollama para el usuario actual: escucha exclusivamente en `127.0.0.1:11434`, desactiva funciones cloud, habilita Vulkan y la GPU integrada y limita la carga a un modelo y una generación simultánea. Reinicia Ollama y conserva la ubicación de sus modelos. Si hay un modelo cargado, primero terminá las consultas y liberalo con `ollama stop <modelo>`. Guarda los valores anteriores en `%LOCALAPPDATA%\MiBitacora\ollama`.
+El script configura Ollama para el usuario actual: escucha exclusivamente en `127.0.0.1:11434`, desactiva funciones cloud, habilita Vulkan y la GPU integrada y permite dos modelos cargados y una generación por modelo. Inicia `ollama serve` oculto, sin las preferencias de la app gráfica. Si los modelos están en una carpeta personalizada, pasá `-ModelsPath 'C:\OllamaModels'` la primera vez; queda persistida en `OLLAMA_MODELS`. Si hay un modelo cargado, primero terminá las consultas y liberalo con `ollama stop <modelo>`. Guarda los valores anteriores en `%LOCALAPPDATA%\MiBitacora\ollama`.
 
-La descarga inicial de `qwen3-vl:4b-instruct` ocupa aproximadamente 3,3 GB y requiere Internet. Las devoluciones posteriores usan el modelo instalado. Las actualizaciones de Ollama y las descargas son operaciones distintas de la inferencia; `OLLAMA_NO_CLOUD=1` no equivale a un firewall que bloquee toda salida.
+La [memoria vectorial local](docs/memoria-vectorial.md) usa `embeddinggemma`, que también descarga `-DownloadModel`. Guarda embeddings incrementales en SQLite y combina búsqueda semántica con palabras y turnos recientes. Cada devolución hace **una sola generación**; no recorre el historial con llamadas a Gemma. Al cambiar de plan se conserva el mismo índice. La primera indexación sigue en segundo plano y no bloquea la respuesta.
 
-La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y modelos distintos de `qwen3-vl:4b-instruct`. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan.
+La descarga inicial de `gemma4:12b` requiere Internet y espacio para el modelo. Si ya se está descargando, dejá terminar esa descarga; el script anterior reinicia Ollama. Las devoluciones posteriores usan el modelo instalado. Las actualizaciones de Ollama y las descargas son operaciones distintas de la inferencia; `OLLAMA_NO_CLOUD=1` no equivale a un firewall que bloquee toda salida.
+
+La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y se permiten `gemma4:12b` y el modelo previo `qwen3-vl:4b-instruct` por compatibilidad; el audio local requiere Gemma. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan. Si Ollama y la web corren en equipos distintos, falta preparar el canal privado descrito en la guía de suscripciones antes de desplegar.
 
 Para verificar texto, imágenes sintéticas, errores, cancelación y separación entre cuentas:
 
@@ -48,10 +60,12 @@ ollama ps
 
 `--live` ejecuta dos devoluciones reales con datos inventados. El resto de las comprobaciones usa respuestas simuladas y una base temporal. Más detalles en [la guía de IA local](docs/ia-local.md).
 
+`--live-embeddings` prueba el `embeddinggemma` instalado con un cuaderno ficticio, mide recuperación y caché y genera una devolución real con Gemma 4.
+
 ## Qué podés probar
 
 - **Conversación.** [Diarios por tema, sin cupo de cantidad](docs/diarios.md), cada uno con su propio hilo. Podés crearlos, renombrarlos y mover entradas con sus respuestas y adjuntos. Combina los turnos recientes de ese diario con [memoria de todos los textos anteriores de la cuenta](docs/memoria-e-informe.md), recuperada por significado y con enlaces a sus fuentes. Las propuestas de la IA no se convierten en recuerdos. La [voz de las respuestas](docs/conversacion-profunda.md) busca explicar tensiones y conexiones con calidez, mediante hipótesis discutibles en vez de repetir el mensaje o diagnosticar. Cada respuesta tiene un icono para [volver a generarla en su lugar](docs/audio-y-regeneracion.md), conservando la anterior si falla.
-- **Adjuntos.** El selector nativo abre archivos y fotos. En el teléfono, **Foto** solicita la cámara cuando el navegador admite la captura nativa. La extracción local cubre documentos de Word modernos, Excel, CSV, texto y otros formatos de oficina. La IA local analiza JPEG, PNG y WebP, hasta dos imágenes por devolución. Las fotos HEIC/HEIF generan [copias JPG locales](docs/heic-jpg.md) para la página y Ollama, conservando los originales descargables. Los [mensajes de voz](docs/audio-y-regeneracion.md) se graban desde el micrófono o se suben como archivo: con OpenAI, al enviar se transcriben y su texto entra en la conversación, memoria e informe. **Solo guardar** no transcribe ni analiza. PDF, GIF, AVIF y videos se conservan sin análisis de sus bytes. Al tocar un adjunto se abre el [visor dentro de la página](docs/visor-de-adjuntos.md): galería de fotos, reproducción de audio/video, lector de PDF y texto extraído de documentos. Los formatos no compatibles conservan la descarga explícita del original. No hay un máximo de cantidad por entrada: se mantienen 8 MiB por archivo y 16 MiB en conjunto. La cuota por cuenta configurada es de 1 GiB o 2000 archivos; se ajusta en la sección `Journal` de `appsettings.json`. Los originales viven en `uploads/<código de cuenta>/<id de adjunto>.bin`; SQLite conserva metadatos y texto extraído. Más detalles en [almacenamiento de adjuntos](docs/uploads.md).
+- **Adjuntos.** El selector nativo abre archivos y fotos. En el teléfono, **Foto** solicita la cámara cuando el navegador admite la captura nativa. La extracción local cubre documentos de Word modernos, Excel, CSV, texto y otros formatos de oficina. La IA local analiza JPEG, PNG y WebP, hasta dos imágenes por devolución. Las fotos HEIC/HEIF generan [copias JPG locales](docs/heic-jpg.md) para la página y Ollama, conservando los originales descargables. Los [mensajes de voz](docs/audio-y-regeneracion.md) se graban desde el micrófono o se suben como archivo: con OpenAI, al enviar se transcriben y su texto entra en la conversación, memoria e informe. **Solo guardar** no transcribe ni genera respuestas; el texto disponible se indexa localmente. PDF, GIF, AVIF y videos se conservan sin análisis de sus bytes. Al tocar un adjunto se abre el [visor dentro de la página](docs/visor-de-adjuntos.md): galería de fotos, reproducción de audio/video, lector de PDF y texto extraído de documentos. Los formatos no compatibles conservan la descarga explícita del original. No hay un máximo de cantidad por entrada: se mantienen 8 MiB por archivo y 16 MiB en conjunto. La cuota por cuenta configurada es de 1 GiB o 2000 archivos; se ajusta en la sección `Journal` de `appsettings.json`. Los originales viven en `uploads/<código de cuenta>/<id de adjunto>.bin`; SQLite conserva metadatos y texto extraído. Más detalles en [almacenamiento de adjuntos](docs/uploads.md).
 - **Calendario y racha.** Abrí los días marcados para releer sus entradas. Cada día con una entrada suma a tu racha, que sigue vigente durante el día siguiente. Las fechas usan la hora de Buenos Aires por defecto. El despliegue puede cambiarla con la variable `Journal__TimeZone`.
 - **Devolución.** **Actualizar devolución** genera un [informe integrado para llevar a terapia](docs/memoria-e-informe.md): evolución, emociones, conexiones posibles, vínculos, recursos y prioridades. Distingue registros de hipótesis y propuestas, incluye fuentes enlazadas y una vista para imprimir o guardar como PDF. No constituye una evaluación clínica. Se puede cancelar y actualizar a demanda.
 - **Notitas.** Creá, editá o borrá papelitos. Podés guardar una idea a partir de una devolución y marcarla para retomar.

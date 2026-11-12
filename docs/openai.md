@@ -1,6 +1,6 @@
 # OpenAI para las devoluciones
 
-`AI:Provider` selecciona `Ollama` u `OpenAI`. El repositorio conserva Ollama como valor predeterminado; cada instalación decide el proveedor con configuración privada. No hay cambio automático de proveedor si falla una solicitud.
+La web elige el proveedor según la cuenta: Ollama para el plan gratuito y OpenAI para un período pago vigente. `AI:Provider` se conserva por compatibilidad con herramientas anteriores; no habilita acceso pago. Ver [suscripciones y simulación local](suscripciones.md). No hay cambio automático de proveedor si falla una solicitud.
 
 OpenAI usa exclusivamente `https://api.openai.com/v1/responses`, con HTTPS, redirecciones y proxy deshabilitados. El modelo inicial es `gpt-6.1-terra`, esfuerzo `low`, un máximo de 4096 tokens de salida y 180 segundos incluyendo la espera en cola. Los límites y el modelo son configurables en el servidor. Una cola compartida permite una generación simultánea y ocho pendientes por proceso, igual que Ollama. No hay reintentos automáticos que puedan duplicar consumo.
 
@@ -28,11 +28,11 @@ Ejemplo sin credencial real:
 }
 ```
 
-Nunca incluir este archivo en un paquete de publicación. Los respaldos de `App_Data` pueden incluirlo: tratarlos como secretos y preservar sus permisos. El despliegue de código debe conservar `App_Data` y `uploads`; no copiar una base de desarrollo sobre producción. Una clave o proyecto ausentes impiden iniciar OpenAI, en lugar de producir una muestra silenciosa.
+Nunca incluir este archivo en un paquete de publicación. Los respaldos de `App_Data` pueden incluirlo: tratarlos como secretos y preservar sus permisos. El despliegue de código debe conservar `App_Data` y `uploads`; no copiar una base de desarrollo sobre producción. Una clave o proyecto ausentes impiden las solicitudes pagas a OpenAI, conservando las entradas y sin impedir que las cuentas gratuitas usen la web y Ollama.
 
 ## Qué se envía
 
-- Conversación: la entrada actual, seis intercambios recientes, hasta ocho antecedentes relevantes recuperados por significado, contexto personal, documentos y hasta dos imágenes, dentro de un presupuesto de texto. El índice de memoria se prepara procesando todos los textos anteriores en fragmentos y se guarda en SQLite; en usos posteriores sólo se indexa lo nuevo o modificado. La selección semántica vuelve a consultar los resúmenes y la respuesta recibe los originales seleccionados. No requiere permisos de embeddings ni una base vectorial externa. Los HEIC se convierten a JPG localmente antes del envío. `Solo guardar` no inicia este análisis.
+- Conversación: la entrada actual, seis intercambios recientes, hasta ocho antecedentes relevantes recuperados por significado, contexto personal, documentos y hasta dos imágenes, dentro de un presupuesto de texto. La [memoria vectorial](memoria-vectorial.md) usa EmbeddingGemma local y SQLite en ambos planes: sólo los originales seleccionados llegan a la llamada generativa de OpenAI. No requiere su API de embeddings ni una base externa. Los HEIC se convierten a JPG localmente antes del envío. `Solo guardar` no genera respuestas ni transcribe; los textos disponibles sí se indexan localmente.
 - Devolución: un informe integrado de diez apartados. Recorre el índice de todas las entradas y documentos con texto, las notitas y el contexto personal, y desarrolla cada sección a partir de originales seleccionados. No incluye fotos ni convierte respuestas anteriores de la IA en evidencia. Comparte un esquema de lo ya redactado entre apartados para reducir repeticiones; ese esquema no sirve como fuente de hechos. Se inicia a demanda y sólo reemplaza el informe previo cuando termina y las fuentes siguen vigentes. Incluye una vista para imprimir o guardar PDF. Ver [memoria e informe](memoria-e-informe.md) para presupuestos, límites y actualización.
 - Se envían los contenidos necesarios directamente en cada solicitud. No se crean archivos, conversaciones o herramientas en OpenAI ni se reutilizan respuestas de otra cuenta. Se usa `store: false`. Las respuestas y fuentes se validan antes de guardarlas en SQLite.
 - Las claves, cuerpos HTTP, textos, imágenes, respuestas y errores crudos del proveedor no se registran. La interfaz informa OpenAI como proveedor y enlaza la política de privacidad actualizada.

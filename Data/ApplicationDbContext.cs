@@ -12,10 +12,54 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     internal DbSet<JournalNotebookRow> JournalNotebooks => Set<JournalNotebookRow>();
     internal DbSet<JournalNoteRow> JournalNotes => Set<JournalNoteRow>();
     internal DbSet<JournalAttachmentRow> JournalAttachments => Set<JournalAttachmentRow>();
+    public DbSet<BillingSubscriptionRow> BillingSubscriptions => Set<BillingSubscriptionRow>();
+    public DbSet<BillingPaymentRow> BillingPayments => Set<BillingPaymentRow>();
+    public DbSet<BillingWebhookRow> BillingWebhooks => Set<BillingWebhookRow>();
+    internal DbSet<JournalVectorStateRow> JournalVectorStates => Set<JournalVectorStateRow>();
+    internal DbSet<JournalVectorChunkRow> JournalVectorChunks => Set<JournalVectorChunkRow>();
+    internal DbSet<JournalVectorQueryRow> JournalVectorQueries => Set<JournalVectorQueryRow>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<JournalVectorStateRow>(entity =>
+        {
+            entity.HasKey(row => row.UserId);
+            entity.HasIndex(row => row.NextAttemptTicks);
+            entity.HasOne<ApplicationUser>().WithOne().HasForeignKey<JournalVectorStateRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<JournalVectorChunkRow>(entity =>
+        {
+            entity.HasIndex(row => new { row.UserId, row.SourceId }).IsUnique();
+            entity.HasIndex(row => new { row.UserId, row.CreatedUtc });
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<JournalEntryRow>().WithMany().HasForeignKey(row => row.EntryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<JournalNoteRow>().WithMany().HasForeignKey(row => row.NoteId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<JournalVectorQueryRow>(entity =>
+        {
+            entity.HasKey(row => new { row.UserId, row.EntryId });
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<JournalEntryRow>().WithMany().HasForeignKey(row => row.EntryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<BillingSubscriptionRow>(entity =>
+        {
+            entity.HasIndex(row => row.ExternalReference).IsUnique();
+            entity.HasIndex(row => new { row.Provider, row.ProviderId }).IsUnique();
+            entity.HasIndex(row => row.UserId);
+            entity.HasIndex(row => new { row.UserId, row.Provider }).IsUnique()
+                .HasFilter("\"Status\" NOT IN ('cancelled', 'canceled', 'creation_failed')");
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<BillingPaymentRow>(entity =>
+        {
+            entity.HasIndex(row => new { row.SubscriptionId, row.ProviderPaymentId }).IsUnique();
+            entity.HasIndex(row => new { row.SubscriptionId, row.ProviderInvoiceId });
+            entity.HasOne<BillingSubscriptionRow>().WithMany().HasForeignKey(row => row.SubscriptionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<BillingWebhookRow>().HasIndex(row => new { row.ProcessedUtc, row.NextAttemptUtc });
 
         builder.Entity<JournalMemoryRow>(entity =>
         {

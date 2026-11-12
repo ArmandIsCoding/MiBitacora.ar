@@ -10,12 +10,13 @@ public sealed class JournalConversationJobs
 }
 
 public sealed class JournalConversationService(IJournalStore store, IAudioTranscriber transcriber,
-    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs)
+    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs, AccountAiRouter? routing = null)
 {
     public bool IsConfigured => reflector.IsConfigured;
     public async Task<JournalEntry> GenerateAsync(string userId, Guid entryId, bool useAi = true,
         IProgress<string>? progress = null, CancellationToken ct = default)
     {
+        using var aiScope = routing is null ? null : routing.Use(await routing.ResolveAsync(userId, ct));
         if (!jobs.Start(userId, entryId)) throw new JournalReflectionException("Ya se está preparando una respuesta para esta entrada. Esperá a que termine.");
         try
         {
@@ -38,10 +39,10 @@ public sealed class JournalConversationService(IJournalStore store, IAudioTransc
             var context = await store.GetContextAsync(userId, entryId, useAi, ct);
             if (useAi) context = await memory.EnrichAsync(userId, context, progress, ct);
             progress?.Report("Mi Bitácora está preparando una respuesta…");
-            var response = await reflector.ReflectAsync(context, useAi, ct);
+            var response = (await reflector.ReflectAsync(context, useAi, ct)) with { LimitedMemory = useAi && context.LimitedMemory };
             ct.ThrowIfCancellationRequested();
             // Only replace after a complete, validated response. Failures keep the previous response.
-            await store.SaveReflectionAsync(userId, entryId, response, ct);
+            await store.SaveReflectionAsync(userId, entryId, response, ct, context.MemoryRevision);
             return await store.GetEntryAsync(userId, entryId, ct) ?? throw new JournalInputException("La entrada ya no está disponible.");
         }
         finally { jobs.Finish(userId, entryId); }

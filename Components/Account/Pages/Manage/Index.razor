@@ -79,6 +79,7 @@
 
         userId = user.Id;
         email = user.Email;
+        if (Reflector is AccountJournalService accountAi) await accountAi.SelectAccountAsync(userId, HttpContext.RequestAborted);
         if (HttpMethods.IsGet(HttpContext.Request.Method))
         {
             var profile = await Store.GetProfileAsync(userId, HttpContext.RequestAborted);

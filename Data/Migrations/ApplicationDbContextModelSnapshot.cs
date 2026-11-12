@@ -85,6 +85,151 @@ namespace MiBitacora.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.BillingPaymentRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("PeriodEndUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderInvoiceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderPaymentId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ProviderUpdatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SubscriptionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscriptionId", "ProviderInvoiceId");
+
+                    b.HasIndex("SubscriptionId", "ProviderPaymentId")
+                        .IsUnique();
+
+                    b.ToTable("BillingPayments");
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.BillingSubscriptionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("BillingAnchorUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CancellationRequested")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CheckoutUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalReference")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSyncAttemptUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSyncedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("MonthlyPriceCents")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ProviderUpdatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalReference")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Provider", "ProviderId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "Provider")
+                        .IsUnique()
+                        .HasFilter("\"Status\" NOT IN ('cancelled', 'canceled', 'creation_failed')");
+
+                    b.ToTable("BillingSubscriptions");
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.BillingWebhookRow", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NextAttemptUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ProcessedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResourceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedUtc", "NextAttemptUtc");
+
+                    b.ToTable("BillingWebhooks");
+                });
+
             modelBuilder.Entity("MiBitacora.Data.JournalAttachmentRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -299,6 +444,123 @@ namespace MiBitacora.Migrations
                     b.ToTable("JournalTopicOverviews");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.JournalVectorChunkRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Embedding")
+                        .HasColumnType("BLOB");
+
+                    b.Property<Guid?>("EntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModelKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("NoteId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryId");
+
+                    b.HasIndex("NoteId");
+
+                    b.HasIndex("UserId", "CreatedUtc");
+
+                    b.HasIndex("UserId", "SourceId")
+                        .IsUnique();
+
+                    b.ToTable("JournalVectorChunks");
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalVectorQueryRow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("ModelKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QueryHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId", "EntryId");
+
+                    b.HasIndex("EntryId");
+
+                    b.ToTable("JournalVectorQueries");
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalVectorStateRow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CatalogRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Failures")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("IndexedRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ModelKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("NextAttemptTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("NextAttemptTicks");
+
+                    b.ToTable("JournalVectorStates");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -448,6 +710,24 @@ namespace MiBitacora.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.BillingPaymentRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.BillingSubscriptionRow", null)
+                        .WithMany()
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.BillingSubscriptionRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MiBitacora.Data.JournalAttachmentRow", b =>
                 {
                     b.HasOne("MiBitacora.Data.JournalEntryRow", "Entry")
@@ -527,6 +807,49 @@ namespace MiBitacora.Migrations
                     b.HasOne("MiBitacora.Data.ApplicationUser", null)
                         .WithOne()
                         .HasForeignKey("MiBitacora.Data.JournalTopicOverviewRow", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalVectorChunkRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.JournalEntryRow", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("MiBitacora.Data.JournalNoteRow", null)
+                        .WithMany()
+                        .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalVectorQueryRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.JournalEntryRow", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.JournalVectorStateRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("MiBitacora.Data.JournalVectorStateRow", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
