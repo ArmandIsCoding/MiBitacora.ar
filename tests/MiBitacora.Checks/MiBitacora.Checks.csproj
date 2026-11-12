@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../MiBitacora.csproj" />
+    <Compile Include="../../tools/MiBitacora.LocalInferenceAgent/InferenceAgent.cs" Link="Agent/InferenceAgent.cs" />
     <None Include="../Fixtures/red-square.png" Link="red-square.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../Fixtures/oriented-colors.heic" Link="oriented-colors.heic" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

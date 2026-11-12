@@ -76,7 +76,7 @@ public static class VectorMemoryRegistration
             .ValidateOnStart();
         builder.Services.AddSingleton<EmbeddingGate>();
         builder.Services.AddHttpClient<IJournalEmbeddingClient, OllamaEmbeddingClient>(client => client.Timeout = Timeout.InfiniteTimeSpan)
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+            .UseLocalInferenceTransport();
         builder.Services.AddScoped<VectorMemoryService>();
         builder.Services.AddHostedService<VectorMemoryWorker>();
     }

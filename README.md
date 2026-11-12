@@ -47,7 +47,7 @@ La [memoria vectorial local](docs/memoria-vectorial.md) usa `embeddinggemma`, qu
 
 La descarga inicial de `gemma4:12b` requiere Internet y espacio para el modelo. Si ya se está descargando, dejá terminar esa descarga; el script anterior reinicia Ollama. Las devoluciones posteriores usan el modelo instalado. Las actualizaciones de Ollama y las descargas son operaciones distintas de la inferencia; `OLLAMA_NO_CLOUD=1` no equivale a un firewall que bloquee toda salida.
 
-La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y se permiten `gemma4:12b` y el modelo previo `qwen3-vl:4b-instruct` por compatibilidad; el audio local requiere Gemma. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan. Si Ollama y la web corren en equipos distintos, falta preparar el canal privado descrito en la guía de suscripciones antes de desplegar.
+La configuración del proyecto está en `appsettings.json`, sección `Ollama`. La conexión es de servidor a servidor, con proxy y redirecciones HTTP deshabilitados. Se rechazan URLs fuera de loopback y se permiten `gemma4:12b` y el modelo previo `qwen3-vl:4b-instruct` por compatibilidad; el audio local requiere Gemma. No existe fallback a un proveedor externo. Las claves de Gemini de instalaciones anteriores ya no se utilizan. Si Ollama y la web corren en equipos distintos, se puede usar el [puente autenticado de IA local](docs/puente-ia-local.md), con conexiones salientes HTTPS desde la PC.
 
 Para verificar texto, imágenes sintéticas, errores, cancelación y separación entre cuentas:
 

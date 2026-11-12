@@ -82,11 +82,11 @@ Para una validación externa posterior se necesitarán cuentas de prueba separad
 
 La actualización agrega `BillingSubscriptions`, `BillingPayments`, `BillingWebhooks` y las tablas de memoria vectorial mediante migraciones EF. La app aplica migraciones al iniciar. Antes de desplegar, respaldar juntos SQLite y `uploads`, según la guía existente. La integración a `main` no publica automáticamente la instalación de IIS ni habilita los cobros.
 
-## IA local y topología pendiente
+## IA local y conexión al servidor
 
 El valor predeterminado es `gemma4:12b`, junto a `embeddinggemma` para la memoria. Ambos modelos están instalados y se verificaron con datos ficticios en desarrollo; las mediciones están en [memoria vectorial](memoria-vectorial.md). La transcripción usa `/v1/audio/transcriptions` con WAV; el grabador y su botón **Subir audio** convierten a WAV mono 16 kHz en el navegador para las cuentas gratuitas. Un archivo de audio adjuntado por otra vía necesita WAV para transcripción local. Si el navegador no puede convertirlo o el modelo no admite audio, el original sigue disponible y se muestra un error; no se envía a OpenAI.
 
-La dirección de Ollama sigue restringida a loopback. El servidor web de bajo consumo y la notebook son equipos diferentes: antes de producción hay que verificar un canal privado y protegido entre ellos, o un proxy local autenticado sobre un túnel privado. No basta conservar `AI:Provider=OpenAI`: la web nueva elige por cuenta y las gratuitas usan Ollama. El preflight de publicación debe comprobar esa conectividad y los dos modelos desde el servidor antes de reemplazar la instalación que venía utilizando OpenAI. La preparación local no abre el puerto de Ollama ni resuelve por sí sola esa topología.
+La dirección de Ollama sigue restringida a loopback. El servidor web de bajo consumo y la notebook son equipos diferentes; el [puente de IA local](puente-ia-local.md) permite conectar ambos sin publicar el puerto de Ollama. La PC abre conexiones HTTPS autenticadas al sitio y atiende generaciones y embeddings. No basta conservar `AI:Provider=OpenAI`: la web nueva elige por cuenta y las gratuitas usan Ollama. La publicación debe comprobar el transporte y los dos modelos con datos ficticios, conservar un respaldo y verificar el circuito desde IIS tras el arranque, recuperando la versión anterior si falla. La PC debe permanecer encendida y conectada para atender las cuentas gratuitas.
 
 ## Verificación de esta entrega
 

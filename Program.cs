@@ -74,6 +74,7 @@ builder.Services.AddOptions<OllamaOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<LocalInferenceGate>();
 builder.Services.AddKeyedSingleton<LocalInferenceGate>("OpenAI");
+builder.AddLocalInferenceBridge();
 builder.AddBilling();
 builder.AddVectorMemory();
 builder.Services.AddOptions<JournalAiOptions>().Bind(builder.Configuration.GetSection("AI"))
@@ -91,7 +92,7 @@ builder.Services.AddOptions<AudioTranscriptionOptions>().Bind(builder.Configurat
 builder.Services.AddHttpClient("AccountOpenAI", client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
 builder.Services.AddHttpClient("AccountOllama", client => client.Timeout = Timeout.InfiniteTimeSpan)
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+    .UseLocalInferenceTransport();
 builder.Services.AddScoped<OllamaModelClient>(sp => new(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient("AccountOllama"),
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OllamaOptions>>(),
@@ -115,11 +116,7 @@ builder.Services.AddScoped<JournalMemoryService>();
 builder.Services.AddScoped<JournalReportService>();
 builder.Services.AddHttpClient<OllamaJournalService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan)
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-    {
-        AllowAutoRedirect = false,
-        UseProxy = false
-    });
+    .UseLocalInferenceTransport();
 builder.Services.AddHttpClient<OpenAiJournalService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
@@ -224,6 +221,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapAdditionalIdentityEndpoints();
 app.MapSubscriptionEndpoints();
+app.MapLocalInferenceEndpoints();
 
 app.MapJournalAttachments();
 
