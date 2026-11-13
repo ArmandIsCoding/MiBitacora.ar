@@ -1,5 +1,7 @@
 # Brisa, la compañera de Mi Bitácora
 
+Las expresiones animadas y el prompt del nuevo recurso están en [Gestos de Brisa](gestos-brisa.md). La preparación automática de fotos grandes se describe en [Multimedia](multimedia.md).
+
 Brisa es el personaje y la voz de la IA de Mi Bitácora: adulta, amable, atenta y esperanzadora, con lentes grandes. Su presencia une la bienvenida, la conversación, las respuestas y su espera, el calendario, los informes, el perfil, los planes y el acceso a la cuenta. La identidad visual conserva papel cálido, salvia y terracota, con tipografía Fraunces y DM Sans servida desde el propio sitio.
 
 La conversación distingue los mensajes propios, en salvia, de la respuesta de Brisa, en papel con su retrato y nombre. El compositor la mantiene presente y la espera conserva la animación suave y la vuelta a la respuesta ya implementadas. Se respeta la preferencia de movimiento reducido y la navegación en móvil. Los diarios, adjuntos, edición, memoria y planes conservan su comportamiento.

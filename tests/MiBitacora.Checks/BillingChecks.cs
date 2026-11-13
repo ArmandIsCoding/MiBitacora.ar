@@ -260,6 +260,43 @@ internal static class BillingChecks
         }
         clock.Now = clock.Now.AddMonths(3);
         check(!(await billing.GetAccessAsync("a")).IsPaid, "IA por plan: un período vencido vuelve al acceso gratuito");
+        var grantedId = Guid.NewGuid().ToString("D");
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Users.Add(new ApplicationUser { Id = grantedId, UserName = "complimentary" });
+            db.BillingAccessGrants.Add(new() { UserId = grantedId, GrantedUtc = clock.Now.UtcDateTime, Reason = "Prueba sintética" });
+            await db.SaveChangesAsync();
+        }
+        var grantAccess = await billing.GetAccessAsync(grantedId);
+        check(grantAccess.IsPaid && grantAccess.IsComplimentary && grantAccess.AiProvider == "OpenAI" &&
+            (await billing.GetPaymentsAsync(grantedId)).Count == 0 && await billing.GetSummaryAsync(grantedId) is null,
+            "Premium: una concesión administrativa habilita OpenAI sin crear pagos ni suscripciones");
+        check(await Run(grantedId) == "cloud", "Premium: la cuenta con acceso de cortesía usa OpenAI por defecto");
+        await billing.SetAiProviderAsync(grantedId, "Ollama");
+        using (router.Use(await router.ResolveAsync(grantedId)))
+            check(router.HasPremiumAccess && !router.UsesExternalProvider && await router.GenerateAsync("i", "p", schema, [], default) == "local",
+                "Premium: puede elegir Ollama, conserva el plan y no envía el mensaje a OpenAI");
+        try { await billing.SetAiProviderAsync("b", "OpenAI"); throw new Exception("Gratis cambió de proveedor"); }
+        catch (SubscriptionException) { check(!(await billing.GetAccessAsync("b")).IsPaid, "Premium: elegir OpenAI no puede elevar una cuenta gratuita"); }
+        await billing.SetAiProviderAsync(grantedId, "OpenAI");
+        using (router.Use(await router.ResolveAsync(grantedId)))
+        {
+            var before = cloudCalls;
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var grant = await db.BillingAccessGrants.SingleAsync(g => g.UserId == grantedId);
+                grant.ExpiresUtc = clock.Now.UtcDateTime.AddSeconds(-1);
+                await db.SaveChangesAsync();
+            }
+            try { await router.GenerateAsync("i", "p", schema, [], default); throw new Exception("Concesión vencida usada"); }
+            catch (JournalReflectionException) { check(cloudCalls == before, "Premium: una concesión vencida se revalida antes de transmitir a OpenAI"); }
+        }
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Users.Remove(await db.Users.SingleAsync(u => u.Id == grantedId)); await db.SaveChangesAsync();
+            check(!await db.BillingAccessGrants.AnyAsync(g => g.UserId == grantedId) && !await db.AccountAiPreferences.AnyAsync(p => p.UserId == grantedId),
+                "Premium: borrar la cuenta elimina su concesión y la preferencia de proveedor");
+        }
         async Task<string> Run(string id)
         {
             using var operation = router.Use(await router.ResolveAsync(id));

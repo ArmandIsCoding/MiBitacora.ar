@@ -24,6 +24,7 @@ internal static class EntryEditingChecks
     private static async Task VerifyAsync(string root, Action<bool, string> check)
     {
         var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(TimeZoneInfo.Utc);
         services.AddDbContextFactory<ApplicationDbContext>(o => o.UseSqlite($"Data Source={root}/test.db;Foreign Keys=True;Pooling=False"));
         services.AddIdentityCore<ApplicationUser>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3).AddEntityFrameworkStores<ApplicationDbContext>();
         services.AddSingleton(new UploadFileStore(Path.Combine(root, "uploads"), NullLogger<UploadFileStore>.Instance));
@@ -136,6 +137,23 @@ internal static class EntryEditingChecks
             "Espera: presenta el plan gratuito y abre la alternativa paga sin abandonar la generación");
         check(!paidHtml.Contains("/Account/Manage/Subscription") && paidHtml.Contains("cuando est") && paidHtml.Contains("role=\"status\""),
             "Espera: una cuenta paga conserva el estado accesible sin publicidad de su propio plan");
+
+        var readingHtml = await renderer.Dispatcher.InvokeAsync(async () =>
+            (await renderer.RenderComponentAsync<ReplyPending>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Activity"] = BrisaActivity.Reading }))).ToHtmlString());
+        check(readingHtml.Contains("data-brisa-activity=\"reading\"") && readingHtml.Contains("data-brisa-animate=\"true\"") && readingHtml.Contains("aria-label=\"Brisa est"),
+            "Brisa: la lectura tiene expresión propia y conserva un estado accesible");
+        var savedHtml = await renderer.Dispatcher.InvokeAsync(async () =>
+            (await renderer.RenderComponentAsync<ReflectionCard>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Reflection"] = Reply("Una respuesta guardada") }))).ToHtmlString());
+        var freshHtml = await renderer.Dispatcher.InvokeAsync(async () =>
+            (await renderer.RenderComponentAsync<ReflectionCard>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Reflection"] = Reply("Una respuesta nueva"), ["JustResponded"] = true }))).ToHtmlString());
+        check(!savedHtml.Contains("data-brisa-animate") && freshHtml.Contains("data-brisa-activity=\"responding\""),
+            "Brisa: sólo una respuesta recién llegada anima su retrato; el historial queda en calma");
+        check(savedHtml.Contains("therapy-proposal") && savedHtml.Contains("próxima sesión") && savedHtml.Contains("no reemplaza")
+            && savedHtml.LastIndexOf("therapy-proposal", StringComparison.Ordinal) > savedHtml.IndexOf("Una respuesta guardada", StringComparison.Ordinal),
+            "Brisa: incluso una respuesta histórica sin temas termina con una propuesta visible para terapia");
 
         async Task IndexAll(string user) { while (!(await memory.IndexPendingAsync(user, client.Model, 100)).Complete) { } }
         async Task<long> Revision() => await Count("SELECT Revision FROM JournalVectorStates WHERE UserId=$user", new SqliteParameter("$user", a));

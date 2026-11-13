@@ -93,6 +93,18 @@ internal static class BillingHttpChecks
                 "UI suscripciones: muestra vigencia, cancelación y aviso de cobros simulados");
         }
         var cancel = Context("http-a", ""); cancel.Request.RouteValues["action"] = "Cancel"; AddToken(cancel);
+        var providerWithoutCsrf = Context("http-a", "provider=Ollama"); providerWithoutCsrf.Request.RouteValues["action"] = "AiProvider";
+        await endpoint.RequestDelegate!(providerWithoutCsrf);
+        check(providerWithoutCsrf.Response.StatusCode == 400 && (await billing.GetAccessAsync("http-a")).AiProvider == "OpenAI",
+            "HTTP proveedor: una petición sin antiforgery no cambia la elección");
+        var providerChoice = Context("http-a", "provider=Ollama"); providerChoice.Request.RouteValues["action"] = "AiProvider"; AddToken(providerChoice);
+        await endpoint.RequestDelegate!(providerChoice);
+        check((await billing.GetAccessAsync("http-a")).AiProvider == "Ollama" && (await billing.GetAccessAsync("http-b")).AiProvider == "OpenAI",
+            "HTTP proveedor: guarda sólo la elección de la cuenta autenticada");
+        var freeChoice = Context("http-b", "provider=OpenAI"); freeChoice.Request.RouteValues["action"] = "AiProvider"; AddToken(freeChoice);
+        await endpoint.RequestDelegate!(freeChoice);
+        check(!(await billing.GetAccessAsync("http-b")).IsPaid && freeChoice.Response.Headers.Location.ToString().Contains("error=1"),
+            "HTTP proveedor: un POST manipulado no habilita OpenAI en el plan gratuito");
         await endpoint.RequestDelegate!(cancel);
         check((await billing.GetAccessAsync("http-a")).IsPaid && (await billing.GetSummaryAsync("http-a"))?.Status == "cancelled",
             "HTTP suscripciones: cancelar conserva el período pago");

@@ -49,6 +49,11 @@ public abstract partial class JournalAiService : IJournalReflector
         no haya un fragmento breve y exacto. No incluyas un tema si no hay fuente con contenido
         que lo sostenga. Dejá vacías las listas que no tengan elementos útiles. La próxima acción
         puede ser una posibilidad sencilla y opcional, y puede quedar vacía. No llenes campos por rutina.
+        En sessionTopics incluí siempre una propuesta breve, concreta y opcional para llevar a su
+        próxima sesión de terapia, ligada a lo que compartió. No presupongas que ya hace terapia.
+        No diagnostiques ni inventes conflictos. Si hay peligro inmediato, priorizá ayuda humana
+        ahora; la propuesta para una sesión futura nunca debe sugerir esperar para pedir ayuda.
+        La interfaz la mostrará como cierre: «Te propongo que lleves a tu próxima sesión: …».
         Devolvé exclusivamente el objeto JSON pedido, sin Markdown.
         """;
 
@@ -81,8 +86,8 @@ public abstract partial class JournalAiService : IJournalReflector
               "description": "Como máximo una pregunta abierta con voseo, específica para seguir esta conversación, sin sugerir la respuesta. Puede estar vacía."
             },
             "sessionTopics": {
-              "type": "array", "maxItems": 2, "items": { "type": "string" },
-              "description": "Hasta dos apuntes opcionales sobre asuntos concretos que la persona podría llevar a terapia. Vacía si no aporta."
+              "type": "array", "minItems": 1, "maxItems": 1, "items": { "type": "string" },
+              "description": "Una propuesta breve, específica y opcional para llevar a su próxima sesión de terapia. No inventes problemas ni presupongas que hace terapia. Se muestra al final con el prefijo Te propongo que lleves a tu próxima sesión."
             },
             "nextStep": { "type": "string", "description": "Recurso de reflexión breve y opcional, solo cuando resulte útil; normalmente vacío. Hasta 240 caracteres." }
           },

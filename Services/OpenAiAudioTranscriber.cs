@@ -32,8 +32,8 @@ public sealed class OpenAiAudioTranscriber(HttpClient client, IOptions<OpenAiOpt
             "audio/webm" => ".webm", "audio/ogg" => ".ogg", "audio/flac" => ".flac", _ => null
         };
         if (extension is null) throw new JournalReflectionException("Este formato se puede guardar, pero no transcribir. Probá con M4A, MP3, WAV, OGG, FLAC o WebM.");
-        if (!file.Content.CanSeek || file.Content.Length is <= 0 or > JournalStore.MaxFileBytes)
-            throw new JournalReflectionException("El audio supera los 8 MB permitidos o no se pudo leer.");
+        if (!file.Content.CanSeek || file.Content.Length is <= 0 or > AttachmentPreparationService.MaxAudioBytes)
+            throw new JournalReflectionException("El audio supera los 20 MB permitidos para transcribir o no se pudo leer. Volvé a adjuntarlo para optimizarlo.");
         if (!gate.TryJoin()) throw new JournalReflectionException("Hay varias solicitudes en curso. Tu audio sigue guardado; probá de nuevo en un momento.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.TimeoutSeconds));

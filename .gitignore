@@ -428,6 +428,7 @@ FodyWeavers.xsd
 #*.lscache
 
 # Mi Bitácora: SQLite y archivos de datos locales
+media-tools/
 App_Data/
 uploads/
 *.db

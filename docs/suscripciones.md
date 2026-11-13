@@ -1,5 +1,21 @@
 # Suscripciones y planes de IA
 
+## Acceso premium de cortesía y elección de proveedor
+
+El Plan Profundo también puede otorgarse administrativamente mediante `BillingAccessGrants`, sin inventar pagos ni suscripciones. `UserId` identifica al titular, `GrantedUtc` el inicio, `ExpiresUtc` es opcional y `Reason` deja el motivo. Eliminar la concesión la revoca; los períodos realmente abonados siguen vigentes. La migración `AddPremiumAccessAndProvider` sólo agrega tablas y claves con borrado en cascada.
+
+Para habilitar una cuenta, respaldá primero SQLite y ejecutá la herramienta local, con la web detenida si también se aplicarán migraciones:
+
+```powershell
+dotnet run --project tools/MiBitacora.Admin -c Release -- grant-premium --database '<base existente>' --user-id '<código de cuenta>'
+```
+
+`--only-account` reemplaza a `--user-id` únicamente en instalaciones con exactamente una cuenta; si encuentra cero o varias, aborta sin conceder acceso. El comando habilita OpenAI por defecto y no toca credenciales, pagos ni textos del diario. Para revocar, usá `revoke-premium` con el mismo destino e identificador.
+
+En **Mi cuenta → Mi plan**, una cuenta premium puede elegir **OpenAI** o **IA local**. La preferencia vive en `AccountAiPreferences`; una gratuita siempre se procesa localmente. El POST exige autenticación, antiforgery y acceso premium validado en el servidor. Cada operación conserva su elección y revalida el acceso antes de transmitir a OpenAI. El plan, la preferencia y su vigencia se incluyen en la exportación; ambas tablas se eliminan con la cuenta. No hay fallback silencioso entre proveedores.
+
+Una concesión se muestra como **Acceso premium de cortesía**, sin cobros ni renovación. Elegir Ollama no dispara publicidad para contratar el plan que ya tiene.
+
 Integración incorporada a `main`, con enrutamiento por plan, memoria vectorial y mejoras de conversación. Los cobros reales se mantienen deshabilitados: `Subscriptions:Provider=Disabled` y `AllowLiveRequests=false`. No se incluyen credenciales de Mercado Pago ni se realizaron operaciones en la cuenta del propietario. Development usa un simulador propio; no es el entorno de pruebas de Mercado Pago.
 
 ## Comportamiento

@@ -27,11 +27,26 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
     public async Task<SubscriptionAccess> GetAccessAsync(string userId, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        var grant = await db.BillingAccessGrants.AsNoTracking().SingleOrDefaultAsync(g => g.UserId == userId, ct);
+        var preference = await db.AccountAiPreferences.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == userId, ct);
+        if (grant is not null && grant.GrantedUtc <= Now && (grant.ExpiresUtc is null || grant.ExpiresUtc > Now))
+            return new(true, grant.ExpiresUtc, true, preference?.Provider == "Ollama" ? "Ollama" : "OpenAI");
         var subscriptions = await db.BillingSubscriptions.AsNoTracking().Where(s => s.UserId == userId).ToListAsync(ct);
         var ids = subscriptions.Where(s => ProviderCanGrant(s.Provider)).Select(s => s.Id).ToArray();
         var periods = await db.BillingPayments.AsNoTracking().Where(p => ids.Contains(p.SubscriptionId) && p.Status == "approved")
             .OrderBy(p => p.PeriodStartUtc).ToListAsync(ct);
-        return Access(periods, Now);
+        return Access(periods, Now) with { AiProvider = preference?.Provider == "Ollama" ? "Ollama" : "OpenAI" };
+    }
+
+    public async Task SetAiProviderAsync(string userId, string provider, CancellationToken ct = default)
+    {
+        if (provider is not ("OpenAI" or "Ollama")) throw new SubscriptionException("Elegí una de las opciones disponibles para conversar con Brisa.");
+        if (!(await GetAccessAsync(userId, ct)).IsPaid) throw new SubscriptionException("Esta elección requiere acceso al Plan Profundo.");
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var row = await db.AccountAiPreferences.SingleOrDefaultAsync(p => p.UserId == userId, ct);
+        if (row is null) db.AccountAiPreferences.Add(new() { UserId = userId, Provider = provider });
+        else row.Provider = provider;
+        await db.SaveChangesAsync(ct);
     }
 
     public static SubscriptionAccess Access(IEnumerable<BillingPaymentRow> payments, DateTime now)

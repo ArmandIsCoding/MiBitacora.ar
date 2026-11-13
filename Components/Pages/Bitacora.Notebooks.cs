@@ -34,12 +34,17 @@ public partial class Bitacora
 
     protected override async Task OnParametersSetAsync()
     {
-        if (_ready && !_busy && !_uploading && !_readingEarlier)
+        // Query parameters also change while enhanced navigation is leaving this page.
+        // Do not reopen a notebook over a navigation to account/privacy pages.
+        if (!_disposed && IsNotebookLocation && _ready && !_busy && !_uploading && !_readingEarlier)
         {
             var requested = RequestedNotebookId();
             if (requested != _selectedNotebookId) await SwitchNotebookAsync(requested);
         }
     }
+
+    private bool IsNotebookLocation => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0]
+        .TrimEnd('/').Equals("bitacora", StringComparison.OrdinalIgnoreCase);
 
     private void OpenNotebooks()
     {
@@ -63,6 +68,7 @@ public partial class Bitacora
         await RunNotebookChangeAsync(async () =>
         {
             var entries = await Store.GetNotebookEntriesAsync(_userId, id, PageSize, cancellationToken: Lifetime);
+            if (_disposed || !IsNotebookLocation) return;
             ActivateNotebook(id, entries);
             await CloseDialogAsync();
         });
@@ -79,6 +85,8 @@ public partial class Bitacora
             _files.AddRange(draft?.Files ?? []);
             _notebookDrafts.Remove(id ?? Guid.Empty);
             _pickerVersion++;
+            _uploadError = null;
+            _uploadResults.Clear();
         }
         _selectedNotebookId = id;
         _entries.Clear();

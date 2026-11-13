@@ -28,7 +28,7 @@ public sealed class SubscriptionOptions
     }
 }
 
-public sealed record SubscriptionAccess(bool IsPaid, DateTime? PaidThroughUtc)
+public sealed record SubscriptionAccess(bool IsPaid, DateTime? PaidThroughUtc, bool IsComplimentary = false, string AiProvider = "OpenAI")
 {
     public static readonly SubscriptionAccess Free = new(false, null);
 }

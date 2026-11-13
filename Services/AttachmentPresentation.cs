@@ -4,6 +4,8 @@ public enum AttachmentViewKind { Image, Audio, Video, Pdf, Text, File }
 
 public static class AttachmentPresentation
 {
+    public static string SizeLabel(long bytes) => bytes >= 1024 * 1024
+        ? $"{bytes / (1024d * 1024):0.#} MB" : $"{Math.Max(1, bytes / 1024d):0.#} KB";
     public static AttachmentViewKind Kind(JournalAttachment file)
     {
         if (HeicImageService.HasPreview(file.ContentType)) return AttachmentViewKind.Image;

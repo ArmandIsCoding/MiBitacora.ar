@@ -100,7 +100,7 @@ internal static class StorageChecks
         check(a.Attachments.Count == 12 && Directory.GetFiles(Path.Combine(root, aId)).Length == 12,
             "Se guardan 12 archivos en una entrada, con nombres únicos dentro de uploads/cuenta");
         var own = await store.GetContextAsync(aId, a.Id, true);
-        check(own.Media.Count == 3 && own.Media.All(file => file.Content.SequenceEqual(image)) &&
+        check(own.Media.Count == 3 && own.Media.All(file => file.ContentType == "image/jpeg" && file.Content[0] == 0xff) &&
             !JsonSerializer.Serialize(own).Contains("SECRETO_B"), "El contexto visual se lee del disco y pertenece al usuario autenticado");
         try { await store.GetContextAsync(aId, b.Id, true); throw new Exception("Acceso cruzado"); }
         catch (JournalInputException) { check(true, "Se rechaza consultar una entrada de otro usuario"); }
@@ -111,14 +111,14 @@ internal static class StorageChecks
         catch (ArgumentException) { check(true, "Las rutas rechazan códigos de cuenta manipulados"); }
 
         try { await store.AddEntryAsync(aId, "", [new("grande.txt", new byte[JournalStore.MaxFileBytes + 1])]); throw new Exception("Sin límite individual"); }
-        catch (JournalInputException) { check(true, "Se conserva el máximo de 8 MiB por archivo"); }
+        catch (JournalInputException) { check(true, "El almacenamiento aplica el máximo de 64 MiB por archivo optimizado"); }
         try
         {
             await store.AddEntryAsync(aId, "", [new("1.txt", new byte[JournalStore.MaxFileBytes]),
                 new("2.txt", new byte[JournalStore.MaxFileBytes]), new("3.txt", [1])]);
             throw new Exception("Sin límite total");
         }
-        catch (JournalInputException) { check(true, "Se conserva el máximo de 16 MiB por entrada"); }
+        catch (JournalInputException) { check(true, "El almacenamiento aplica el máximo de 128 MiB por entrada optimizada"); }
 
         // Force a disk write failure after database insertion. No entry may be committed.
         var blockedRoot = Path.Combine(temporary, "not-a-directory");

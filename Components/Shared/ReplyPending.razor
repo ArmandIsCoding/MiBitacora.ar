@@ -1,7 +1,7 @@
-<section class="reply-pending" aria-label="Brisa está pensando su respuesta">
+<section class="reply-pending" aria-label="@(Activity == BrisaActivity.Reading ? "Brisa está leyendo tu mensaje" : "Brisa está pensando su respuesta")">
     <div class="pending-heading" aria-hidden="true">
-        <BrisaPortrait />
-        <span class="brisa-reply-byline"><strong>Brisa</strong><small>Un momento para pensar con vos</small></span>
+        <BrisaPortrait Activity="Activity" Animated="true" />
+        <span class="brisa-reply-byline"><strong>Brisa</strong><small>@(Activity == BrisaActivity.Reading ? "Te está leyendo con atención" : "Un momento para pensar con vos")</small></span>
         <span class="brisa-thinking"><i></i><i></i><i></i></span>
     </div>
     <p class="pending-message" role="status" aria-atomic="true">@Message</p>
@@ -21,4 +21,5 @@
 @code {
     [Parameter] public string Message { get; set; } = "Brisa está pensando en lo que le contaste…";
     [Parameter] public bool OfferUpgrade { get; set; }
+    [Parameter] public BrisaActivity Activity { get; set; } = BrisaActivity.Thinking;
 }

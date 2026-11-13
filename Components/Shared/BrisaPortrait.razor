@@ -1,6 +1,27 @@
-<span class="brisa-portrait @(Illustration ? "brisa-illustration" : $"brisa-avatar brisa-avatar-{Size}") @Class" aria-hidden="@(Decorative ? "true" : null)">
-    <img src="@Assets["brisa/brisa-cozy.png"]" alt="@(Decorative ? "" : "Brisa, una compañera ilustrada con lentes grandes, un cuaderno y una sonrisa amable")"
-         width="1254" height="1254" loading="@(Priority ? "eager" : "lazy")" fetchpriority="@(Priority ? "high" : "auto")" />
+<span class="brisa-portrait @(Illustration ? "brisa-illustration" : $"brisa-avatar brisa-avatar-{Size}") @(Motion ? "brisa-animated" : "") @Class"
+      data-brisa-animate="@(Motion ? "true" : null)" data-brisa-activity="@Activity.ToString().ToLowerInvariant()"
+      style="@(!Illustration ? $"--brisa-expressions: url('{Assets["brisa/brisa-expressions.png"]}')" : null)"
+      aria-hidden="@(Decorative ? "true" : null)" role="@(!Decorative && !Illustration ? "img" : null)"
+      aria-label="@(!Decorative && !Illustration ? "Brisa, tu compañera ilustrada con lentes grandes" : null)">
+    @if (Illustration)
+    {
+        <img src="@Assets["brisa/brisa-cozy.png"]" alt="@(Decorative ? "" : "Brisa, una compañera ilustrada con lentes grandes, un cuaderno y una sonrisa amable")"
+             width="1254" height="1254" loading="@(Priority ? "eager" : "lazy")" fetchpriority="@(Priority ? "high" : "auto")" />
+    }
+    else
+    {
+        <span class="brisa-face-stack" aria-hidden="true">
+            <span class="brisa-face brisa-face-idle"></span>
+            <span class="brisa-face brisa-face-reading"></span>
+            <span class="brisa-face brisa-face-thinking"></span>
+            <span class="brisa-face brisa-face-responding"></span>
+            @if (Motion)
+            {
+                <span class="brisa-face brisa-face-half-blink"></span>
+                <span class="brisa-face brisa-face-blink"></span>
+            }
+        </span>
+    }
 </span>
 
 @code {
@@ -9,4 +30,7 @@
     [Parameter] public bool Priority { get; set; }
     [Parameter] public string Size { get; set; } = "normal";
     [Parameter] public string? Class { get; set; }
+    [Parameter] public BrisaActivity Activity { get; set; }
+    [Parameter] public bool? Animated { get; set; }
+    private bool Motion => Animated ?? Illustration;
 }

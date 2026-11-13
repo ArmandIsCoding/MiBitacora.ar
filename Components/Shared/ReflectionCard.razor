@@ -1,6 +1,6 @@
 <article class="reflection-card @(IsConversation ? "conversation-reply" : "")" aria-label="Respuesta de Brisa">
     <header class="reflection-meta">
-        <BrisaPortrait />
+        <BrisaPortrait Activity="@(JustResponded ? BrisaActivity.Responding : BrisaActivity.Idle)" Animated="JustResponded" />
         <span class="brisa-reply-byline"><strong>Brisa</strong><small>Una mirada para pensar con vos</small></span>
         @if (Regenerate.HasDelegate)
         {
@@ -61,19 +61,6 @@
         </details>
     }
 
-    @if (Reflection.SessionTopics.Count > 0)
-    {
-        <details class="reflection-details">
-            <summary>Temas para conversar <Icon Name="chevron" Size="16" /></summary>
-            <ul>
-                @foreach (var topic in Reflection.SessionTopics)
-                {
-                    <li>@topic</li>
-                }
-            </ul>
-        </details>
-    }
-
     @if (!string.IsNullOrWhiteSpace(Reflection.NextStep))
     {
         <p class="reflection-next"><Icon Name="leaf" Size="19" /> <span>@Reflection.NextStep</span></p>
@@ -105,9 +92,14 @@
         </button>
     </footer>
     }
+    <section class="therapy-proposal" aria-label="Propuesta para llevar a terapia">
+        <span class="therapy-proposal-icon"><Icon Name="leaf" Size="19" /></span>
+        <div><strong>Para tu próxima sesión</strong><p>Te propongo que lleves a tu próxima sesión: @Reflection.TherapyProposal</p><small>Si hacés terapia, podés retomarlo con tu terapeuta. Brisa acompaña tu escritura y no reemplaza ese espacio.</small></div>
+    </section>
 </article>
 
 @code {
+    [Parameter] public bool JustResponded { get; set; }
     [Inject] private TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
     private bool IsConversation => Reflection.ConversationVersion >= 1 && !Reflection.IsDemo;
     [Parameter, EditorRequired] public JournalReflection Reflection { get; set; } = default!;

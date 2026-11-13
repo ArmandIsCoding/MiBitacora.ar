@@ -61,7 +61,19 @@
             </aside>
 
             <main class="journal-main">
-                <PlanNotice IsPaid="Reflector.UsesExternalProvider" />
+                <section class="notebook-shelf" aria-label="Tus diarios">
+                    <div class="notebook-shelf-heading"><div><strong>Tus diarios</strong><p>Elegí dónde querés escribir. Podés tener uno para cada parte de tu vida.</p></div><button type="button" class="btn btn-outline" @onclick="() => EditNotebook()" disabled="@NotebookControlsBusy"><Icon Name="plus" Size="18" /> Crear otro diario</button></div>
+                    <nav class="notebook-cards" aria-label="Elegir un diario">
+                        @foreach (var notebook in _notebooks)
+                        {
+                            <button type="button" class="notebook-card @(notebook.Id == _selectedNotebookId ? "is-current" : "")" aria-pressed="@(notebook.Id == _selectedNotebookId)" @onclick="() => SwitchNotebookAsync(notebook.Id)" disabled="@NotebookControlsBusy">
+                                <Icon Name="book" Size="22" /><span><strong>@notebook.Name</strong><small>@EntryCountLabel(notebook.EntryCount)@if (HasNotebookDraft(notebook.Id)) { <span> · Borrador</span> }</small></span>@if (notebook.Id == _selectedNotebookId) { <Icon Name="check" Size="17" /> }
+                            </button>
+                        }
+                    </nav>
+                    <button type="button" class="quiet-action notebook-organize" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy">Organizar mis diarios <Icon Name="chevron" Size="14" /></button>
+                </section>
+                <PlanNotice IsPaid="Reflector.HasPremiumAccess" />
                 @if (_error is not null)
                 {
                     <div class="journal-alert" role="alert"><Icon Name="info" Size="19" /><span>@_error</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _error = null"><Icon Name="x" Size="17" /></button></div>
@@ -73,21 +85,15 @@
 
                 @if (_section == WorkspaceSection.Conversation)
                 {
-                    <div class="notebook-toolbar">
-                        <button type="button" class="notebook-switcher" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy" aria-haspopup="dialog">
-                            <Icon Name="book" Size="21" /><span>Mis diarios</span><span class="notebook-total">@_notebooks.Count</span><Icon Name="chevron" Size="16" />
-                        </button>
-                        <button type="button" class="quiet-action" @onclick="() => EditNotebook()" disabled="@NotebookControlsBusy"><Icon Name="plus" Size="17" /> Nuevo diario</button>
-                    </div>
                     <header class="workspace-heading">
                         <div class="brisa-conversation-intro">
-                            <BrisaPortrait Size="large" />
+                            <BrisaPortrait Size="large" Activity="CurrentBrisaActivity" Animated="true" />
                             <div><p class="eyebrow">TU CONVERSACIÓN CON BRISA</p>
-                            <h1 class="notebook-title" @ref="_sectionHeading" tabindex="-1">Un espacio para vos<span class="brand-period">.</span></h1>
+                            <h1 class="notebook-title" @ref="_sectionHeading" tabindex="-1">@SelectedNotebook.Name<span class="brand-period">.</span></h1>
                             <p>En <strong>@SelectedNotebook.Name</strong>. Lo pensamos juntos, a tu ritmo.</p></div>
                         </div>
                         <a class="mode-pill" href="/Account/Manage/Subscription" title="Ver mi plan de devolución">
-                            <Icon Name="leaf" Size="15" /> @(IsAiEnabled ? (Reflector.UsesExternalProvider ? "Brisa · Profundo" : "Brisa · Gratuito") : "Conocé a Brisa")
+                            <Icon Name="leaf" Size="15" /> @(IsAiEnabled ? (Reflector.HasPremiumAccess ? (Reflector.UsesExternalProvider ? "Brisa · Profundo" : "Brisa · Profundo local") : "Brisa · Gratuito") : "Conocé a Brisa")
                         </a>
                     </header>
 
@@ -169,7 +175,7 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.UsesExternalProvider)" />
+                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.HasPremiumAccess)" Activity="_reflectionActivity" />
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {
@@ -178,7 +184,8 @@
                                     @if (entry.Reflection is { } reflection && _workingEntry != entry.Id)
                                     {
                                         <EntryReply Entry="entry" Updated="ReplyUpdated" CanRegenerate="IsAiEnabled"
-                                                        Busy="_busy"
+                                                        Busy="_busy" JustResponded="@(_lastCompletedEntry == entry.Id)"
+                                                        ActivityChanged="activity => ReplyActivityChanged(entry.Id, activity)"
                                                         SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
                                                         ToggleSession="() => ToggleEntryAsync(entry)" />
                                     }
@@ -188,9 +195,10 @@
                     }
 
                     <div class="journal-end" @ref="_end"></div>
-                    <section class="composer-wrap" aria-label="Continuar la conversación">
+                    <section class="composer-wrap @(_entries.Count == 0 ? "composer-empty" : "")" aria-label="Continuar la conversación">
+                        <button type="button" class="composer-current-notebook" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy" aria-haspopup="dialog"><Icon Name="book" Size="17" /><span>Estás escribiendo en <strong>@SelectedNotebook.Name</strong></span><span class="notebook-change-label">Cambiar <Icon Name="chevron" Size="13" /></span></button>
                         <div class="composer">
-                            <div class="brisa-composer-greeting"><BrisaPortrait Size="mini" /><span>Te leo. ¿Qué te gustaría contarme?</span></div>
+                            <div class="brisa-composer-greeting"><BrisaPortrait Size="mini" Activity="CurrentBrisaActivity" Animated="true" /><span>Te leo. ¿Qué te gustaría contarme?</span></div>
                             <label class="visually-hidden" for="entry-text">Tu mensaje para Brisa</label>
                             <textarea id="entry-text" @ref="_composerInput" @bind="_draft" @bind:event="oninput" maxlength="@JournalStore.MaxTextLength" rows="3"
                                       placeholder="@(RendererInfo.IsInteractive ? "Brisa, hoy me está pasando que…" : "Abriendo tu espacio con Brisa…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
@@ -212,11 +220,18 @@
                             }
                             @if (_uploading)
                             {
-                                <p class="uploading" role="status"><span class="spinner"></span> Preparando tus adjuntos…</p>
+                                <p class="uploading" role="status" aria-live="polite"><span class="spinner"></span> @_uploadStatus</p>
+                            }
+                            @if (_uploadError is not null)
+                            {
+                                <p class="upload-error" role="alert"><Icon Name="info" Size="18" /> @_uploadError</p>
+                            }
+                            @if (!_uploading && _uploadResults.Count > 0)
+                            {
+                                <ul class="upload-results" aria-live="polite">@foreach (var result in _uploadResults) { <li><Icon Name="check" Size="15" /> @result</li> }</ul>
                             }
                             <div class="composer-toolbar">
                                 <div class="composer-tools">
-                                    <button class="composer-tool diary-tool" type="button" aria-label="Cambiar diario" title="@($"Cambiar diario · {SelectedNotebook.Name}")" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy"><Icon Name="book" Size="19" /></button>
                                     <InputFile @key="(0, _pickerVersion)" id="file-picker" aria-label="Adjuntar fotos o archivos" class="visually-hidden file-input" OnChange="PickFilesAsync" multiple disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
                                     <label for="file-picker" class="composer-tool" title="Adjuntar fotos y archivos"><Icon Name="paperclip" Size="19" /><span>Adjuntar</span></label>
                                     <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
@@ -237,7 +252,7 @@
                             <p class="topic-scope">Al enviar, OpenAI transcribe los audios y recibe tu mensaje y contexto pertinente. Los antecedentes se buscan localmente. «Solo guardar» no genera una respuesta ni transcribe audio. <a href="privacidad">Ver privacidad</a>.</p>
                         }
                         <p class="topic-scope">Tu cuaderno ayuda a Brisa a encontrar el hilo de lo que venís contando.</p>
-                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
+                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Tus conversaciones no son públicas. <a href="privacidad">Privacidad</a></span><span>Hasta 256 MB por archivo · fotos y videos se optimizan a Full HD</span></div>
                         <p class="topic-scope conversation-footnote">Podés llevar lo que conversemos a terapia. Marcá lo que quieras guardar en «Para retomar».</p>
                     </div>
                 }

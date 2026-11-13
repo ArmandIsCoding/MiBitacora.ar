@@ -71,6 +71,7 @@ internal static class TopicChecks
         services.AddSingleton<IAudioTranscriber, RejectAudioTranscriber>();
         services.AddSingleton<JournalConversationJobs>();
         services.AddScoped<JournalConversationService>();
+        services.AddSingleton(new AttachmentPreparationService(Path.Combine(directory, "staging"), Path.Combine(directory, "tools")));
         services.AddScoped<JournalReportService>();
         var account = new TestAccount();
         var components = new CapturedComponents();

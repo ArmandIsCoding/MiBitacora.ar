@@ -9,6 +9,7 @@ public interface IJournalModelClient
     bool IsConfigured { get; }
     string ProviderName { get; }
     bool UsesExternalProvider { get; }
+    bool HasPremiumAccess => UsesExternalProvider;
     Task<string> GenerateAsync(string instruction, string prompt, JsonElement schema,
         IReadOnlyList<JournalImage> images, CancellationToken cancellationToken);
 }
@@ -19,6 +20,7 @@ public abstract partial class JournalAiService(IJournalModelClient model, ILogge
     public bool IsConfigured => model.IsConfigured;
     public string ProviderName => model.ProviderName;
     public bool UsesExternalProvider => model.UsesExternalProvider;
+    public bool HasPremiumAccess => model.HasPremiumAccess;
     private const string InvalidReply =
         "La respuesta de Brisa quedó incompleta. Tu entrada está guardada y podés reintentar.";
 

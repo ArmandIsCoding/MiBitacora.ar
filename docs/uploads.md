@@ -1,6 +1,6 @@
 # Archivos locales por cuenta
 
-Los originales se guardan bajo la raíz de contenido de la aplicación:
+Los archivos guardados viven bajo la raíz de contenido de la aplicación. Los adjuntos anteriores y las importaciones conservan sus originales; las cargas nuevas guardan la versión optimizada que se informa en el selector:
 
 ```text
 C:\Dev\MiBitacora\
@@ -11,7 +11,7 @@ C:\Dev\MiBitacora\
       <UUID del adjunto>.jpg   # Copia de visualización, solo para HEIC/HEIF
 ```
 
-La carpeta de cada cuenta se crea cuando recibe su primer archivo. El nombre físico se genera en el servidor; el nombre original, tipo de contenido, tamaño, orden y texto extraído se conservan en SQLite. Dos archivos con el mismo nombre pueden convivir. `.bin` conserva los bytes originales, sin convertirlos: las descargas recuperan el nombre y el tipo apropiados desde los metadatos.
+La carpeta de cada cuenta se crea cuando recibe su primer archivo. El nombre físico se genera en el servidor; el nombre del archivo guardado, tipo de contenido, tamaño, orden y texto extraído se conservan en SQLite. Dos archivos con el mismo nombre pueden convivir. `.bin` contiene los bytes guardados: las descargas recuperan el nombre y tipo apropiados desde los metadatos. Para cargas nuevas de multimedia son los bytes optimizados, no una segunda copia del archivo grande.
 
 `uploads` está fuera de `wwwroot`: no es una URL pública ni debe mapearse como contenido estático en IIS o un proxy. Las descargas y vistas previas siguen pasando por `/adjuntos/{id}` y `/adjuntos/{id}/vista`, con autenticación, comprobación de propietario y `private, no-store`. Los archivos se transmiten desde disco; solo se cargan en memoria las imágenes seleccionadas para el contexto de Ollama. El servicio rechaza rutas de cuenta que no sean UUID y enlaces simbólicos en las carpetas de uploads.
 
@@ -19,7 +19,7 @@ Para fotos HEIC/HEIF, la vista previa y Ollama usan [una copia JPG local](heic-j
 
 ## Límites y borrado
 
-Se quitó el máximo de cuatro archivos tanto del selector como del servidor. Se puede elegir más de diez archivos en una selección. Siguen vigentes los límites de 8 MiB por archivo y 16 MiB por entrada. La configuración incluida permite 1 GiB o 2000 archivos por cuenta, mediante `Journal:MaxAccountAttachmentBytes` y `Journal:MaxAccountFiles`; sin esa configuración, los valores por defecto son 80 MiB y 250 archivos. Son límites de almacenamiento, independientes de las dos imágenes que el modelo puede analizar por devolución. El importador administrativo de Apple conserva originales que superen los límites del selector; no recorta ni comprime los archivos históricos.
+El selector admite hasta 30 adjuntos por mensaje y 256 MiB de entrada por archivo. [La preparación de multimedia](multimedia.md) convierte las fotos a JPG Full HD y los videos a MP4 Full HD; comprime los audios o prepara WAV para Ollama. Audio y video admiten hasta 10 minutos. El resultado puede ocupar hasta 64 MiB por archivo y 128 MiB por entrada. Los documentos que no se convierten admiten hasta 64 MiB. El progreso, los tamaños antes/después y los errores se muestran junto al selector. La configuración incluida permite 1 GiB o 2000 archivos por cuenta, mediante `Journal:MaxAccountAttachmentBytes` y `Journal:MaxAccountFiles`; sin esa configuración, los valores por defecto son 80 MiB y 250 archivos. La cuota se calcula sobre los bytes guardados, después de optimizar. El importador administrativo de Apple conserva los originales históricos.
 
 Una entrada se confirma en SQLite después de escribir todos sus originales. Si una escritura falla, se revierte la entrada y se eliminan los archivos recién creados. Al borrar una entrada se borran sus originales; al borrar una cuenta se elimina su carpeta. Las escrituras y los borrados se serializan dentro de la instancia del servidor para evitar carreras entre pestañas y sesiones.
 

@@ -1,3 +1,4 @@
+param([ValidateSet('Debug','Release')][string]$Configuration = 'Debug', [switch]$MediaCodecs)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $testTemp = Join-Path $projectRoot '.artifacts/test-tmp'
@@ -10,11 +11,12 @@ foreach ($name in $settings.Keys) {
 }
 Push-Location $projectRoot
 try {
-    dotnet build tests/MiBitacora.Checks --verbosity minimal
+    dotnet build tests/MiBitacora.Checks -c $Configuration --verbosity minimal
     if ($LASTEXITCODE -ne 0) { throw 'Falló la compilación.' }
-    dotnet tests/MiBitacora.Checks/bin/Debug/net10.0/MiBitacora.Checks.dll
+    $checkArguments = if ($MediaCodecs) { @('--media-codecs') } else { @() }
+    dotnet "tests/MiBitacora.Checks/bin/$Configuration/net10.0/MiBitacora.Checks.dll" @checkArguments
     if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones de .NET.' }
-    node --test tests/voice-recorder.test.mjs tests/journal-scroll.test.mjs
+    node --test tests/voice-recorder.test.mjs tests/journal-scroll.test.mjs tests/brisa-motion.test.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones del navegador.' }
 }
 finally {
