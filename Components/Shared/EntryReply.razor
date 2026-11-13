@@ -57,7 +57,7 @@
             userId = id;
             var reflector = Services.GetRequiredService<IJournalReflector>();
             if (reflector is AccountJournalService accountAi) await accountAi.SelectAccountAsync(id, _lifetime.Token);
-            _offerUpgrade = !reflector.HasPremiumAccess;
+            _offerUpgrade = !reflector.HasOpenAiAccess;
             var conversation = Services.GetRequiredService<JournalConversationService>();
             if (!conversation.IsConfigured) throw new JournalReflectionException("Brisa no puede responder en esta instalación por el momento.");
             _current = await conversation.GenerateAsync(id, Entry.Id, true, new ReplyProgress(message =>

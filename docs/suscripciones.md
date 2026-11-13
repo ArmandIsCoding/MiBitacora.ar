@@ -1,5 +1,21 @@
 # Suscripciones y planes de IA
 
+## OpenAI predeterminado para todas las cuentas
+
+`AI:OpenAiForAllAccounts=true` habilita temporalmente OpenAI para todas las cuentas existentes y nuevas. Es el valor predeterminado del código y de `appsettings.json`, también cuando la configuración privada anterior no contiene la clave. Una cuenta sin preferencia usa OpenAI. Cada persona puede elegir OpenAI u Ollama desde **Mi cuenta → Mi plan**, con autenticación y antiforgery; su elección se conserva entre reinicios. Chat, informes y transcripción usan la misma selección por operación. La búsqueda y los embeddings siguen siendo locales.
+
+`IsPaid` conserva su significado: período abonado o concesión administrativa. La disponibilidad global se informa por separado en `SubscriptionAccess.OpenAiForAllAccounts` y `CanUseOpenAi`; no se crean cobros, suscripciones ni concesiones para habilitarla. Las cuentas inexistentes o borradas no reciben el acceso global. La interfaz muestra el proveedor efectivo y ofrece ambas opciones sin pedir contratar un plan mientras está habilitado este acceso.
+
+Para aplicar el inicio con OpenAI a todas las preferencias ya guardadas, ejecutá **una sola vez**, después de respaldar la base:
+
+```powershell
+dotnet run --project tools/MiBitacora.Admin -c Release -- reset-ai-providers --database '<base existente>'
+```
+
+El comando cambia únicamente las preferencias existentes a OpenAI. Las cuentas sin fila de preferencia y las futuras ya usan ese valor por defecto. No se repite al arrancar la web: una elección posterior de Ollama debe respetarse.
+
+Para volver al acceso según plan, configurá `AI:OpenAiForAllAccounts=false` en la configuración privada o `AI__OpenAiForAllAccounts=false` en el entorno y reiniciá. Las operaciones revalidan el permiso antes de enviar contenido a OpenAI y no cambian de proveedor silenciosamente. No se alteran respuestas guardadas ni períodos abonados.
+
 ## Acceso premium de cortesía y elección de proveedor
 
 El Plan Profundo también puede otorgarse administrativamente mediante `BillingAccessGrants`, sin inventar pagos ni suscripciones. `UserId` identifica al titular, `GrantedUtc` el inicio, `ExpiresUtc` es opcional y `Reason` deja el motivo. Eliminar la concesión la revoca; los períodos realmente abonados siguen vigentes. La migración `AddPremiumAccessAndProvider` sólo agrega tablas y claves con borrado en cascada.
@@ -12,13 +28,15 @@ dotnet run --project tools/MiBitacora.Admin -c Release -- grant-premium --databa
 
 `--only-account` reemplaza a `--user-id` únicamente en instalaciones con exactamente una cuenta; si encuentra cero o varias, aborta sin conceder acceso. El comando habilita OpenAI por defecto y no toca credenciales, pagos ni textos del diario. Para revocar, usá `revoke-premium` con el mismo destino e identificador.
 
-En **Mi cuenta → Mi plan**, una cuenta premium puede elegir **OpenAI** o **IA local**. La preferencia vive en `AccountAiPreferences`; una gratuita siempre se procesa localmente. El POST exige autenticación, antiforgery y acceso premium validado en el servidor. Cada operación conserva su elección y revalida el acceso antes de transmitir a OpenAI. El plan, la preferencia y su vigencia se incluyen en la exportación; ambas tablas se eliminan con la cuenta. No hay fallback silencioso entre proveedores.
+En **Mi cuenta → Mi plan**, una cuenta con acceso a OpenAI puede elegir **OpenAI** o **IA local**. La preferencia vive en `AccountAiPreferences`. El POST exige autenticación, antiforgery y acceso validado en el servidor, sea global, pago o de cortesía. Cada operación conserva su elección y revalida el acceso antes de transmitir a OpenAI. El plan, la preferencia y su vigencia se incluyen en la exportación; ambas tablas se eliminan con la cuenta. No hay fallback silencioso entre proveedores.
 
 Una concesión se muestra como **Acceso premium de cortesía**, sin cobros ni renovación. Elegir Ollama no dispara publicidad para contratar el plan que ya tiene.
 
 Integración incorporada a `main`, con enrutamiento por plan, memoria vectorial y mejoras de conversación. Los cobros reales se mantienen deshabilitados: `Subscriptions:Provider=Disabled` y `AllowLiveRequests=false`. No se incluyen credenciales de Mercado Pago ni se realizaron operaciones en la cuenta del propietario. Development usa un simulador propio; no es el entorno de pruebas de Mercado Pago.
 
 ## Comportamiento
+
+Las siguientes reglas de elegibilidad se aplican cuando `AI:OpenAiForAllAccounts=false`. Con el acceso global habilitado, todas las cuentas pueden elegir OpenAI independientemente de su situación de pago.
 
 | Cuenta | Nuevas devoluciones, informes y transcripción |
 | --- | --- |

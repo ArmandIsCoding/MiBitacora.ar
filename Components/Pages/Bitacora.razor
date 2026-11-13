@@ -73,7 +73,7 @@
                     </nav>
                     <button type="button" class="quiet-action notebook-organize" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy">Organizar mis diarios <Icon Name="chevron" Size="14" /></button>
                 </section>
-                <PlanNotice IsPaid="Reflector.HasPremiumAccess" />
+                <PlanNotice HasOpenAiAccess="Reflector.HasOpenAiAccess" />
                 @if (_error is not null)
                 {
                     <div class="journal-alert" role="alert"><Icon Name="info" Size="19" /><span>@_error</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _error = null"><Icon Name="x" Size="17" /></button></div>
@@ -93,7 +93,7 @@
                             <p>En <strong>@SelectedNotebook.Name</strong>. Lo pensamos juntos, a tu ritmo.</p></div>
                         </div>
                         <a class="mode-pill" href="/Account/Manage/Subscription" title="Ver mi plan de devolución">
-                            <Icon Name="leaf" Size="15" /> @(IsAiEnabled ? (Reflector.HasPremiumAccess ? (Reflector.UsesExternalProvider ? "Brisa · Profundo" : "Brisa · Profundo local") : "Brisa · Gratuito") : "Conocé a Brisa")
+                            <Icon Name="leaf" Size="15" /> @(IsAiEnabled ? (Reflector.UsesExternalProvider ? "Brisa · OpenAI" : "Brisa · IA local") : "Conocé a Brisa")
                         </a>
                     </header>
 
@@ -175,7 +175,7 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.HasPremiumAccess)" Activity="_reflectionActivity" />
+                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.HasOpenAiAccess)" Activity="_reflectionActivity" />
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {

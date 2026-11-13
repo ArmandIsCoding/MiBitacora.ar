@@ -4,13 +4,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MiBitacora.Data;
 
-if (args.Length < 3 || args[0] is not ("grant-premium" or "revoke-premium") || args[1] != "--database")
-    throw new ArgumentException("grant-premium|revoke-premium --database <existing SQLite path> --only-account|--user-id <id>");
+if (args.Length < 3 || args[0] is not ("grant-premium" or "revoke-premium" or "reset-ai-providers") || args[1] != "--database")
+    throw new ArgumentException("grant-premium|revoke-premium --database <existing SQLite path> --only-account|--user-id <id>; reset-ai-providers --database <path>");
 var database = Path.GetFullPath(args[2]);
 if (!File.Exists(database)) throw new FileNotFoundException("La base debe existir. Respaldala antes de modificar el acceso.");
 var onlyAccount = args.Length == 4 && args[3] == "--only-account";
 var requestedId = args.Length == 5 && args[3] == "--user-id" ? args[4] : null;
-if (!onlyAccount && requestedId is null) throw new ArgumentException("Indicá --only-account o un --user-id explícito.");
+var resetProviders = args[0] == "reset-ai-providers" && args.Length == 3;
+if (args[0] == "reset-ai-providers" && !resetProviders) throw new ArgumentException("reset-ai-providers sólo recibe --database <path>.");
+if (!resetProviders && !onlyAccount && requestedId is null) throw new ArgumentException("Indicá --only-account o un --user-id explícito.");
 var services = new ServiceCollection().AddLogging();
 var connection = new SqliteConnectionStringBuilder { DataSource = database, ForeignKeys = true, Pooling = false, Mode = SqliteOpenMode.ReadWrite, DefaultTimeout = 30 };
 services.AddDbContextFactory<ApplicationDbContext>(o => o.UseSqlite(connection.ToString()));
@@ -20,6 +22,15 @@ var factory = provider.GetRequiredService<IDbContextFactory<ApplicationDbContext
 await using var db = await factory.CreateDbContextAsync();
 // Do not migrate an unknown or empty database by accident.
 var ids = await db.Users.AsNoTracking().Select(u => u.Id).ToListAsync();
+if (resetProviders)
+{
+    if (ids.Count == 0) throw new InvalidOperationException("La base indicada no tiene cuentas existentes.");
+    await db.Database.MigrateAsync();
+    var changed = await db.AccountAiPreferences.Where(p => p.Provider != "OpenAI")
+        .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.Provider, "OpenAI"));
+    Console.WriteLine($"OpenAI seleccionado por defecto para las {ids.Count} cuentas existentes. Preferencias actualizadas: {changed}.");
+    return;
+}
 if (onlyAccount && ids.Count != 1) throw new InvalidOperationException("--only-account requiere exactamente una cuenta. Indicá el ID explícito.");
 var id = onlyAccount ? ids.Single() : requestedId!;
 if (!ids.Contains(id)) throw new InvalidOperationException("La cuenta indicada no existe.");

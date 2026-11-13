@@ -73,6 +73,7 @@ public interface IJournalReflector
     string ProviderName => "IA local";
     bool UsesExternalProvider => false;
     bool HasPremiumAccess => UsesExternalProvider;
+    bool HasOpenAiAccess => HasPremiumAccess;
 
     Task<JournalReflection> ReflectAsync(
         JournalContext context,

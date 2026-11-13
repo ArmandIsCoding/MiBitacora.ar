@@ -17,7 +17,7 @@ dotnet run --launch-profile http
 
 Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
-Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La respuesta usa IA local para las cuentas gratuitas y OpenAI para las cuentas con un período pago vigente. **Solo guardar** permite escribir sin pedir una devolución ni transcribir audio; los textos disponibles se organizan localmente en segundo plano. Si falla el proveedor, la entrada queda guardada y se muestra una opción para reintentar. Ver [conversación y actualización de entradas existentes](docs/conversacion.md).
+Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. Por ahora **OpenAI es la opción predeterminada para todas las cuentas actuales y nuevas**; cada persona puede elegir Ollama desde **Mi cuenta → Mi plan**. **Solo guardar** permite escribir sin pedir una respuesta ni transcribir audio; los textos disponibles se organizan localmente en segundo plano. Si falla el proveedor elegido, la entrada queda guardada y se puede reintentar. Ver [conversación](docs/conversacion.md).
 
 ## Suscripciones: prueba local
 
@@ -31,7 +31,7 @@ Abrí [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription), regist
 
 ## IA local en Windows
 
-Las cuentas gratuitas usan Ollama, con `gemma4:12b` como valor predeterminado. Las cuentas pagas usan [OpenAI: configuración, privacidad y pruebas](docs/openai.md). La elección se consulta por cuenta en el servidor y ya no depende de `AI:Provider` para la web. La interfaz muestra el plan activo; no existe fallback automático entre proveedores.
+`AI:OpenAiForAllAccounts=true` habilita temporalmente OpenAI para todas las cuentas sin cambiar sus pagos ni suscripciones. Las cuentas sin preferencia comienzan con OpenAI; la elección posterior de Ollama se conserva. Con `false` se vuelve al acceso según el plan. La interfaz muestra el proveedor efectivo y no cambia de proveedor automáticamente cuando falla. Ver [configuración de OpenAI](docs/openai.md) y [acceso y planes](docs/suscripciones.md).
 
 1. Instalá una versión de [Ollama para Windows](https://ollama.com/download/windows) compatible con Gemma 4 12B si todavía no lo tenés.
 2. En los ajustes de la app de Ollama, desactivá **Expose Ollama to the network**. Fijá el contexto en 8192 si aparece esa opción: la app puede sobrescribir las variables de entorno con sus preferencias.

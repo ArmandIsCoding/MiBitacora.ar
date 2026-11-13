@@ -1,4 +1,4 @@
-@if (!IsPaid)
+@if (!HasOpenAiAccess)
 {
     <aside class="plan-notice" aria-label="Tu plan gratuito">
         <div>
@@ -8,4 +8,4 @@
         <a class="btn btn-outline" href="/Account/Manage/Subscription">Conocer el Plan Profundo</a>
     </aside>
 }
-@code { [Parameter] public bool IsPaid { get; set; } }
+@code { [Parameter] public bool HasOpenAiAccess { get; set; } }

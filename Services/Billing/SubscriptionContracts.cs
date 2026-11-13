@@ -28,9 +28,11 @@ public sealed class SubscriptionOptions
     }
 }
 
-public sealed record SubscriptionAccess(bool IsPaid, DateTime? PaidThroughUtc, bool IsComplimentary = false, string AiProvider = "OpenAI")
+public sealed record SubscriptionAccess(bool IsPaid, DateTime? PaidThroughUtc, bool IsComplimentary = false,
+    string AiProvider = "OpenAI", bool OpenAiForAllAccounts = false)
 {
     public static readonly SubscriptionAccess Free = new(false, null);
+    public bool CanUseOpenAi => IsPaid || OpenAiForAllAccounts;
 }
 public sealed record SubscriptionSummary(Guid Id, string Status, bool CancellationRequested, long MonthlyPriceCents,
     DateTime? PaidThroughUtc, string? CheckoutUrl, string Provider);

@@ -37,7 +37,8 @@ internal static class BillingChecks
         var environment = new Environment();
         using var gate = new BillingGate();
         var gateway = new Gateway(clock);
-        var billing = new SubscriptionService(factory, gateway, Options.Create(config), environment, gate, clock);
+        var aiSettings = new JournalAiOptions { OpenAiForAllAccounts = false };
+        var billing = new SubscriptionService(factory, gateway, Options.Create(config), environment, gate, clock, Options.Create(aiSettings));
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync();
@@ -139,7 +140,7 @@ internal static class BillingChecks
         await inbox.EnqueueAsync("payment", "123", "request-1", default);
         await using (var db = await factory.CreateDbContextAsync()) check(await db.BillingWebhooks.CountAsync() == 1, "Webhooks: bandeja durable sin duplicar una misma entrega");
 
-        await CheckRoutingAsync(billing, clock, factory, check);
+        await CheckRoutingAsync(billing, clock, factory, aiSettings, check);
         await CheckRecoveryAsync(billing, gateway, factory, provider, root, clock, check);
         await CheckGatewayAsync(environment, check);
 
@@ -207,7 +208,7 @@ internal static class BillingChecks
     }
 
     private static async Task CheckRoutingAsync(SubscriptionService billing, Clock clock,
-        IDbContextFactory<ApplicationDbContext> factory, Action<bool, string> check)
+        IDbContextFactory<ApplicationDbContext> factory, JournalAiOptions aiSettings, Action<bool, string> check)
     {
         using var localGate = new LocalInferenceGate(); using var cloudGate = new LocalInferenceGate();
         var localCalls = 0; var cloudCalls = 0;
@@ -297,6 +298,49 @@ internal static class BillingChecks
             check(!await db.BillingAccessGrants.AnyAsync(g => g.UserId == grantedId) && !await db.AccountAiPreferences.AnyAsync(p => p.UserId == grantedId),
                 "Premium: borrar la cuenta elimina su concesión y la preferencia de proveedor");
         }
+        aiSettings.OpenAiForAllAccounts = true;
+        var existing = await billing.GetAccessAsync("b");
+        check(existing.CanUseOpenAi && !existing.IsPaid && existing.AiProvider == "OpenAI" && (await billing.GetPaymentsAsync("b")).Count == 0,
+            "OpenAI para todos: una cuenta existente sin pagos usa OpenAI por defecto sin alterar su plan");
+        check(await Run("b") == "cloud" && await Audio("b") == "audio cloud",
+            "OpenAI para todos: las respuestas y la transcripción de una cuenta gratuita usan el proveedor elegido");
+        var futureId = Guid.NewGuid().ToString("D");
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Users.Add(new ApplicationUser { Id = futureId, UserName = "future-account" }); await db.SaveChangesAsync();
+        }
+        var future = await billing.GetAccessAsync(futureId);
+        check(future.CanUseOpenAi && !future.IsPaid && future.AiProvider == "OpenAI" && await Run(futureId) == "cloud",
+            "OpenAI para todos: una cuenta creada después también comienza con OpenAI sin una concesión individual");
+        await billing.SetAiProviderAsync(futureId, "Ollama");
+        var beforeCloud = cloudCalls;
+        check(await Run(futureId) == "local" && await Audio(futureId) == "audio local" && cloudCalls == beforeCloud,
+            "OpenAI para todos: una cuenta gratuita puede elegir Ollama para texto y audio sin transmitir a OpenAI");
+        using (router.Use(await router.ResolveAsync(futureId)))
+        {
+            await billing.SetAiProviderAsync(futureId, "OpenAI");
+            check(!router.UsesExternalProvider && await router.GenerateAsync("i", "p", schema, [], default) == "local",
+                "OpenAI para todos: cambiar la preferencia no cambia el proveedor de una operación en curso");
+        }
+        check(await Run(futureId) == "cloud", "OpenAI para todos: la elección nueva se aplica a la siguiente operación");
+        using (router.Use(await router.ResolveAsync(futureId)))
+        {
+            await using (var db = await factory.CreateDbContextAsync())
+            { db.Users.Remove(await db.Users.SingleAsync(u => u.Id == futureId)); await db.SaveChangesAsync(); }
+            beforeCloud = cloudCalls;
+            try { await router.GenerateAsync("i", "p", schema, [], default); throw new Exception("Cuenta borrada accedió a OpenAI"); }
+            catch (JournalReflectionException) { check(cloudCalls == beforeCloud, "OpenAI para todos: borrar la cuenta retira el acceso antes de transmitir"); }
+        }
+        check(!(await billing.GetAccessAsync("inexistent-account")).CanUseOpenAi,
+            "OpenAI para todos: una cuenta inexistente no recibe acceso global");
+        using (router.Use(await router.ResolveAsync("b")))
+        {
+            aiSettings.OpenAiForAllAccounts = false;
+            beforeCloud = cloudCalls;
+            try { await router.GenerateAsync("i", "p", schema, [], default); throw new Exception("Promoción desactivada ignorada"); }
+            catch (JournalReflectionException) { check(cloudCalls == beforeCloud, "OpenAI para todos: desactivar la configuración se revalida sin cambiar de proveedor silenciosamente"); }
+        }
+        check(await Run("b") == "local", "OpenAI para todos: la configuración permite volver al enrutamiento por plan");
         async Task<string> Run(string id)
         {
             using var operation = router.Use(await router.ResolveAsync(id));

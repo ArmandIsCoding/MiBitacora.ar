@@ -115,6 +115,7 @@
 .composer-current-notebook > span:first-of-type { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .notebook-change-label { display: inline-flex; gap: .25rem; align-items: center; flex-shrink: 0; font-weight: 600; }
 .composer-wrap.composer-empty { position: static; bottom: auto; }
+.brisa-provider-select { display: block; width: 100%; min-height: 48px; margin: .2rem 0 .7rem; padding: .7rem 1rem; border: 1px solid #b8bea9; border-radius: .65rem; background: #fffaf2; color: #394834; font: inherit; outline-offset: 3px; }
 @media (max-width: 600px) {
     .notebook-shelf { padding: .85rem; margin-bottom: 1.3rem; }
     .notebook-shelf-heading { align-items: flex-start; flex-direction: column; gap: .65rem; }
