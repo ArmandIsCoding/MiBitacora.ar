@@ -1,5 +1,6 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject AttachmentPreparationService AttachmentPreparation
 
 <section class="voice-recorder" @ref="_root" aria-label="Mensaje de voz">
     <header><span><Icon Name="mic" Size="18" /> Mensaje de voz</span><button type="button" class="icon-button" aria-label="Descartar y cerrar audio" title="Descartar y cerrar" @onclick="CloseAsync" disabled="@_adding"><Icon Name="x" Size="18" /></button></header>
@@ -19,7 +20,7 @@
             <InputFile id="@_pickerId" class="visually-hidden file-input" accept="audio/*,.m4a,.mp3,.wav,.ogg,.flac,.weba,.webm" OnChange="PickAudioAsync" disabled="@(_starting || _adding)" />
             <label for="@_pickerId" class="composer-tool"><Icon Name="paperclip" Size="18" /> Subir audio</label>
         </div>
-        <p class="voice-hint">Grabá con el micrófono o elegí un archivo de hasta 8 MB. Se transcribe al enviar.@(UseLocalAudio ? " Tu navegador lo prepara como WAV para la IA local." : "")</p>
+        <p class="voice-hint">Grabá con el micrófono o subí un audio de hasta 256 MB y 10 minutos: lo optimizamos por vos. Se transcribe al enviar.</p>
     }
     @if (_error is not null) { <p class="voice-error" role="alert">@_error</p> }
 </section>
@@ -41,7 +42,7 @@
     {
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./" + Assets["voice-recorder.js"]);
         _reference ??= DotNetObjectReference.Create(this);
-        return _recorder ??= await _module.InvokeAsync<IJSObjectReference>("create", _root, _reference, JournalStore.MaxFileBytes, UseLocalAudio);
+        return _recorder ??= await _module.InvokeAsync<IJSObjectReference>("create", _root, _reference, AttachmentPreparationService.MaxAudioBytes, UseLocalAudio);
     }
     private async Task StartAsync()
     {
@@ -78,7 +79,7 @@
         try
         {
             await using var reference = await _recorder.InvokeAsync<IJSStreamReference>("read");
-            await using var stream = await reference.OpenReadStreamAsync(JournalStore.MaxFileBytes, _lifetime.Token);
+            await using var stream = await reference.OpenReadStreamAsync(AttachmentPreparationService.MaxAudioBytes, _lifetime.Token);
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer, _lifetime.Token);
             await AttachmentReady.InvokeAsync(new PendingAttachment(_clip.FileName, buffer.ToArray(), true));
@@ -95,22 +96,12 @@
         try
         {
             var file = args.File;
-            if (file.Size is <= 0 or > JournalStore.MaxFileBytes) throw new JournalInputException("El audio puede pesar hasta 8 MB.");
-            if (UseLocalAudio)
-            {
-                _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./" + Assets["voice-recorder.js"]);
-                await using var converted = await _module.InvokeAsync<IJSStreamReference>("convertFile", _pickerId, JournalStore.MaxFileBytes);
-                await using var wav = await converted.OpenReadStreamAsync(JournalStore.MaxFileBytes, _lifetime.Token);
-                using var local = new MemoryStream(); await wav.CopyToAsync(local, _lifetime.Token);
-                await AttachmentReady.InvokeAsync(new PendingAttachment(Path.ChangeExtension(file.Name, ".wav"), local.ToArray()));
-                return;
-            }
-            await using var stream = file.OpenReadStream(JournalStore.MaxFileBytes, _lifetime.Token);
-            using var buffer = new MemoryStream(); await stream.CopyToAsync(buffer, _lifetime.Token);
-            var bytes = buffer.ToArray();
-            var analysis = AttachmentExtractor.Analyze(AttachmentExtractor.CleanFileName(file.Name), bytes, _lifetime.Token);
+            _error = null;
+            await using var stream = file.OpenReadStream(AttachmentPreparationService.MaxIncomingBytes, _lifetime.Token);
+            var prepared = await AttachmentPreparation.PrepareAsync(file.Name, file.Size, stream, UseLocalAudio, cancellationToken: _lifetime.Token);
+            var analysis = AttachmentExtractor.Analyze(prepared.Attachment.FileName, prepared.Attachment.Content, _lifetime.Token);
             if (!AttachmentPresentation.IsInlineAudio(analysis.ContentType)) throw new JournalInputException("No reconocimos un audio en ese archivo. Probá con M4A, MP3, WAV, OGG, FLAC o WebM de audio.");
-            await AttachmentReady.InvokeAsync(new PendingAttachment(file.Name, bytes));
+            await AttachmentReady.InvokeAsync(prepared.Attachment);
         }
         catch (JournalInputException ex) { _error = ex.Message; }
         catch (OperationCanceledException) when (_disposed) { }

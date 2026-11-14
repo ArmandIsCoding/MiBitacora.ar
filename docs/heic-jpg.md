@@ -1,13 +1,13 @@
 # HEIC/HEIF con vista JPG local
 
-Cada foto conserva su archivo original en `uploads/<cuenta>/<id>.bin`. La aplicación genera una copia `uploads/<cuenta>/<id>.jpg` para mostrarla en el navegador y enviarla a Ollama. Ambas representan el mismo adjunto: no se duplican entradas ni fotos en la página y la descarga sigue entregando el HEIC original.
+Las fotos HEIC históricas e importadas conservan su original en `uploads/<cuenta>/<id>.bin`. La aplicación genera una copia `uploads/<cuenta>/<id>.jpg` para el navegador y la IA. Ambas representan el mismo adjunto y la descarga sigue entregando el HEIC original. Las nuevas subidas del selector se [optimizan antes de guardarse](multimedia.md): se almacena su JPG preparado, con progreso y tamaños visibles.
 
 La conversión se ejecuta dentro del proceso .NET con Magick.NET 15.1.0, incluido como dependencia del proyecto. No necesita Python, aplicaciones de conversión ni servicios externos durante el uso normal. [Magick.NET documenta su instalación y variantes](https://github.com/dlemstra/Magick.NET/blob/main/docs/Readme.md); el proyecto usa Q8 y probó la lectura de HEIC en Windows.
 
 ## Calidad y privacidad
 
 - Se lee la imagen principal, se corrige la orientación y se convierte su perfil de color a sRGB cuando existe.
-- El JPG tiene calidad 90 y hasta 2048 píxeles en su lado mayor. No se agrandan imágenes pequeñas. El original mantiene su resolución, formato y metadatos completos.
+- Los nuevos JPG tienen calidad 82 y encajan en Full HD conservando la proporción. No se agrandan imágenes pequeñas. Las vistas históricas ya generadas se reutilizan y el original histórico conserva su resolución, formato y metadatos completos.
 - La copia no incluye EXIF, GPS ni XMP. El procesamiento aplica la orientación **antes** de quitar esos datos, como indica [la documentación de auto-orient](https://imagemagick.org/command-line-options/#auto-orient).
 - La conversión limita dimensiones, píxeles y memoria de caché; no usa caché de píxeles en disco. Se procesa una foto por vez dentro del servidor.
 - Las copias quedan fuera de `wwwroot`, de Git y de la publicación. La ruta `/adjuntos/{id}/vista` verifica al propietario antes de leer o convertir una foto y responde con `image/jpeg` y `private, no-store`.

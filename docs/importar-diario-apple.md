@@ -30,7 +30,7 @@ Antes de reemplazar datos, crea una carpeta fechada con una copia consistente de
 
 Los cambios de SQLite se hacen en una transacción. Cada original se copia a `uploads/<cuenta>/<UUID>.bin` y se verifica mediante SHA-256. Si falla una copia antes de confirmar, se revierten los registros y se eliminan los archivos recién escritos. Los originales anteriores se borran solo después de confirmar la importación. La carpeta de respaldo contiene `manifest.json` con la correspondencia entre fuentes, entradas, adjuntos y huellas de verificación.
 
-El importador no aplica los límites de 8 MiB por archivo y 16 MiB por entrada del selector: debe conservar todo el histórico. Configurá una cuota de cuenta suficiente para el material importado y los futuros uploads; `appsettings.json` incluye 1 GiB y 2000 archivos. No se generan devoluciones de IA durante el proceso.
+El importador no aplica los límites ni la optimización de multimedia del selector: debe conservar todo el histórico. Configurá una cuota de cuenta suficiente para el material importado y los futuros uploads; `appsettings.json` incluye 1 GiB y 2000 archivos. No se generan devoluciones de IA durante el proceso.
 
 ## Fechas y formatos
 

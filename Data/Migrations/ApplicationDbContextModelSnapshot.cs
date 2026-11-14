@@ -17,6 +17,20 @@ namespace MiBitacora.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
+            modelBuilder.Entity("MiBitacora.Data.AccountAiPreferenceRow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("AccountAiPreferences");
+                });
+
             modelBuilder.Entity("MiBitacora.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -83,6 +97,26 @@ namespace MiBitacora.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.BillingAccessGrantRow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpiresUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("GrantedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("BillingAccessGrants");
                 });
 
             modelBuilder.Entity("MiBitacora.Data.BillingPaymentRow", b =>
@@ -708,6 +742,24 @@ namespace MiBitacora.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.AccountAiPreferenceRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("MiBitacora.Data.AccountAiPreferenceRow", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.BillingAccessGrantRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("MiBitacora.Data.BillingAccessGrantRow", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MiBitacora.Data.BillingPaymentRow", b =>

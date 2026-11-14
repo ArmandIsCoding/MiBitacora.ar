@@ -4,16 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f3eb" />
-    <meta name="description" content="Un cuaderno para escribir como salga, ordenar tus ideas y volver a lo que importa." />
+    <meta name="description" content="Conocé a Brisa, tu compañera de IA en Mi Bitácora. Un espacio cálido para conversar, escribir lo que te pasa y pensar juntos, a tu ritmo." />
     <base href="/" />
     <ResourcePreloader />
-    <link rel="icon" type="image/svg+xml" href="@Assets["marca.svg"]" />
+    <meta property="og:title" content="Mi Bitácora con Brisa · Un espacio para vos" />
+    <meta property="og:description" content="Un lugar cálido para conversar, escribir lo que te pasa y pensar con Brisa, a tu ritmo." />
+    <meta property="og:image" content="https://mibitacora.ar/brisa/brisa-cozy.png" />
+    <link rel="icon" type="image/svg+xml" href="@Assets["brisa/brisa-symbol.svg"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["attachments.css"]" />
     <link rel="stylesheet" href="@Assets["voice.css"]" />
     <link rel="stylesheet" href="@Assets["report.css"]" />
     <link rel="stylesheet" href="@Assets["account.css"]" />
     <link rel="stylesheet" href="@Assets["subscriptions.css"]" />
+    <link rel="stylesheet" href="@Assets["brisa.css"]" />
     <link rel="stylesheet" href="@Assets["MiBitacora.styles.css"]" />
     <ImportMap />
     <HeadOutlet />
@@ -22,5 +26,6 @@
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script type="module" src="@Assets["brisa-motion.js"]"></script>
 </body>
 </html>

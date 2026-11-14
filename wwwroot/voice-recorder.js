@@ -1,6 +1,6 @@
 export function encodeWav(buffer, maxBytes) {
     const length = buffer.length;
-    if (length * 2 + 44 > maxBytes) throw new Error('El audio WAV supera los 8 MB. Probá con un audio más corto.');
+    if (length * 2 + 44 > maxBytes) throw new Error('El audio WAV supera el tamaño permitido. Probá con un audio de hasta 10 minutos.');
     const data = new ArrayBuffer(44 + length * 2), view = new DataView(data);
     const ascii = (offset, value) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
     ascii(0, 'RIFF'); view.setUint32(4, 36 + length * 2, true); ascii(8, 'WAVE'); ascii(12, 'fmt ');
@@ -23,7 +23,7 @@ async function localWav(blob, maxBytes) {
     try { decoded = await context.decodeAudioData(await blob.arrayBuffer()); }
     finally { await context.close(); }
     const length = Math.ceil(decoded.duration * 16000);
-    if (length * 2 + 44 > maxBytes) throw new Error('El audio convertido supera los 8 MB. Probá con un audio más corto.');
+    if (length * 2 + 44 > maxBytes) throw new Error('El audio convertido supera el tamaño permitido. Probá con un audio de hasta 10 minutos.');
     const offline = new window.OfflineAudioContext(1, length, 16000);
     const source = offline.createBufferSource(); source.buffer = decoded; source.connect(offline.destination); source.start();
     return encodeWav(await offline.startRendering(), maxBytes);
@@ -31,7 +31,7 @@ async function localWav(blob, maxBytes) {
 
 export async function convertFile(inputId, maxBytes) {
     const file = document.getElementById(inputId)?.files?.[0];
-    if (!file || file.size > maxBytes) throw new Error('El audio no está disponible o supera los 8 MB.');
+    if (!file || file.size > maxBytes) throw new Error('El audio no está disponible o supera el tamaño permitido.');
     return DotNet.createJSStreamReference(await localWav(file, maxBytes));
 }
 
@@ -69,7 +69,7 @@ export function create(root, receiver, maxBytes, preferWav = false) {
                 release();
                 if (disposed || discard) { clearPreview(); return; }
                 blob = new Blob(chunks, { type: recorder.mimeType }); chunks = [];
-                if (!blob.size || blob.size > maxBytes) { clearPreview(); notify('RecordingFailed', 'La grabación quedó vacía o superó los 8 MB. Probá con un audio más corto.'); return; }
+                if (!blob.size || blob.size > maxBytes) { clearPreview(); notify('RecordingFailed', 'La grabación quedó vacía o superó el tamaño permitido. Probá con un audio de hasta 10 minutos.'); return; }
                 const recorded = blob;
                 const publish = (ready, ext) => {
                     if (disposed || discard || blob !== recorded) return;
@@ -85,6 +85,7 @@ export function create(root, receiver, maxBytes, preferWav = false) {
                 const elapsed = Math.floor((Date.now() - started) / 1000);
                 const display = root.querySelector('.voice-time');
                 if (display) display.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+                if (elapsed >= 600) stop();
             }, 1000);
             return null;
         } catch (error) {

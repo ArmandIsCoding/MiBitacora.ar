@@ -1,5 +1,20 @@
 namespace MiBitacora.Data;
 
+// Administrative access, independent of payment and subscription records.
+public sealed class BillingAccessGrantRow
+{
+    public string UserId { get; set; } = "";
+    public DateTime GrantedUtc { get; set; }
+    public DateTime? ExpiresUtc { get; set; }
+    public string Reason { get; set; } = "";
+}
+
+public sealed class AccountAiPreferenceRow
+{
+    public string UserId { get; set; } = "";
+    public string Provider { get; set; } = "OpenAI";
+}
+
 public sealed class BillingSubscriptionRow
 {
     public Guid Id { get; set; }

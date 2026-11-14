@@ -65,7 +65,16 @@ internal static class AudioConversationChecks
         var old=await store.AddEntryAsync(a,"",[new("voz.wav",wave,true)],notebookId:notebook.Id);
         await using(var db=await factory.CreateDbContextAsync()) {await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE JournalEntries SET CreatedUtc={DateTime.UtcNow.AddMonths(-6)} WHERE Id={old.Id}");}
         check(audio.Calls==0 && old.Attachments.Single().ExtractedText is null,"Audio: guardar conserva el archivo sin transcribir ni consumir API");
-        var updated=await flow.GenerateAsync(a,old.Id);
+        var activities = new List<BrisaActivity>();
+        var operations = new List<(string Operation, BrisaActivity Phase)>();
+        audio.Before = () => operations.Add(("audio", activities.Last()));
+        model.Before = () => operations.Add(("response", activities.Last()));
+        var updated=await flow.GenerateAsync(a,old.Id,activity:new ActivityProgress(activities.Add));
+        check(activities.SequenceEqual(new[] { BrisaActivity.Reading, BrisaActivity.Thinking }) &&
+            operations.SequenceEqual(new[] { ("audio", BrisaActivity.Reading), ("response", BrisaActivity.Thinking) }),
+            "Brisa: lectura y pensamiento siguen la transcripción y la generación reales, sin esperas artificiales");
+        check(audio.Calls == 1 && model.Calls == 1, "Brisa: los gestos no agregan llamadas de IA ni repiten la transcripción");
+        audio.Before = null; model.Before = null;
         check(updated.Attachments.Single().IsVoiceMessage&&updated.Attachments.Single().ExtractedText==FakeAudio.Words&&model.Context!.Current.Text=="",
             "Audio: guarda el texto transcrito junto al original, sin sustituir el mensaje escrito");
         var original=await store.GetAttachmentAsync(a,old.Attachments.Single().Id);
@@ -140,16 +149,18 @@ internal static class AudioConversationChecks
     private sealed class FakeAudio : IAudioTranscriber
     {
         public const string Words="Hoy reparé el reloj azul que me regaló mi abuelo. Me sentí acompañado al recordarlo.";
-        public bool IsConfigured=>true;public int Calls,FailAt;
+        public bool IsConfigured=>true;public int Calls,FailAt; public Action? Before;
         public Task<string> TranscribeAsync(AttachmentContent file,CancellationToken ct=default)
-        {Calls++;if(Calls==FailAt)throw new JournalReflectionException("Fallo sintético de audio");return Task.FromResult(Words);}
+        {Before?.Invoke();Calls++;if(Calls==FailAt)throw new JournalReflectionException("Fallo sintético de audio");return Task.FromResult(Words);}
     }
     private sealed class FakeReply : IJournalReflector
     {
         public bool IsConfigured=>true;public bool UsesExternalProvider=>true;public bool Fail;public JournalContext? Context;private int _calls;
+        public int Calls => _calls; public Action? Before;
         public TaskCompletionSource? Entered,Release;
         public async Task<JournalReflection> ReflectAsync(JournalContext context,bool useAi,CancellationToken cancellationToken=default)
         {
+            Before?.Invoke();
             Context=context;if(Fail)throw new JournalReflectionException("Fallo sintético");
             if(Entered is not null){Entered.TrySetResult();await Release!.Task.WaitAsync(cancellationToken);}
             return new("Una lectura",$"Respuesta de prueba {++_calls}",[],[],[],null,false,1,DateTime.UtcNow);
@@ -165,6 +176,8 @@ internal static class AudioConversationChecks
     }
     private sealed class AudioHandler(Func<HttpRequestMessage,CancellationToken,Task<HttpResponseMessage>> handler):HttpMessageHandler
     {protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)=>handler(request,ct);}
+    private sealed class ActivityProgress(Action<BrisaActivity> report) : IProgress<BrisaActivity>
+    { public void Report(BrisaActivity activity) => report(activity); }
 }
 
 internal sealed class RejectAudioTranscriber:IAudioTranscriber

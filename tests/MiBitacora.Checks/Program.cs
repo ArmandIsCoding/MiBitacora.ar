@@ -54,6 +54,17 @@ Check(requestBody!.Value.GetProperty("messages")[1].GetProperty("images")[0].Get
 Check(requestBody.Value.GetProperty("format").GetProperty("type").GetString() == "object", "Se exige salida JSON estructurada");
 Check(requestBody.Value.GetProperty("think").ValueKind == JsonValueKind.False, "La devolución no consume el presupuesto en razonamiento interno");
 
+using (var messageClient = new HttpClient(new TestHandler((_, _) => Task.FromResult(Reply(JsonSerializer.Serialize(new
+{
+    title = "Una conversación", message = "Soy Brisa. Podemos pensar esto juntos.",
+    themes = Array.Empty<object>(), openQuestions = Array.Empty<string>(), sessionTopics = Array.Empty<string>(), nextStep = ""
+}, json))))))
+{
+    var brisaMessage = await Service(messageClient, gate).ReflectAsync(context, true);
+    Check(brisaMessage.Overview == "Soy Brisa. Podemos pensar esto juntos." && !brisaMessage.IsDemo,
+        "Brisa: el mensaje conversacional nuevo se guarda en la respuesta compatible con entradas existentes");
+}
+
 var lastTurn = entry with { Id = Guid.NewGuid(), CreatedUtc = entry.CreatedUtc.AddMinutes(-5), Text = "Me cuesta pedir ayuda.",
     Attachments = [], Reflection = result with { Overview = "Quizás puedas distinguir lo que necesitás de lo que imaginás que responderán.", OpenQuestions = ["¿A quién te gustaría pedir ayuda?"] } };
 await service.ReflectAsync(context with
@@ -127,6 +138,7 @@ await ConversationDepthChecks.RunAsync(Check);
 await AudioConversationChecks.RunAsync(Check);
 await BillingChecks.RunAsync(Check);
 await BillingHttpChecks.RunAsync(Check);
+await AttachmentPreparationChecks.RunAsync(Check, args.Contains("--media-codecs"));
 await InferenceBridgeChecks.RunAsync(Check);
 var heicContext = await StorageChecks.RunAsync(image, Check);
 await service.ReflectAsync(heicContext, true);

@@ -1,0 +1,15 @@
+<section class="brisa-motion-control" id="gestos-brisa" aria-labelledby="@_titleId">
+    <div><strong id="@_titleId">Gestos de Brisa</strong><p data-brisa-motion-note id="@_noteId">Elegí cuánto movimiento querés en este espacio.</p></div>
+    <label class="visually-hidden" for="@_selectId">Movimiento de Brisa</label>
+    <select id="@_selectId" data-brisa-motion-control aria-describedby="@_noteId">
+        <option value="system">Según mi dispositivo</option>
+        <option value="on">Animaciones suaves</option>
+        <option value="off">Sin movimiento</option>
+    </select>
+</section>
+
+@code {
+    private readonly string _titleId = "brisa-motion-title-" + Guid.NewGuid().ToString("N");
+    private readonly string _selectId = "brisa-motion-select-" + Guid.NewGuid().ToString("N");
+    private readonly string _noteId = "brisa-motion-note-" + Guid.NewGuid().ToString("N");
+}

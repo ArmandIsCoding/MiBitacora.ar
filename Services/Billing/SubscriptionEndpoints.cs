@@ -19,6 +19,12 @@ public static class SubscriptionEndpoints
             if (user is null) return Results.Unauthorized();
             try
             {
+                if (action == "AiProvider")
+                {
+                    var form = await context.Request.ReadFormAsync(context.RequestAborted);
+                    await billing.SetAiProviderAsync(user.Id, form["provider"].ToString(), context.RequestAborted);
+                    return Results.LocalRedirect("/Account/Manage/Subscription?providerSaved=1");
+                }
                 if (action == "Subscribe")
                 {
                     var form = await context.Request.ReadFormAsync(context.RequestAborted);

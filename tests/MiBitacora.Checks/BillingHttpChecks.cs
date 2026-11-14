@@ -43,6 +43,8 @@ internal static class BillingHttpChecks
         builder.Services.AddSingleton<NavigationManager, Navigation>();
         var settings = new SubscriptionOptions { Provider = "Simulated", MonthlyPriceArs = 8000, PublicBaseUrl = "http://localhost:5264" };
         builder.Services.AddSingleton<IOptions<SubscriptionOptions>>(Options.Create(settings));
+        var aiSettings = new JournalAiOptions { OpenAiForAllAccounts = false };
+        builder.Services.AddSingleton<IOptions<JournalAiOptions>>(Options.Create(aiSettings));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(TimeZoneInfo.Utc);
         builder.Services.AddSingleton<BillingGate>();
@@ -93,10 +95,38 @@ internal static class BillingHttpChecks
                 "UI suscripciones: muestra vigencia, cancelación y aviso de cobros simulados");
         }
         var cancel = Context("http-a", ""); cancel.Request.RouteValues["action"] = "Cancel"; AddToken(cancel);
+        var providerWithoutCsrf = Context("http-a", "provider=Ollama"); providerWithoutCsrf.Request.RouteValues["action"] = "AiProvider";
+        await endpoint.RequestDelegate!(providerWithoutCsrf);
+        check(providerWithoutCsrf.Response.StatusCode == 400 && (await billing.GetAccessAsync("http-a")).AiProvider == "OpenAI",
+            "HTTP proveedor: una petición sin antiforgery no cambia la elección");
+        var providerChoice = Context("http-a", "provider=Ollama"); providerChoice.Request.RouteValues["action"] = "AiProvider"; AddToken(providerChoice);
+        await endpoint.RequestDelegate!(providerChoice);
+        check((await billing.GetAccessAsync("http-a")).AiProvider == "Ollama" && (await billing.GetAccessAsync("http-b")).AiProvider == "OpenAI",
+            "HTTP proveedor: guarda sólo la elección de la cuenta autenticada");
+        var freeChoice = Context("http-b", "provider=OpenAI"); freeChoice.Request.RouteValues["action"] = "AiProvider"; AddToken(freeChoice);
+        await endpoint.RequestDelegate!(freeChoice);
+        check(!(await billing.GetAccessAsync("http-b")).IsPaid && freeChoice.Response.Headers.Location.ToString().Contains("error=1"),
+            "HTTP proveedor: un POST manipulado no habilita OpenAI en el plan gratuito");
         await endpoint.RequestDelegate!(cancel);
         check((await billing.GetAccessAsync("http-a")).IsPaid && (await billing.GetSummaryAsync("http-a"))?.Status == "cancelled",
             "HTTP suscripciones: cancelar conserva el período pago");
 
+        aiSettings.OpenAiForAllAccounts = true;
+        var openChoice = Context("http-b", "provider=Ollama"); openChoice.Request.RouteValues["action"] = "AiProvider"; AddToken(openChoice);
+        await endpoint.RequestDelegate!(openChoice);
+        check((await billing.GetAccessAsync("http-b")).AiProvider == "Ollama" && !(await billing.GetAccessAsync("http-b")).IsPaid &&
+            openChoice.Response.Headers.Location.ToString().Contains("providerSaved=1"),
+            "HTTP OpenAI para todos: una cuenta sin pagos puede elegir Ollama con autenticación y antiforgery");
+        await using (var previewRenderer = new HtmlRenderer(scope.ServiceProvider, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()))
+        {
+            var html = await previewRenderer.Dispatcher.InvokeAsync(async () => (await previewRenderer.RenderComponentAsync<RenderPlan>(
+                ParameterView.FromDictionary(new Dictionary<string, object?> { [nameof(RenderPlan.Context)] = Context("http-b", "") }))).ToHtmlString());
+            check(html.Contains("name=\"provider\"") && html.Contains("OpenAI disponible para todas") &&
+                html.Contains("value=\"Ollama\" selected") && !html.Contains("action=\"/Account/Subscription/Subscribe\"") &&
+                !html.Contains("Renovación mensual automática"),
+                "UI OpenAI para todos: muestra ambas opciones a una cuenta gratuita sin pedir contratar un plan");
+        }
+        aiSettings.OpenAiForAllAccounts = false;
         settings.Provider = "MercadoPago"; settings.AllowLiveRequests = true; settings.WebhookSecret = "synthetic-webhook-secret";
         var webhook = endpoints.Single(e => e.RoutePattern.RawText == "/api/mercadopago/webhook");
         var content = JsonSerializer.Serialize(new { type = "payment", data = new { id = "123" } });

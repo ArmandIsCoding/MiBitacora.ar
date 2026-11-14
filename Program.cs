@@ -59,6 +59,8 @@ builder.Services.AddSingleton(provider => new UploadFileStore(
     provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
 builder.Services.AddSingleton<HeicImageService>();
+builder.Services.AddSingleton(new AttachmentPreparationService(
+    Path.Combine(dataDirectory, "media-staging"), Path.Combine(builder.Environment.ContentRootPath, "media-tools")));
 builder.Services.AddOptions<JournalStorageOptions>()
     .Bind(builder.Configuration.GetSection("Journal"))
     .Validate(options => options.MaxAccountAttachmentBytes > 0 && options.MaxAccountFiles > 0,
@@ -80,7 +82,7 @@ builder.AddVectorMemory();
 builder.Services.AddOptions<JournalAiOptions>().Bind(builder.Configuration.GetSection("AI"))
     .Validate(options => options.Provider is "Ollama" or "OpenAI", "AI:Provider debe ser Ollama u OpenAI.")
     .ValidateOnStart();
-// Paid requests validate OpenAI at call time. An unconfigured paid provider must not stop the free site.
+// Cloud credentials are validated when the selected provider is called.
 builder.Services.AddOptions<OpenAiOptions>().Bind(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton<JournalTopicJobs>();
 builder.Services.AddScoped<JournalTopicService>();
@@ -155,6 +157,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 var app = builder.Build();
+app.Services.GetRequiredService<AttachmentPreparationService>().CleanupInterrupted();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

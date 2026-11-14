@@ -10,8 +10,10 @@ public sealed class AccountAiRouter(SubscriptionService subscriptions, OllamaMod
 {
     private readonly AsyncLocal<AccountAiSelection?> _operation = new();
     private SubscriptionAccess _display = SubscriptionAccess.Free;
-    public bool UsesExternalProvider => (_operation.Value?.Access ?? _display).IsPaid;
-    public string ProviderName => UsesExternalProvider ? "Plan Profundo · OpenAI" : "Plan gratuito · IA local";
+    public bool HasPremiumAccess => (_operation.Value?.Access ?? _display).IsPaid;
+    public bool HasOpenAiAccess => (_operation.Value?.Access ?? _display).CanUseOpenAi;
+    public bool UsesExternalProvider => HasOpenAiAccess && (_operation.Value?.Access ?? _display).AiProvider != "Ollama";
+    public string ProviderName => UsesExternalProvider ? "Brisa · OpenAI" : "Brisa · IA local";
     public bool IsConfigured => UsesExternalProvider || local.IsConfigured;
     public async Task<AccountAiSelection> ResolveAsync(string userId, CancellationToken ct = default)
     {
@@ -31,8 +33,8 @@ public sealed class AccountAiRouter(SubscriptionService subscriptions, OllamaMod
     public async Task EnsureAccessAsync(CancellationToken ct)
     {
         var operation = _operation.Value ?? throw new JournalReflectionException("Falta identificar tu cuenta para preparar la devolución.");
-        if (operation.Access.IsPaid && !(await subscriptions.GetAccessAsync(operation.UserId, ct)).IsPaid)
-            throw new JournalReflectionException("Tu período pago terminó durante la preparación. Tu cuaderno se conserva; volvé a intentar con tu plan actual.");
+        if (UsesExternalProvider && !(await subscriptions.GetAccessAsync(operation.UserId, ct)).CanUseOpenAi)
+            throw new JournalReflectionException("El acceso a OpenAI cambió durante la preparación. Tu entrada se conserva; volvé a intentar con las opciones de tu cuenta.");
     }
     public async Task<string> GenerateAsync(string instruction, string prompt, JsonElement schema,
         IReadOnlyList<JournalImage> images, CancellationToken cancellationToken)

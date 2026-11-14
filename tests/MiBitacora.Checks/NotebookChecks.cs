@@ -38,6 +38,7 @@ internal static class NotebookChecks
         services.AddSingleton<IAudioTranscriber, RejectAudioTranscriber>();
         services.AddSingleton<JournalConversationJobs>();
         services.AddScoped<JournalConversationService>();
+        services.AddSingleton(new AttachmentPreparationService(Path.Combine(root, "staging"), Path.Combine(root, "tools")));
         services.AddScoped<JournalReportService>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();

@@ -1,6 +1,6 @@
 # OpenAI para las devoluciones
 
-La web elige el proveedor según la cuenta: Ollama para el plan gratuito y OpenAI para un período pago vigente. `AI:Provider` se conserva por compatibilidad con herramientas anteriores; no habilita acceso pago. Ver [suscripciones y simulación local](suscripciones.md). No hay cambio automático de proveedor si falla una solicitud.
+Por ahora la web usa **OpenAI por defecto para todas las cuentas**, actuales y futuras, con `AI:OpenAiForAllAccounts=true`. Desde **Mi cuenta → Mi plan** se puede elegir Ollama y conservar esa preferencia. Esto habilita el proveedor sin simular pagos ni cambiar el plan. Con el indicador en `false`, OpenAI vuelve a requerir un período pago vigente o una concesión administrativa; las cuentas gratuitas usan Ollama. `AI:Provider` permanece por compatibilidad con herramientas anteriores. Ver [acceso y planes](suscripciones.md). No hay cambio automático de proveedor si falla una solicitud.
 
 OpenAI usa exclusivamente `https://api.openai.com/v1/responses`, con HTTPS, redirecciones y proxy deshabilitados. El modelo inicial es `gpt-6.1-terra`, esfuerzo `low`, un máximo de 4096 tokens de salida y 180 segundos incluyendo la espera en cola. Los límites y el modelo son configurables en el servidor. Una cola compartida permite una generación simultánea y ocho pendientes por proceso, igual que Ollama. No hay reintentos automáticos que puedan duplicar consumo.
 

@@ -61,6 +61,10 @@ public sealed record JournalReflection(
     bool LimitedMemory = false)
 {
     public const int CurrentConversationVersion = 1;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string TherapyProposal => SessionTopics.FirstOrDefault(topic => !string.IsNullOrWhiteSpace(topic))
+        ?? OpenQuestions.FirstOrDefault(question => !string.IsNullOrWhiteSpace(question))
+        ?? "qué te gustaría comprender mejor de lo que compartiste y cómo te resultó ponerlo en palabras.";
 }
 
 public interface IJournalReflector
@@ -68,6 +72,8 @@ public interface IJournalReflector
     bool IsConfigured { get; }
     string ProviderName => "IA local";
     bool UsesExternalProvider => false;
+    bool HasPremiumAccess => UsesExternalProvider;
+    bool HasOpenAiAccess => HasPremiumAccess;
 
     Task<JournalReflection> ReflectAsync(
         JournalContext context,

@@ -11,8 +11,8 @@ namespace MiBitacora.Services;
 public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext> factory, UploadFileStore uploads,
     IOptions<JournalStorageOptions>? storageOptions = null, HeicImageService? imageService = null) : IJournalStore
 {
-    public const int MaxFileBytes = 8 * 1024 * 1024;
-    public const int MaxEntryAttachmentBytes = 16 * 1024 * 1024;
+    public const int MaxFileBytes = 64 * 1024 * 1024;
+    public const int MaxEntryAttachmentBytes = 128 * 1024 * 1024;
     public const int MaxTextLength = 12_000;
     public const int MaxNoteLength = 2_000;
     public const int MaxDisplayNameLength = 80;
@@ -465,12 +465,20 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             await using var stream = source;
             if (stream is null || (!heic && stream.Length != file.Size))
                 throw new JournalInputException("No pudimos leer una imagen adjunta. Revisá los archivos del servidor.");
-            if (stream.Length > MaxFileBytes || stream.Length > remaining) continue;
-            var content = new byte[(int)stream.Length];
-            await stream.ReadExactlyAsync(content, cancellationToken);
+            byte[] content;
+            if (heic)
+            {
+                content = new byte[(int)stream.Length];
+                await stream.ReadExactlyAsync(content, cancellationToken);
+            }
+            else
+            {
+                try { content = await HeicImageService.NormalizePhotoAsync(stream, file.ContentType, cancellationToken); }
+                catch (Exception ex) when (ex is ImageMagick.MagickException or JournalInputException) { continue; }
+            }
+            if (content.Length > remaining) continue;
             remaining -= content.Length;
-            media.Add(new JournalMediaFile(file.Id, heic ? Path.ChangeExtension(file.FileName, ".jpg") : file.FileName,
-                HeicImageService.AnalysisContentType(file.ContentType), content));
+            media.Add(new JournalMediaFile(file.Id, Path.ChangeExtension(file.FileName, ".jpg"), "image/jpeg", content));
         }
         return media.ToArray();
     }
@@ -530,12 +538,12 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     {
         if (files.Any(file => file.Content.Length is 0 or > MaxFileBytes))
         {
-            throw new JournalInputException("Cada archivo tiene que pesar entre 1 byte y 8 MB.");
+            throw new JournalInputException("Cada archivo optimizado puede pesar hasta 64 MB.");
         }
 
         if (files.Sum(file => (long)file.Content.Length) > MaxEntryAttachmentBytes)
         {
-            throw new JournalInputException("Los adjuntos juntos pueden pesar hasta 16 MB por entrada.");
+            throw new JournalInputException("Los adjuntos optimizados juntos pueden pesar hasta 128 MB por entrada.");
         }
     }
 

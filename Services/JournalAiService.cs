@@ -9,6 +9,8 @@ public interface IJournalModelClient
     bool IsConfigured { get; }
     string ProviderName { get; }
     bool UsesExternalProvider { get; }
+    bool HasPremiumAccess => UsesExternalProvider;
+    bool HasOpenAiAccess => HasPremiumAccess;
     Task<string> GenerateAsync(string instruction, string prompt, JsonElement schema,
         IReadOnlyList<JournalImage> images, CancellationToken cancellationToken);
 }
@@ -19,12 +21,14 @@ public abstract partial class JournalAiService(IJournalModelClient model, ILogge
     public bool IsConfigured => model.IsConfigured;
     public string ProviderName => model.ProviderName;
     public bool UsesExternalProvider => model.UsesExternalProvider;
+    public bool HasPremiumAccess => model.HasPremiumAccess;
+    public bool HasOpenAiAccess => model.HasOpenAiAccess;
     private const string InvalidReply =
-        "La IA devolvió una respuesta incompleta. Tu entrada está guardada y podés reintentar.";
+        "La respuesta de Brisa quedó incompleta. Tu entrada está guardada y podés reintentar.";
 
     private Task<string> CallModelAsync(JournalEvidence evidence, CancellationToken cancellationToken) =>
         CallModelAsync(SystemInstruction + "\n\n" + ConversationVoiceInstruction +
-            (UsesExternalProvider ? "" : "\nPor el presupuesto del modelo local, desarrollá la idea principal en 120 a 220 palabras y dejá vacíos los campos opcionales que no aporten."),
+            (UsesExternalProvider ? "" : "\nSi el mensaje lo requiere, desarrollá la idea principal en 120 a 220 palabras. Un saludo o pregunta sencilla merece pocas frases. La respuesta directa de Brisa va en message, no en themes. Dejá vacíos los campos opcionales que no aporten."),
             evidence.Prompt,
             ReflectionSchema, evidence.Images, cancellationToken);
 

@@ -62,8 +62,9 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
         var topicOverview = await topics.GetAsync(user.Id, cancellationToken);
         var subscription = await billing.GetSummaryAsync(user.Id, cancellationToken);
         var payments = await billing.GetPaymentsAsync(user.Id, cancellationToken, take: int.MaxValue);
+        var access = await billing.GetAccessAsync(user.Id, cancellationToken);
         var data = new { user.Email, Profile = profile, Notebooks = notebooks, Entries = entries, Notes = notes,
-            TopicOverview = topicOverview, Subscription = subscription, Payments = payments };
+            TopicOverview = topicOverview, Subscription = subscription, Payments = payments, PlanAccess = access };
 
         context.Response.Headers.CacheControl = "private, no-store";
         var contents = JsonSerializer.SerializeToUtf8Bytes(data, ExportJsonOptions);

@@ -96,7 +96,8 @@ public abstract partial class JournalAiService
                 binary.Content.Length > 0 &&
                 binary.Content.Length <= InlineByteBudget - binaryBytes &&
                 InlineTypes.Contains(binary.ContentType) &&
-                string.Equals(HeicImageService.AnalysisContentType(file.ContentType), binary.ContentType, StringComparison.OrdinalIgnoreCase))
+                (string.Equals(HeicImageService.AnalysisContentType(file.ContentType), binary.ContentType, StringComparison.OrdinalIgnoreCase)
+                    || (AttachmentExtractor.CanAnalyzeLocally(file.ContentType) && binary.ContentType == "image/jpeg")))
             {
                 images.Add(new(Convert.ToBase64String(binary.Content), binary.ContentType));
                 binaryBytes += binary.Content.Length;

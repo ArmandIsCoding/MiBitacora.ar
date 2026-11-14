@@ -14,8 +14,8 @@ public sealed class OllamaAudioTranscriber(HttpClient client, IOptions<OllamaOpt
         // Ollama currently accepts WAV at this endpoint; free audio must never fall back to OpenAI.
         if (file.ContentType != "audio/wav")
             throw new JournalReflectionException("La transcripción local necesita audio WAV. El original sigue guardado: podés adjuntar un WAV o escribir lo que querés contar.");
-        if (!file.Content.CanSeek || file.Content.Length is <= 0 or > JournalStore.MaxFileBytes)
-            throw new JournalReflectionException("No pudimos leer el audio o supera los 8 MB permitidos.");
+        if (!file.Content.CanSeek || file.Content.Length is <= 0 or > AttachmentPreparationService.MaxAudioBytes)
+            throw new JournalReflectionException("No pudimos leer el audio o supera los 20 MB permitidos para transcribir. Volvé a adjuntarlo para optimizarlo.");
         if (!gate.TryJoin()) throw new JournalReflectionException("La IA local está ocupada. El audio sigue guardado; podés reintentar.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.TimeoutSeconds));

@@ -6,7 +6,7 @@
 
 <PageTitle>Mi plan · Mi Bitácora</PageTitle>
 <h2>Mi plan</h2>
-<p class="account-intro">Elegí cómo querés acompañar tu escritura. Tu cuaderno y tus informes guardados siguen siendo tuyos.</p>
+<div class="brisa-report-heading"><BrisaPortrait Size="large" /><p class="account-intro">Elegí cómo querés conversar con Brisa. Tu cuaderno y tus informes guardados siguen siendo tuyos.</p></div>
 @if (Billing.IsSimulation)
 {
     <p class="journal-notice" role="status"><strong>Prueba local.</strong> Todos los cobros de esta pantalla son simulados. No se conecta con Mercado Pago ni se mueve dinero. El precio mostrado es de prueba.</p>
@@ -20,10 +20,15 @@ else if (Returned == "1")
     <p class="journal-notice" role="status">Volviste de la contratación. El Plan Profundo se habilita cuando se confirma el pago. Podés actualizar el estado desde acá.</p>
 }
 else if (Updated == "1") { <p class="journal-notice" role="status">Actualizamos el estado de tu suscripción.</p> }
+else if (ProviderSaved == "1") { <p class="journal-notice" role="status">Guardamos tu elección. Se aplica a las próximas respuestas de Brisa.</p> }
 
 <section class="subscription-current" aria-label="Tu acceso actual">
     <span class="eyebrow">TU PLAN ACTUAL</span>
     <h3>@(_access.IsPaid ? "Plan Profundo" : "Plan gratuito")</h3>
+    @if (_access.OpenAiForAllAccounts)
+    { <p><strong>OpenAI disponible para todas las cuentas.</strong> Por ahora podés elegir ambas opciones sin contratar un plan.</p> }
+    @if (_access.IsComplimentary)
+    { <p><strong>Acceso premium de cortesía.</strong> Otorgado por la administración para pruebas, sin cobros ni renovación automática.</p> }
     @if (_access.PaidThroughUtc is { } through)
     { <p>Acceso pago hasta el <strong>@Date(through)</strong>.</p> }
     @if (_subscription is { } subscription)
@@ -46,16 +51,37 @@ else if (Updated == "1") { <p class="journal-notice" role="status">Actualizamos 
     }
 </section>
 
+@if (_access.CanUseOpenAi)
+{
+    <section class="subscription-current" aria-label="Cómo responde Brisa">
+        <h3>Cómo querés conversar con Brisa</h3>
+        <form method="post" action="/Account/Subscription/AiProvider" class="account-form">
+            <AntiforgeryToken />
+            <label for="brisa-provider">IA para las próximas respuestas</label>
+            <select id="brisa-provider" class="brisa-provider-select" name="provider" value="@_access.AiProvider">
+                <option value="OpenAI" selected="@(_access.AiProvider == "OpenAI")">OpenAI · respuestas más profundas</option>
+                <option value="Ollama" selected="@(_access.AiProvider == "Ollama")">IA local · puede demorar más</option>
+            </select>
+            <p class="topic-scope">Con OpenAI, tu mensaje, las fotos optimizadas, los audios que requieran transcripción y el contexto pertinente se envían a ese proveedor. Con IA local, se procesan en la infraestructura de Mi Bitácora. Esta elección no cambia tu plan.</p>
+            <button class="account-button" type="submit">Guardar mi elección</button>
+        </form>
+    </section>
+}
+
 <div class="subscription-plans">
     <section class="subscription-card"><h3>Gratuito</h3><p class="subscription-price">Sin cargo</p>
-        <p>Escribí, conversá, adjuntá archivos, guardá notitas y prepará tus informes con IA local.</p>
-        <p>Las devoluciones pueden demorar y tener menor precisión. Podés leer, exportar y borrar tu contenido.</p>
+        <p>Conversá con Brisa, adjuntá archivos, guardá notitas y prepará tus informes. Podés leer, exportar y borrar tu contenido.</p>
+        @if (_access.OpenAiForAllAccounts)
+        { <p>Ahora también incluye OpenAI por defecto. Podés elegir IA local cuando quieras desde esta pantalla.</p> }
+        else { <p>Este plan usa IA local. Las respuestas pueden demorar y tener menor precisión.</p> }
     </section>
     <section class="subscription-card subscription-card-paid"><h3>Profundo</h3>
-        @if (Billing.CanSubscribe) { <p class="subscription-price">@Money(Billing.Settings.PriceCents)<small> por mes</small></p> }
-        <p>Un modelo de IA de mayor capacidad, con OpenAI, para desarrollar tus ideas, explorar conexiones con el historial y elaborar informes completos para tu autodescubrimiento.</p>
-        <p>Renovación mensual automática. Podés cancelar futuras renovaciones desde esta pantalla.</p>
-        @if (!Billing.CanSubscribe) { <p>Las contrataciones todavía no están habilitadas. El plan gratuito sigue disponible.</p> }
+        @if (Billing.CanSubscribe && !_access.OpenAiForAllAccounts) { <p class="subscription-price">@Money(Billing.Settings.PriceCents)<small> por mes</small></p> }
+        <p>La misma Brisa, con una IA de mayor capacidad mediante OpenAI, para desarrollar tus ideas, explorar conexiones y acompañarte con respuestas más profundas.</p>
+        @if (!_access.IsComplimentary && !_access.OpenAiForAllAccounts) { <p>Renovación mensual automática. Podés cancelar futuras renovaciones desde esta pantalla.</p> }
+        @if (_access.IsComplimentary) { <p>Ya tenés acceso de cortesía. Podés elegir el proveedor arriba, sin contratar una suscripción.</p> }
+        else if (_access.OpenAiForAllAccounts) { <p>OpenAI está disponible ahora para todas las cuentas. No necesitás contratar para usarlo.</p> }
+        else if (!Billing.CanSubscribe) { <p>Las contrataciones todavía no están habilitadas. El plan gratuito sigue disponible.</p> }
         else if (_access.IsPaid && _subscription?.Status is "cancelled" or "canceled")
         { <p>Conservás el período abonado. Podés volver a contratar cuando termine para evitar cobros superpuestos.</p> }
         else if (_subscription is null || _subscription.Status is "cancelled" or "canceled" or "creation_failed")
@@ -68,7 +94,7 @@ else if (Updated == "1") { <p class="journal-notice" role="status">Actualizamos 
         }
     </section>
 </div>
-<p class="topic-scope">Ambos modelos pueden equivocarse. Revisá lo que te devuelven y llevá a terapia los temas que quieras profundizar.</p>
+<p class="topic-scope">Brisa puede equivocarse en ambos planes. Revisá sus miradas y llevá a terapia los temas que quieras profundizar.</p>
 
 @if (_payments.Count > 0)
 {
@@ -84,6 +110,7 @@ else if (Updated == "1") { <p class="journal-notice" role="status">Actualizamos 
     [SupplyParameterFromQuery(Name = "returned")] public string? Returned { get; set; }
     [SupplyParameterFromQuery(Name = "updated")] public string? Updated { get; set; }
     [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
+    [SupplyParameterFromQuery(Name = "providerSaved")] public string? ProviderSaved { get; set; }
     private SubscriptionAccess _access = SubscriptionAccess.Free;
     private SubscriptionSummary? _subscription;
     private IReadOnlyList<SubscriptionPayment> _payments = [];

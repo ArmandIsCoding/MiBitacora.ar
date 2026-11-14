@@ -34,13 +34,13 @@
                 <div class="sidebar-heading"><span class="eyebrow">TU ESPACIO</span><p>@DisplayName<span class="brand-period">.</span></p></div>
                 <nav class="journal-nav" aria-label="Secciones del cuaderno">
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Conversation ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Conversation ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Conversation)">
-                        <Icon Name="book" Size="20" /> <span>Conversación</span>
+                        <Icon Name="book" Size="20" /> <span>Con Brisa</span>
                     </button>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Calendar ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Calendar ? "page" : null)" @onclick="OpenCalendarAsync">
                         <Icon Name="calendar" Size="20" /> <span>Calendario</span>
                     </button>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Topics ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Topics ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Topics)">
-                        <Icon Name="spark" Size="20" /> <span>Devolución</span>
+                        <Icon Name="spark" Size="20" /> <span>Mirada de Brisa</span>
                     </button>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Notes ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Notes ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Notes)">
                         <Icon Name="note" Size="20" /> <span>Notitas</span>
@@ -53,14 +53,27 @@
                 </nav>
 
                 <div class="sidebar-reminder">
-                    <Icon Name="leaf" Size="23" />
+                    <BrisaPortrait Illustration="true" />
+                    <strong>Un paso a la vez.</strong>
                     <p>No hace falta tenerlo todo claro para empezar.</p>
                 </div>
-                <a href="/privacidad" class="sidebar-privacy"><Icon Name="lock" Size="15" /> Privacidad del piloto</a>
+                <a href="/privacidad" class="sidebar-privacy"><Icon Name="lock" Size="15" /> Tu privacidad</a>
             </aside>
 
             <main class="journal-main">
-                <PlanNotice IsPaid="Reflector.UsesExternalProvider" />
+                <section class="notebook-shelf" aria-label="Tus diarios">
+                    <div class="notebook-shelf-heading"><div><strong>Tus diarios</strong><p>Elegí dónde querés escribir. Podés tener uno para cada parte de tu vida.</p></div><button type="button" class="btn btn-outline" @onclick="() => EditNotebook()" disabled="@NotebookControlsBusy"><Icon Name="plus" Size="18" /> Crear otro diario</button></div>
+                    <nav class="notebook-cards" aria-label="Elegir un diario">
+                        @foreach (var notebook in _notebooks)
+                        {
+                            <button type="button" class="notebook-card @(notebook.Id == _selectedNotebookId ? "is-current" : "")" aria-pressed="@(notebook.Id == _selectedNotebookId)" @onclick="() => SwitchNotebookAsync(notebook.Id)" disabled="@NotebookControlsBusy">
+                                <Icon Name="book" Size="22" /><span><strong>@notebook.Name</strong><small>@EntryCountLabel(notebook.EntryCount)@if (HasNotebookDraft(notebook.Id)) { <span> · Borrador</span> }</small></span>@if (notebook.Id == _selectedNotebookId) { <Icon Name="check" Size="17" /> }
+                            </button>
+                        }
+                    </nav>
+                    <button type="button" class="quiet-action notebook-organize" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy">Organizar mis diarios <Icon Name="chevron" Size="14" /></button>
+                </section>
+                <PlanNotice HasOpenAiAccess="Reflector.HasOpenAiAccess" />
                 @if (_error is not null)
                 {
                     <div class="journal-alert" role="alert"><Icon Name="info" Size="19" /><span>@_error</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _error = null"><Icon Name="x" Size="17" /></button></div>
@@ -72,24 +85,19 @@
 
                 @if (_section == WorkspaceSection.Conversation)
                 {
-                    <div class="notebook-toolbar">
-                        <button type="button" class="notebook-switcher" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy" aria-haspopup="dialog">
-                            <Icon Name="book" Size="21" /><span>Mis diarios</span><span class="notebook-total">@_notebooks.Count</span><Icon Name="chevron" Size="16" />
-                        </button>
-                        <button type="button" class="quiet-action" @onclick="() => EditNotebook()" disabled="@NotebookControlsBusy"><Icon Name="plus" Size="17" /> Nuevo diario</button>
-                    </div>
                     <header class="workspace-heading">
-                        <div>
-                            <p class="eyebrow">TU CONVERSACIÓN · @EntryCountLabel(SelectedNotebook.EntryCount)</p>
+                        <div class="brisa-conversation-intro">
+                            <BrisaPortrait Size="large" Activity="CurrentBrisaActivity" Animated="true" />
+                            <div><p class="eyebrow">TU CONVERSACIÓN CON BRISA</p>
                             <h1 class="notebook-title" @ref="_sectionHeading" tabindex="-1">@SelectedNotebook.Name<span class="brand-period">.</span></h1>
-                            <p>Cada diario tiene su hilo. La IA conecta lo importante de todos.</p>
+                            <p>En <strong>@SelectedNotebook.Name</strong>. Lo pensamos juntos, a tu ritmo.</p></div>
                         </div>
                         <a class="mode-pill" href="/Account/Manage/Subscription" title="Ver mi plan de devolución">
-                            <span class="status-dot"></span> @(IsAiEnabled ? Reflector.ProviderName : "Modo de muestra")
+                            <Icon Name="leaf" Size="15" /> @(IsAiEnabled ? (Reflector.UsesExternalProvider ? "Brisa · OpenAI" : "Brisa · IA local") : "Conocé a Brisa")
                         </a>
                     </header>
 
-                    <p class="conversation-boundary"><Icon Name="leaf" Size="19" /><span>Esta conversación con IA busca ayudarte a reflexionar y puede equivocarse. No reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo.</span></p>
+                    <p class="conversation-boundary"><Icon Name="leaf" Size="19" /><span>Brisa es tu compañera de IA. Sus miradas son posibilidades para explorar: vos elegís qué te representa. No reemplaza a un terapeuta.</span></p>
 
                     <button type="button" class="journal-streak" @onclick="OpenCalendarAsync" disabled="@(!RendererInfo.IsInteractive)">
                         <span class="journal-streak-icon"><Icon Name="leaf" Size="21" /></span>
@@ -101,11 +109,11 @@
                     {
                         <section class="blank-journal">
                             <div class="blank-illustration">
-                                <img src="cuaderno.svg" width="266" height="208" alt="" />
+                                <BrisaPortrait Illustration="true" />
                             </div>
-                            <p class="eyebrow">TU PRIMERA PÁGINA</p>
-                            <h2>¿Qué tenés en la cabeza?</h2>
-                            <p>Podés empezar con una frase, una foto o algo que quieras mirar con más calma.</p>
+                            <p class="eyebrow">HOLA, SOY BRISA</p>
+                            <h2>¿Por dónde te gustaría empezar?</h2>
+                            <p>Podés contarme cómo estuvo tu día, algo que te ilusiona o eso que te cuesta poner en palabras. No hay una forma correcta de empezar.</p>
                             <button type="button" class="btn btn-outline example-button" @onclick="AddExample" disabled="@(!RendererInfo.IsInteractive || _busy || !string.IsNullOrWhiteSpace(_draft))">
                                 <Icon Name="spark" Size="17" /> Probar con un ejemplo
                             </button>
@@ -159,7 +167,7 @@
                                         @if (entry.Reflection is null)
                                         {
                                             <div class="entry-actions">
-                                                <button type="button" class="quiet-action" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="17" /> @(_entryErrors.ContainsKey(entry.Id) ? "Reintentar respuesta" : "Pedir una respuesta")</button>
+                                                <button type="button" class="quiet-action" @onclick="() => BeginReflectionAsync(entry.Id)" disabled="@_busy"><Icon Name="spark" Size="17" /> @(_entryErrors.ContainsKey(entry.Id) ? "Volver a conversar con Brisa" : "Pensarlo con Brisa")</button>
                                                 <button type="button" class="quiet-action" @onclick="() => ToggleEntryAsync(entry)" aria-pressed="@entry.ForSession" disabled="@_busy"><Icon Name="@(entry.ForSession ? "check" : "bookmark")" Size="17" /> @(entry.ForSession ? "En tu hoja" : "Marcar para retomar")</button>
                                             </div>
                                         }
@@ -167,7 +175,7 @@
 
                                     @if (_workingEntry == entry.Id)
                                     {
-                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.UsesExternalProvider)" />
+                                        <ReplyPending Message="@_reflectionProgress" OfferUpgrade="@(!Reflector.HasOpenAiAccess)" Activity="_reflectionActivity" />
                                     }
                                     else if (_entryErrors.TryGetValue(entry.Id, out var entryError))
                                     {
@@ -176,7 +184,8 @@
                                     @if (entry.Reflection is { } reflection && _workingEntry != entry.Id)
                                     {
                                         <EntryReply Entry="entry" Updated="ReplyUpdated" CanRegenerate="IsAiEnabled"
-                                                        Busy="_busy"
+                                                        Busy="_busy" JustResponded="@(_lastCompletedEntry == entry.Id)"
+                                                        ActivityChanged="activity => ReplyActivityChanged(entry.Id, activity)"
                                                         SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
                                                         ToggleSession="() => ToggleEntryAsync(entry)" />
                                     }
@@ -186,11 +195,13 @@
                     }
 
                     <div class="journal-end" @ref="_end"></div>
-                    <section class="composer-wrap" aria-label="Continuar la conversación">
+                    <section class="composer-wrap @(_entries.Count == 0 ? "composer-empty" : "")" aria-label="Continuar la conversación">
+                        <button type="button" class="composer-current-notebook" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy" aria-haspopup="dialog"><Icon Name="book" Size="17" /><span>Estás escribiendo en <strong>@SelectedNotebook.Name</strong></span><span class="notebook-change-label">Cambiar <Icon Name="chevron" Size="13" /></span></button>
                         <div class="composer">
-                            <label class="visually-hidden" for="entry-text">Escribí una entrada</label>
+                            <div class="brisa-composer-greeting"><BrisaPortrait Size="mini" Activity="CurrentBrisaActivity" Animated="true" /><span>Te leo. ¿Qué te gustaría contarme?</span></div>
+                            <label class="visually-hidden" for="entry-text">Tu mensaje para Brisa</label>
                             <textarea id="entry-text" @ref="_composerInput" @bind="_draft" @bind:event="oninput" maxlength="@JournalStore.MaxTextLength" rows="3"
-                                      placeholder="@(RendererInfo.IsInteractive ? $"Escribí en «{SelectedNotebook.Name}» o seguí la conversación…" : "Abriendo tu cuaderno…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
+                                      placeholder="@(RendererInfo.IsInteractive ? "Brisa, hoy me está pasando que…" : "Abriendo tu espacio con Brisa…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
                             @if (_files.Count > 0)
                             {
                                 <div class="draft-files">
@@ -209,11 +220,18 @@
                             }
                             @if (_uploading)
                             {
-                                <p class="uploading" role="status"><span class="spinner"></span> Preparando tus adjuntos…</p>
+                                <p class="uploading" role="status" aria-live="polite"><span class="spinner"></span> @_uploadStatus</p>
+                            }
+                            @if (_uploadError is not null)
+                            {
+                                <p class="upload-error" role="alert"><Icon Name="info" Size="18" /> @_uploadError</p>
+                            }
+                            @if (!_uploading && _uploadResults.Count > 0)
+                            {
+                                <ul class="upload-results" aria-live="polite">@foreach (var result in _uploadResults) { <li><Icon Name="check" Size="15" /> @result</li> }</ul>
                             }
                             <div class="composer-toolbar">
                                 <div class="composer-tools">
-                                    <button class="composer-tool diary-tool" type="button" aria-label="Cambiar diario" title="@($"Cambiar diario · {SelectedNotebook.Name}")" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy"><Icon Name="book" Size="19" /></button>
                                     <InputFile @key="(0, _pickerVersion)" id="file-picker" aria-label="Adjuntar fotos o archivos" class="visually-hidden file-input" OnChange="PickFilesAsync" multiple disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
                                     <label for="file-picker" class="composer-tool" title="Adjuntar fotos y archivos"><Icon Name="paperclip" Size="19" /><span>Adjuntar</span></label>
                                     <InputFile @key="(1, _pickerVersion)" id="camera-picker" aria-label="Sacar una foto" class="visually-hidden file-input" OnChange="PickFilesAsync" accept="image/*" capture="environment" disabled="@(!RendererInfo.IsInteractive || _busy || _uploading)" />
@@ -223,7 +241,7 @@
                                 </div>
                                 <div class="composer-submit">
                                     <button type="button" class="quiet-action save-only" @onclick="() => SaveOrReflectAsync(null, false, false)" disabled="@(!HasDraft || _busy || _uploading || _showAudio)">Solo guardar</button>
-                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading || _showAudio)"><Icon Name="arrow" Size="18" /> Enviar</button>
+                                    <button type="button" class="btn btn-primary" @onclick="() => BeginReflectionAsync()" disabled="@(!HasDraft || _busy || _uploading || _showAudio)"><Icon Name="arrow" Size="18" /> Enviar a Brisa</button>
                                 </div>
                             </div>
                         </div>
@@ -233,9 +251,9 @@
                         {
                             <p class="topic-scope">Al enviar, OpenAI transcribe los audios y recibe tu mensaje y contexto pertinente. Los antecedentes se buscan localmente. «Solo guardar» no genera una respuesta ni transcribe audio. <a href="privacidad">Ver privacidad</a>.</p>
                         }
-                        <p class="topic-scope">Tus textos guardados se organizan en segundo plano para encontrar antecedentes cuando pedís una respuesta.</p>
-                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Probá con contenido ficticio.</span><span>8 MB por archivo · 16 MB por entrada</span></div>
-                        <p class="topic-scope conversation-footnote">La IA puede equivocarse y no reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia. Podés marcar mensajes en «Para retomar».</p>
+                        <p class="topic-scope">Tu cuaderno ayuda a Brisa a encontrar el hilo de lo que venís contando.</p>
+                        <div class="composer-caption"><span><Icon Name="lock" Size="13" /> Tus conversaciones no son públicas. <a href="privacidad">Privacidad</a></span><span>Hasta 256 MB por archivo · fotos y videos se optimizan a Full HD</span></div>
+                        <p class="topic-scope conversation-footnote">Podés llevar lo que conversemos a terapia. Marcá lo que quieras guardar en «Para retomar».</p>
                     </div>
                 }
                 else if (_section == WorkspaceSection.Calendar)
@@ -253,8 +271,8 @@
                 else if (_section == WorkspaceSection.Topics)
                 {
                     <header class="workspace-heading">
-                        <div><p class="eyebrow">TU RECORRIDO, CON PERSPECTIVA</p><h1 @ref="_sectionHeading" tabindex="-1">Devolución<span class="brand-period">.</span></h1><p>Un documento personal para profundizar en terapia.</p></div>
-                        <span class="mode-pill"><Icon Name="spark" Size="15" /> @Reflector.ProviderName</span>
+                        <div><p class="eyebrow">TU RECORRIDO, CON PERSPECTIVA</p><h1 @ref="_sectionHeading" tabindex="-1">La mirada de Brisa<span class="brand-period">.</span></h1><p>Miremos el recorrido con calma, para vos o para llevar a terapia.</p></div>
+                        <BrisaPortrait Size="large" />
                     </header>
                 }
                 else if (_section == WorkspaceSection.Notes)

@@ -21,6 +21,7 @@ public partial class Bitacora : IAsyncDisposable
     [Inject] private IJSRuntime Js { get; set; } = default!;
     [Inject] private ILogger<Bitacora> Logger { get; set; } = default!;
     [Inject] private JournalConversationService Conversation { get; set; } = default!;
+    [Inject] private AttachmentPreparationService AttachmentPreparation { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "seccion")] public string? InitialSection { get; set; }
 
     private readonly CancellationTokenSource _lifetime = new();
@@ -41,11 +42,32 @@ public partial class Bitacora : IAsyncDisposable
     private Guid? _noteId;
     private Guid? _workingEntry;
     private Guid? _replyToReveal;
-    private string _reflectionProgress = "Mi Bitácora está preparando una respuesta…";
+    private string _reflectionProgress = "Brisa está pensando en lo que le contaste…";
+    private BrisaActivity _reflectionActivity = BrisaActivity.Reading;
+    private readonly Dictionary<Guid, BrisaActivity> _replyActivities = [];
+    private Guid? _lastCompletedEntry;
+    private DateTime? _lastBrisaResponseUtc;
+    private BrisaActivity CurrentBrisaActivity => _workingEntry.HasValue ? _reflectionActivity :
+        _replyActivities.Values.Contains(BrisaActivity.Thinking) ? BrisaActivity.Thinking :
+        _replyActivities.Count > 0 ? BrisaActivity.Reading :
+        _lastBrisaResponseUtc is { } replied && DateTime.UtcNow - replied < TimeSpan.FromSeconds(6)
+            ? BrisaActivity.Responding : BrisaActivity.Idle;
+    private void ReplyActivityChanged(Guid entryId, BrisaActivity activity)
+    {
+        if (activity is BrisaActivity.Reading or BrisaActivity.Thinking) _replyActivities[entryId] = activity;
+        else
+        {
+            _replyActivities.Remove(entryId);
+            if (activity == BrisaActivity.Responding) _lastBrisaResponseUtc = DateTime.UtcNow;
+        }
+    }
     private Guid? _targetId;
     private bool _ready;
     private bool _busy;
     private bool _uploading;
+    private string? _uploadStatus;
+    private string? _uploadError;
+    private readonly List<string> _uploadResults = [];
     private bool _showAudio;
     private bool _hasEarlier;
     private bool _readingEarlier;
@@ -237,44 +259,60 @@ public partial class Bitacora : IAsyncDisposable
 
         _error = null;
         _uploading = true;
+        _uploadError = null;
+        _uploadResults.Clear();
         var skipped = new List<string>();
         try
         {
             foreach (var file in args.GetMultipleFiles(args.FileCount))
             {
-                if (file.Size is <= 0 or > JournalStore.MaxFileBytes
-                    || _files.Sum(item => (long)item.Content.Length) + file.Size > JournalStore.MaxEntryAttachmentBytes)
-                {
-                    skipped.Add(file.Name);
-                    continue;
-                }
-
                 try
                 {
-                    await using var source = file.OpenReadStream(JournalStore.MaxFileBytes, Lifetime);
-                    using var buffer = new MemoryStream((int)file.Size);
-                    await source.CopyToAsync(buffer, Lifetime);
-                    _files.Add(new PendingAttachment(file.Name, buffer.ToArray()));
+                    if (_files.Count >= 30) throw new JournalInputException("Podés adjuntar hasta 30 archivos por mensaje.");
+                    if (file.Size is <= 0 or > AttachmentPreparationService.MaxIncomingBytes)
+                        throw new JournalInputException("El archivo puede pesar hasta 256 MB antes de optimizarse.");
+                    _uploadStatus = $"Recibiendo {file.Name}…";
+                    await InvokeAsync(StateHasChanged);
+                    var progress = new Progress<string>(message =>
+                    {
+                        if (!_disposed) _ = InvokeAsync(() => { _uploadStatus = message; StateHasChanged(); });
+                    });
+                    await using var source = file.OpenReadStream(AttachmentPreparationService.MaxIncomingBytes, Lifetime);
+                    var prepared = await AttachmentPreparation.PrepareAsync(file.Name, file.Size, source,
+                        !Reflector.UsesExternalProvider, progress, Lifetime);
+                    if (_files.Sum(item => (long)item.Content.Length) + prepared.Attachment.Content.Length > JournalStore.MaxEntryAttachmentBytes)
+                        throw new JournalInputException("Los adjuntos optimizados juntos pueden pesar hasta 128 MB por mensaje. Quitá alguno o guardalo en otra entrada.");
+                    _files.Add(prepared.Attachment);
+                    _uploadResults.Add(prepared.Optimized
+                        ? $"{file.Name}: listo · {AttachmentPresentation.SizeLabel(prepared.OriginalBytes)} → {AttachmentPresentation.SizeLabel(prepared.Attachment.Content.Length)}"
+                        : $"{file.Name}: adjuntado");
                 }
-                catch (Exception ex) when (!_disposed && ex is IOException or InvalidOperationException)
+                catch (JournalInputException ex) { skipped.Add($"{file.Name}: {ex.Message}"); }
+                catch (Exception ex) when (!_disposed && ex is IOException or InvalidOperationException or UnauthorizedAccessException or System.Text.Json.JsonException)
                 {
-                    skipped.Add(file.Name);
+                    Logger.LogWarning(ex, "No se pudo preparar un adjunto.");
+                    skipped.Add($"{file.Name}: no pudimos recibirlo. Volvé a seleccionarlo e intentá otra vez.");
                 }
             }
 
             if (skipped.Count > 0)
             {
-                _error = $"No se pudieron adjuntar {string.Join(", ", skipped)}. El límite es de 8 MB por archivo y 16 MB por entrada.";
+                _uploadError = string.Join(" ", skipped);
             }
         }
         finally
         {
             _uploading = false;
+            _uploadStatus = null;
             _pickerVersion++;
         }
     }
 
-    private void RemoveFile(PendingAttachment file) => _files.Remove(file);
+    private void RemoveFile(PendingAttachment file)
+    {
+        _files.Remove(file);
+        _uploadResults.Clear();
+    }
 
     private async Task BeginReflectionAsync(Guid? entryId = null)
     {
@@ -325,6 +363,8 @@ public partial class Bitacora : IAsyncDisposable
                 ChangeNotebookCount(_selectedNotebookId, 1);
                 _draft = "";
                 _files.Clear();
+                _uploadResults.Clear();
+                _uploadError = null;
                 entryId = entry.Id;
                 await RefreshEntryDaysAsync();
             }
@@ -337,16 +377,23 @@ public partial class Bitacora : IAsyncDisposable
             }
 
             _workingEntry = entryId;
-            _reflectionProgress = "Buscando el hilo de la conversación…";
+            _reflectionActivity = BrisaActivity.Reading;
+            _reflectionProgress = "Brisa está retomando el hilo de la conversación…";
             _entryErrors.Remove(entryId.Value);
             await InvokeAsync(StateHasChanged);
 
-            var updated = await Conversation.GenerateAsync(_userId, entryId.Value, useAi, new MemoryProgress(message =>
+            var generatingEntry = entryId.Value;
+            var updated = await Conversation.GenerateAsync(_userId, generatingEntry, useAi, new MemoryProgress(message =>
                 {
-                    if (!_disposed) _ = InvokeAsync(() => { _reflectionProgress = message; StateHasChanged(); });
-                }), Lifetime);
+                    if (!_disposed) _ = InvokeAsync(() => { if (_workingEntry == generatingEntry) { _reflectionProgress = message; StateHasChanged(); } });
+                }), Lifetime, new ActivityProgress(activity =>
+                {
+                    if (!_disposed) _ = InvokeAsync(() => { if (_workingEntry == generatingEntry) { _reflectionActivity = activity; StateHasChanged(); } });
+                }));
             ReplaceEntry(updated);
             completed = true;
+            _lastCompletedEntry = generatingEntry;
+            _lastBrisaResponseUtc = DateTime.UtcNow;
             if (_section == WorkspaceSection.Calendar)
             {
                 await RefreshEntryDaysAsync();
@@ -398,7 +445,7 @@ public partial class Bitacora : IAsyncDisposable
     {
         if (file.Content.Length is <= 0 or > JournalStore.MaxFileBytes ||
             _files.Sum(a => (long)a.Content.Length) + file.Content.Length > JournalStore.MaxEntryAttachmentBytes)
-            throw new JournalInputException("El audio supera el espacio disponible: 8 MB por archivo y 16 MB por entrada.");
+            throw new JournalInputException("El audio supera el espacio disponible: 64 MB por archivo y 128 MB por entrada.");
         _files.Add(file);
         _showAudio = false;
         return Task.CompletedTask;
@@ -672,5 +719,6 @@ public partial class Bitacora : IAsyncDisposable
 
     private enum WorkspaceSection { Conversation, Calendar, Topics, Notes, Session }
     private sealed class MemoryProgress(Action<string> report) : IProgress<string> { public void Report(string value) => report(value); }
+    private sealed class ActivityProgress(Action<BrisaActivity> report) : IProgress<BrisaActivity> { public void Report(BrisaActivity value) => report(value); }
     private enum DialogKind { None, Note, DeleteNote, DeleteEntry, Notebooks, EditNotebook, DeleteNotebook, MoveEntry }
 }

@@ -15,6 +15,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<BillingSubscriptionRow> BillingSubscriptions => Set<BillingSubscriptionRow>();
     public DbSet<BillingPaymentRow> BillingPayments => Set<BillingPaymentRow>();
     public DbSet<BillingWebhookRow> BillingWebhooks => Set<BillingWebhookRow>();
+    public DbSet<BillingAccessGrantRow> BillingAccessGrants => Set<BillingAccessGrantRow>();
+    public DbSet<AccountAiPreferenceRow> AccountAiPreferences => Set<AccountAiPreferenceRow>();
     internal DbSet<JournalVectorStateRow> JournalVectorStates => Set<JournalVectorStateRow>();
     internal DbSet<JournalVectorChunkRow> JournalVectorChunks => Set<JournalVectorChunkRow>();
     internal DbSet<JournalVectorQueryRow> JournalVectorQueries => Set<JournalVectorQueryRow>();
@@ -22,6 +24,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<BillingAccessGrantRow>(entity =>
+        {
+            entity.HasKey(row => row.UserId);
+            entity.HasOne<ApplicationUser>().WithOne().HasForeignKey<BillingAccessGrantRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<AccountAiPreferenceRow>(entity =>
+        {
+            entity.HasKey(row => row.UserId);
+            entity.HasOne<ApplicationUser>().WithOne().HasForeignKey<AccountAiPreferenceRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<JournalVectorStateRow>(entity =>
         {
