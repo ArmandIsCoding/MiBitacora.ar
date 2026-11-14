@@ -1,6 +1,12 @@
 # Diarios dentro de Conversación
 
-**Mis diarios** permite crear y buscar diarios por nombre, abrir su conversación y renombrarlos. No hay un cupo de diarios. El icono de libro junto al editor abre el mismo selector cuando estás al final del chat; el selector del encabezado se desplaza con la página. En el teléfono, tocar **Conversación** también vuelve al encabezado.
+**Con Brisa** es un menú desplegable en la navegación fija. Sus submenús muestran todos los diarios de la cuenta: **Mi diario**, marcado como **Predeterminado**, aparece primero; siguen los diarios creados por nombre. El diario abierto queda señalado y los borradores pendientes se indican junto al nombre. Se puede cambiar de diario aunque las tarjetas del encabezado hayan quedado fuera de la pantalla al hacer scroll.
+
+En escritorio, la lista se despliega debajo de **Con Brisa**, con desplazamiento propio cuando hay muchos diarios. En el teléfono, se abre un panel debajo de la barra fija. Elegir un diario cierra el menú y abre su conversación; también permite volver desde Calendario, Notitas o las otras secciones. **Escape** cierra el submenú y devuelve el foco a **Con Brisa**. La selección respeta los bloqueos mientras se envía, se prepara un adjunto o se graba audio.
+
+**Organizar mis diarios** y el selector junto al editor permiten crear, buscar y renombrar diarios. No hay un cupo de cantidad. El menú se actualiza al crear, renombrar o quitar un diario, sin recargar la página.
+
+![Menú de diarios con el encabezado fuera de la pantalla, en una cuenta ficticia](menu-diarios.jpg)
 
 Las entradas existentes e importadas quedan en **Mi diario**, el diario inicial permanente de cada cuenta. No se clasifican automáticamente. El botón de libro de cada entrada permite moverla a otro diario, junto con sus adjuntos, respuesta y marca para terapia. Mantiene su identificador y fecha originales, así que los enlaces desde el informe siguen funcionando.
 
@@ -26,4 +32,4 @@ Antes de publicar, respaldar SQLite de forma consistente con su API de backup o 
 
 ## Verificación
 
-`NotebookChecks` prueba migración desde la versión anterior, conservación de respuestas, nombres, paginación entre hilos intercalados, aislamiento en el servicio y en la clave foránea, memoria entre diarios, informe global, reutilización del índice, movimiento, retirada de diarios y borrado de cuenta. Todas las pruebas usan bases temporales y respuestas simuladas, sin consumir API. La revisión visual usa una cuenta ficticia y comprueba creación, cambio, borradores, renombrado, búsqueda, movimiento, recarga y tamaños móviles.
+`NotebookChecks` prueba migración desde la versión anterior, conservación de respuestas, nombres, paginación entre hilos intercalados, aislamiento en el servicio y en la clave foránea, memoria entre diarios, informe global, reutilización del índice, movimiento, retirada de diarios y borrado de cuenta. Todas las pruebas usan bases temporales y respuestas simuladas, sin consumir API. La revisión visual usa una cuenta ficticia y comprueba creación, cambio, borradores, renombrado, búsqueda, movimiento, recarga y tamaños móviles. Para el menú fijo se verifica el orden con Mi diario primero, la selección después del scroll, la aparición inmediata de un diario nuevo, el regreso desde Calendario, Escape y el panel móvil de 390 px.

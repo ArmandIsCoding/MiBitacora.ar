@@ -33,9 +33,26 @@
             <aside class="journal-sidebar">
                 <div class="sidebar-heading"><span class="eyebrow">TU ESPACIO</span><p>@DisplayName<span class="brand-period">.</span></p></div>
                 <nav class="journal-nav" aria-label="Secciones del cuaderno">
-                    <button type="button" class="journal-tab @(_section == WorkspaceSection.Conversation ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Conversation ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Conversation)">
-                        <Icon Name="book" Size="20" /> <span>Con Brisa</span>
-                    </button>
+                    <div class="journal-conversation-menu" @onkeydown="OnNotebookMenuKeyAsync">
+                        <button type="button" class="journal-tab notebook-menu-toggle @(_section == WorkspaceSection.Conversation ? "selected" : "")"
+                                @ref="_notebookMenuToggle" aria-expanded="@(_notebookMenuOpen ? "true" : "false")" aria-controls="conversation-notebooks"
+                                @onclick="ToggleNotebookMenu" disabled="@(!RendererInfo.IsInteractive || _showAudio)">
+                            <Icon Name="book" Size="20" /> <span>Con Brisa</span><span class="notebook-menu-chevron" aria-hidden="true"><Icon Name="chevron" Size="14" /></span>
+                        </button>
+                        <ul id="conversation-notebooks" class="journal-notebook-menu" aria-label="Diarios con Brisa" hidden="@(!_notebookMenuOpen)">
+                            @foreach (var notebook in _notebooks)
+                            {
+                                var current = _section == WorkspaceSection.Conversation && notebook.Id == _selectedNotebookId;
+                                <li @key="notebook.Id ?? Guid.Empty">
+                                    <button type="button" class="notebook-menu-item @(current ? "is-current" : "")"
+                                            aria-current="@(current ? "page" : null)" @onclick="() => OpenNotebookFromMenuAsync(notebook.Id)" disabled="@NotebookControlsBusy">
+                                        <Icon Name="book" Size="16" /><span><strong>@notebook.Name</strong><small>@(notebook.Id is null ? "Predeterminado" : EntryCountLabel(notebook.EntryCount))@if (HasNotebookDraft(notebook.Id)) { <span> · Borrador</span> }</small></span>
+                                        @if (current) { <Icon Name="check" Size="15" /> }
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    </div>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Calendar ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Calendar ? "page" : null)" @onclick="OpenCalendarAsync">
                         <Icon Name="calendar" Size="20" /> <span>Calendario</span>
                     </button>

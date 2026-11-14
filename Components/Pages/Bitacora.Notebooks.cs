@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using MiBitacora.Services;
 
 namespace MiBitacora.Components.Pages;
@@ -14,6 +15,8 @@ public partial class Bitacora
     private string _notebookSearch = "";
     private string _moveNotebookValue = "";
     private readonly Dictionary<(Guid Notebook, Guid Thread), NotebookDraft> _notebookDrafts = [];
+    private bool _notebookMenuOpen;
+    private ElementReference _notebookMenuToggle;
     private JournalNotebook SelectedNotebook => _notebooks.FirstOrDefault(n => n.Id == _selectedNotebookId)
         ?? new(null, JournalStore.DefaultNotebookName, 0);
     private bool NotebookControlsBusy => !RendererInfo.IsInteractive || _busy || _uploading || _readingEarlier || _showAudio;
@@ -23,6 +26,34 @@ public partial class Bitacora
     private bool HasNotebookDraft(Guid? id) => (id == _selectedNotebookId && HasDraft) ||
         _notebookDrafts.Any(pair => pair.Key.Notebook == (id ?? Guid.Empty) && HasDraftContent(pair.Value));
     private static string EntryCountLabel(int count) => count == 1 ? "1 entrada" : $"{count} entradas";
+
+    private void ToggleNotebookMenu()
+    {
+        if (_showAudio) return;
+        if (_section != WorkspaceSection.Conversation)
+        {
+            ShowSection(WorkspaceSection.Conversation);
+            _notebookMenuOpen = true;
+        }
+        else _notebookMenuOpen = !_notebookMenuOpen;
+    }
+
+    private async Task OpenNotebookFromMenuAsync(Guid? notebookId)
+    {
+        if (NotebookControlsBusy) return;
+        await SwitchNotebookAsync(notebookId);
+        if (_selectedNotebookId != notebookId || _threadRoot is not null) return;
+        _notebookMenuOpen = false;
+        ShowSection(WorkspaceSection.Conversation);
+        _focusSection = true;
+    }
+
+    private async Task OnNotebookMenuKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key != "Escape" || !_notebookMenuOpen) return;
+        _notebookMenuOpen = false;
+        await _notebookMenuToggle.FocusAsync(preventScroll: true);
+    }
 
     private Guid? RequestedNotebookId()
     {

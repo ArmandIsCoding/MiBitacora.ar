@@ -221,6 +221,7 @@ public partial class Bitacora : IAsyncDisposable
     private void ShowSection(WorkspaceSection section)
     {
         if (_showAudio) return;
+        if (section != WorkspaceSection.Conversation) _notebookMenuOpen = false;
         if (_section == section)
         {
             _focusSection = true;
