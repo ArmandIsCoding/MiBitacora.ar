@@ -46,6 +46,8 @@ internal sealed class JournalEntryRow
     public bool ForSession { get; set; }
     public Guid? NotebookId { get; set; }
     public JournalNotebookRow? Notebook { get; set; }
+    public Guid? ReplyToEntryId { get; set; }
+    public string? ReplyToQuestion { get; set; }
     public List<JournalAttachmentRow> Attachments { get; set; } = [];
 }
 

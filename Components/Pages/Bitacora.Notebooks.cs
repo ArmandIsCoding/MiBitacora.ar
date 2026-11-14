@@ -13,15 +13,15 @@ public partial class Bitacora
     private string _notebookNameDraft = "";
     private string _notebookSearch = "";
     private string _moveNotebookValue = "";
-    private readonly Dictionary<Guid, NotebookDraft> _notebookDrafts = [];
+    private readonly Dictionary<(Guid Notebook, Guid Thread), NotebookDraft> _notebookDrafts = [];
     private JournalNotebook SelectedNotebook => _notebooks.FirstOrDefault(n => n.Id == _selectedNotebookId)
         ?? new(null, JournalStore.DefaultNotebookName, 0);
     private bool NotebookControlsBusy => !RendererInfo.IsInteractive || _busy || _uploading || _readingEarlier || _showAudio;
     private IEnumerable<JournalNotebook> FilteredNotebooks => _notebooks.Where(n =>
         Spanish.CompareInfo.IndexOf(n.Name, _notebookSearch.Trim(), System.Globalization.CompareOptions.IgnoreCase
             | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0);
-    private bool HasNotebookDraft(Guid? id) => id == _selectedNotebookId ? HasDraft :
-        _notebookDrafts.TryGetValue(id ?? Guid.Empty, out var draft) && (!string.IsNullOrWhiteSpace(draft.Text) || draft.Files.Length > 0);
+    private bool HasNotebookDraft(Guid? id) => (id == _selectedNotebookId && HasDraft) ||
+        _notebookDrafts.Any(pair => pair.Key.Notebook == (id ?? Guid.Empty) && HasDraftContent(pair.Value));
     private static string EntryCountLabel(int count) => count == 1 ? "1 entrada" : $"{count} entradas";
 
     private Guid? RequestedNotebookId()
@@ -36,10 +36,12 @@ public partial class Bitacora
     {
         // Query parameters also change while enhanced navigation is leaving this page.
         // Do not reopen a notebook over a navigation to account/privacy pages.
-        if (!_disposed && IsNotebookLocation && _ready && !_busy && !_uploading && !_readingEarlier)
+        if (!_disposed && IsNotebookLocation && _ready && !_busy && !_uploading && !_readingEarlier && !_normalizeThreadUrl)
         {
             var requested = RequestedNotebookId();
-            if (requested != _selectedNotebookId) await SwitchNotebookAsync(requested);
+            var thread = RequestedThreadId();
+            if (requested != _selectedNotebookId || thread != _threadRoot?.Id)
+                await SwitchConversationAsync(requested, thread);
         }
     }
 
@@ -61,43 +63,51 @@ public partial class Bitacora
         OpenDialog(DialogKind.EditNotebook);
     }
 
-    private async Task SwitchNotebookAsync(Guid? id)
+    private Task SwitchNotebookAsync(Guid? id) => SwitchConversationAsync(id, null);
+
+    private async Task SwitchConversationAsync(Guid? id, Guid? threadId)
     {
         if (_busy || _uploading || _readingEarlier || _showAudio) return;
-        if (id == _selectedNotebookId) { await CloseDialogAsync(); return; }
+        if (id == _selectedNotebookId && threadId == _threadRoot?.Id) { await CloseDialogAsync(); return; }
         await RunNotebookChangeAsync(async () =>
         {
-            var entries = await Store.GetNotebookEntriesAsync(_userId, id, PageSize, cancellationToken: Lifetime);
+            var page = await ReadConversationAsync(id, threadId);
+            var threads = await Store.GetThreadsAsync(_userId, id, Lifetime);
             if (_disposed || !IsNotebookLocation) return;
-            ActivateNotebook(id, entries);
+            ActivateNotebook(id, page.Entries, page.Thread);
+            await RefreshReplyTargetAsync();
+            _threads = threads;
             await CloseDialogAsync();
         });
     }
 
-    private void ActivateNotebook(Guid? id, IReadOnlyList<JournalEntry> entries)
+    private void ActivateNotebook(Guid? id, IReadOnlyList<JournalEntry> entries, JournalThreadPage? thread = null)
     {
-        if (id != _selectedNotebookId)
+        if (id != _selectedNotebookId || thread?.Root.Id != _threadRoot?.Id)
         {
-            _notebookDrafts[_selectedNotebookId ?? Guid.Empty] = new(_draft, _files.ToArray());
-            var draft = _notebookDrafts.GetValueOrDefault(id ?? Guid.Empty);
-            _draft = draft?.Text ?? "";
-            _files.Clear();
-            _files.AddRange(draft?.Files ?? []);
-            _notebookDrafts.Remove(id ?? Guid.Empty);
+            RememberDraft();
+            var key = DraftKey(id, thread?.Root.Id);
+            _notebookDrafts.Remove(key, out var draft);
+            RestoreDraft(draft);
+            _replyTarget = draft?.ReplyTarget ?? (thread is null ? null : entries.LastOrDefault() ?? thread.Root);
             _pickerVersion++;
             _uploadError = null;
             _uploadResults.Clear();
         }
+        else _notebookDrafts.Remove(DraftKey(id, thread?.Root.Id));
         _selectedNotebookId = id;
+        _threadRoot = thread?.Root;
+        if (_threadRoot is null) _replyTarget = null;
+        _threads = [];
         _entries.Clear();
         _entries.AddRange(entries);
-        _hasEarlier = entries.Count == PageSize;
+        _hasEarlier = thread?.HasEarlier ?? entries.Count == PageSize;
         _section = WorkspaceSection.Conversation;
         _scrollToEnd = false;
         _focusComposer = false;
         _focusSection = true;
         _notice = null;
-        Navigation.NavigateTo(id is { } value ? $"/bitacora?diario={value:D}" : "/bitacora", replace: true);
+        Navigation.NavigateTo(ConversationUrl(id, _threadRoot?.Id), replace: true);
     }
 
     private async Task SaveNotebookAsync()
@@ -138,21 +148,24 @@ public partial class Bitacora
         if (notebook is null) return;
         await RunNotebookChangeAsync(async () =>
         {
+            var movedThread = await Store.GetThreadAsync(_userId, entryId, cancellationToken: Lifetime);
             await Store.MoveEntryAsync(_userId, entryId, target, Lifetime);
-            var entry = _entries.Single(e => e.Id == entryId);
-            ReplaceEntry(entry with { NotebookId = target, NotebookName = notebook.Name });
-            _entries.RemoveAll(e => e.Id == entryId);
-            ChangeNotebookCount(entry.NotebookId, -1);
-            ChangeNotebookCount(target, 1);
+            RememberDraft();
+            var key = DraftKey(_selectedNotebookId, movedThread.Root.Id);
+            if (_notebookDrafts.Remove(key, out var threadDraft))
+                _notebookDrafts[DraftKey(target, movedThread.Root.Id)] = threadDraft with
+                { ReplyTarget = threadDraft.ReplyTarget is { } reply ? reply with { NotebookId = target, NotebookName = notebook.Name } : null };
+            if (_threadRoot?.Id == movedThread.Root.Id) { _draft = ""; _files.Clear(); }
+            var entries = await Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, cancellationToken: Lifetime);
+            ActivateNotebook(_selectedNotebookId, entries);
+            _notebookDrafts.Remove(key);
+            _threads = await Store.GetThreadsAsync(_userId, _selectedNotebookId, Lifetime);
+            _notebooks = await Store.GetNotebooksAsync(_userId, Lifetime);
+            _sessionEntries.Clear();
+            _sessionEntries.AddRange(await Store.GetSessionEntriesAsync(_userId, Lifetime));
             _sessionDraft = null;
-            if (_entries.Count == 0 && _hasEarlier)
-            {
-                var entries = await Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, cancellationToken: Lifetime);
-                _entries.AddRange(entries);
-                _hasEarlier = entries.Count == PageSize;
-            }
             await CloseDialogAsync();
-            _notice = $"Entrada y respuesta movidas a «{notebook.Name}».";
+            _notice = $"Conversación y adjuntos movidos a «{notebook.Name}».";
         });
     }
 
@@ -169,15 +182,17 @@ public partial class Bitacora
                 var entries = await Store.GetNotebookEntriesAsync(_userId, null, PageSize, cancellationToken: Lifetime);
                 ActivateNotebook(null, entries);
             }
-            if (_notebookDrafts.Remove(notebookId, out var draft))
+            foreach (var key in _notebookDrafts.Keys.Where(key => key.Notebook == notebookId).ToArray())
             {
-                if (_selectedNotebookId is null) MergeDraft(draft);
-                else
-                {
-                    var general = _notebookDrafts.GetValueOrDefault(Guid.Empty) ?? new("", []);
-                    _notebookDrafts[Guid.Empty] = new(JoinDrafts(general.Text, draft.Text), general.Files.Concat(draft.Files).ToArray());
-                }
+                var draft = _notebookDrafts[key];
+                _notebookDrafts.Remove(key);
+                var targetKey = DraftKey(null, key.Thread == Guid.Empty ? null : key.Thread);
+                var general = _notebookDrafts.GetValueOrDefault(targetKey) ?? new("", []);
+                _notebookDrafts[targetKey] = new(JoinDrafts(general.Text, draft.Text), general.Files.Concat(draft.Files).ToArray(),
+                    draft.ReplyTarget is { } reply ? reply with { NotebookId = null, NotebookName = JournalStore.DefaultNotebookName } : general.ReplyTarget);
             }
+            if (_selectedNotebookId is null && _threadRoot is null && _notebookDrafts.Remove(DraftKey(null, null), out var recovered)) MergeDraft(recovered);
+            _threads = await Store.GetThreadsAsync(_userId, _selectedNotebookId, Lifetime);
             for (var i = 0; i < _sessionEntries.Count; i++)
                 if (_sessionEntries[i].NotebookId == notebookId)
                     _sessionEntries[i] = _sessionEntries[i] with { NotebookId = null, NotebookName = JournalStore.DefaultNotebookName };
@@ -215,5 +230,5 @@ public partial class Bitacora
         finally { _busy = false; }
     }
 
-    private sealed record NotebookDraft(string Text, PendingAttachment[] Files);
+    private sealed record NotebookDraft(string Text, PendingAttachment[] Files, JournalEntry? ReplyTarget = null);
 }

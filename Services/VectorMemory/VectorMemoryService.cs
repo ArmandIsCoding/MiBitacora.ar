@@ -227,7 +227,8 @@ public sealed class VectorMemoryService(IDbContextFactory<ApplicationDbContext> 
         if (recent.FirstOrDefault() is { } prior)
         {
             // A short answer such as "sí, eso" needs the preceding question, never as factual evidence.
-            text += "\nPregunta anterior de la IA (no es un hecho): " + JournalVectors.Utf8Prefix(string.Join(" ", prior.Reflection?.OpenQuestions ?? []), 180);
+            text += "\nPregunta anterior de la IA (no es un hecho): " + JournalVectors.Utf8Prefix(
+                context.Current.ReplyToQuestion ?? string.Join(" ", prior.Reflection?.OpenQuestions ?? []), 180);
             text += "\nMensaje anterior: " + JournalVectors.Utf8Prefix(JournalAudio.ConversationText(prior), 300);
             text += "\nPropuesta anterior de la IA (no es un hecho): " + JournalVectors.Utf8Prefix(prior.Reflection?.Overview ?? "", 220);
         }

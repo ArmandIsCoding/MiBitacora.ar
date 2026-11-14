@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider Auth
 @inject TimeZoneInfo TimeZone
 @inject ILogger<Entrada> Logger
+@inject NavigationManager Navigation
 
 <PageTitle>Entrada completa · Mi Bitácora</PageTitle>
 
@@ -17,6 +18,13 @@
     {
         <h1>@Local(entry.CreatedUtc).ToString("d 'de' MMMM 'de' yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"))</h1>
         <a class="entry-notebook-link" href="@NotebookUrl"><Icon Name="book" Size="17" /> @entry.NotebookName</a>
+        @if (entry.ReplyToEntryId is { } parentId)
+        {
+            <div class="entry-reply-context"><Icon Name="reply" Size="17" /><div><small>En respuesta a Brisa</small>
+                @if (entry.ReplyToQuestion is { Length: > 0 } question) { <p>@question</p> }
+                <a href="@($"/entrada/{parentId}?origen=chat")">Ver mensaje anterior</a> · <a href="@ThreadUrl">Abrir este hilo</a>
+            </div></div>
+        }
         <p class="topic-scope">Tu mensaje y sus archivos, tal como los guardaste. La respuesta de Brisa es una mirada posible: podés contrastarla con tus propias palabras.</p>
         <article class="entry-card" aria-label="Entrada completa">
             <header class="entry-meta"><div><EntryEdit Entry="entry" Updated="updated => _entry = updated" /><strong>Tu entrada</strong></div></header>
@@ -28,7 +36,7 @@
         </article>
         @if (entry.Reflection is { } reflection)
         {
-            <EntryReply Entry="entry" Updated="updated => _entry = updated" />
+            <EntryReply Entry="entry" Updated="updated => _entry = updated" Respond="OpenThread" />
         }
         <p class="conversation-boundary">Esta conversación con IA puede ayudarte a reflexionar y puede equivocarse. No reemplaza a un terapeuta. Te recomendamos llevar este chat a terapia para analizarlo más a fondo.</p>
     }
@@ -47,9 +55,11 @@
     private bool _failed;
     [SupplyParameterFromQuery(Name = "origen")] public string? Origin { get; set; }
     private string NotebookUrl => _entry?.NotebookId is { } id ? $"/bitacora?diario={id:D}" : "/bitacora";
-    private string ReturnUrl => Origin == "chat" ? NotebookUrl : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
+    private string ThreadUrl => NotebookUrl + (_entry?.NotebookId is null ? "?" : "&") + $"hilo={EntryId:D}";
+    private string ReturnUrl => Origin == "chat" ? (_entry?.ReplyToEntryId is not null ? ThreadUrl : NotebookUrl) : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
     private string ReturnLabel => Origin == "chat" ? "Volver a la conversación" : "Volver a la devolución";
     private DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZone);
+    private void OpenThread(JournalEntry entry) => Navigation.NavigateTo($"{NotebookUrl}{(entry.NotebookId.HasValue ? "&" : "?")}hilo={entry.Id:D}&responder={entry.Id:D}");
     protected override async Task OnParametersSetAsync()
     {
         _entry = null;

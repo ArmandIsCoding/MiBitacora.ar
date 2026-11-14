@@ -3,7 +3,7 @@
 @attribute [Authorize]
 @rendermode InteractiveServer
 
-<PageTitle>@SelectedNotebook.Name · Mi Bitácora</PageTitle>
+<PageTitle>@(_threadRoot is null ? SelectedNotebook.Name : "Hilo con Brisa") · Mi Bitácora</PageTitle>
 
 <div class="journal-app">
     <header class="journal-top">
@@ -99,6 +99,30 @@
 
                     <p class="conversation-boundary"><Icon Name="leaf" Size="19" /><span>Brisa es tu compañera de IA. Sus miradas son posibilidades para explorar: vos elegís qué te representa. No reemplaza a un terapeuta.</span></p>
 
+                    @if (_threadRoot is not null)
+                    {
+                        <section class="conversation-thread-heading" aria-label="Hilo actual">
+                            <button type="button" class="quiet-action" @onclick="() => SwitchConversationAsync(_selectedNotebookId, null)" disabled="@NotebookControlsBusy"><Icon Name="book" Size="17" /> Volver a todas las entradas</button>
+                            <p class="eyebrow">HILO CON BRISA</p><h2>@ThreadTitle</h2>
+                            <p>Podés seguir esta conversación y volver a tus otros hilos cuando quieras.</p>
+                            <a class="quiet-action" href="@($"/entrada/{_threadRoot.Id}?origen=chat")" target="_blank" rel="noopener">Ver entrada que inició el hilo <Icon Name="arrow" Size="15" /></a>
+                        </section>
+                    }
+                    @if (_threads.Count > 0)
+                    {
+                        <details class="conversation-threads">
+                            <summary><Icon Name="reply" Size="18" /> Tus hilos (@_threads.Count) <Icon Name="chevron" Size="15" /></summary>
+                            <nav aria-label="Retomar un hilo">
+                                @foreach (var thread in _threads)
+                                {
+                                    <button type="button" class="thread-choice @(thread.EntryId == _threadRoot?.Id ? "is-current" : "")" @onclick="() => SwitchConversationAsync(_selectedNotebookId, thread.EntryId)" disabled="@NotebookControlsBusy" aria-current="@(thread.EntryId == _threadRoot?.Id ? "true" : null)">
+                                        <span>@thread.Question</span><small>@thread.ReplyCount respuesta@(thread.ReplyCount == 1 ? "" : "s") · @LocalDate(thread.UpdatedUtc)</small>
+                                    </button>
+                                }
+                            </nav>
+                        </details>
+                    }
+
                     <button type="button" class="journal-streak" @onclick="OpenCalendarAsync" disabled="@(!RendererInfo.IsInteractive)">
                         <span class="journal-streak-icon"><Icon Name="leaf" Size="21" /></span>
                         <span class="journal-streak-label"><span>Racha actual</span><strong>@StreakLabel</strong></span>
@@ -156,6 +180,17 @@
                                                 <button type="button" class="icon-button" aria-label="Eliminar entrada" title="Eliminar entrada" disabled="@_busy" @onclick="() => OpenDialog(DialogKind.DeleteEntry, entry.Id)"><Icon Name="trash" Size="17" /></button>
                                             </div>
                                         </header>
+                                        @if (entry.ReplyToEntryId is { } parentId)
+                                        {
+                                            <div class="entry-reply-context"><Icon Name="reply" Size="16" /><div><small>En respuesta a Brisa</small>
+                                                @if (entry.ReplyToQuestion is { Length: > 0 } question) { <p>@question</p> }
+                                                <a href="@($"/entrada/{parentId}?origen=chat")" target="_blank" rel="noopener">Ver mensaje anterior</a>
+                                            </div></div>
+                                            @if (_threadRoot is null)
+                                            {
+                                                <button type="button" class="quiet-action" @onclick="() => SwitchConversationAsync(_selectedNotebookId, entry.Id)" disabled="@NotebookControlsBusy">Abrir este hilo <Icon Name="arrow" Size="16" /></button>
+                                            }
+                                        }
                                         @if (!string.IsNullOrWhiteSpace(entry.Text))
                                         {
                                             <p class="preserved-text">@entry.Text</p>
@@ -184,6 +219,7 @@
                                     @if (entry.Reflection is { } reflection && _workingEntry != entry.Id)
                                     {
                                         <EntryReply Entry="entry" Updated="ReplyUpdated" CanRegenerate="IsAiEnabled"
+                                                        Respond="RespondAsync"
                                                         Busy="_busy" JustResponded="@(_lastCompletedEntry == entry.Id)"
                                                         ActivityChanged="activity => ReplyActivityChanged(entry.Id, activity)"
                                                         SaveAsNote="() => StartNote(initialText: reflection.Overview.Length > JournalStore.MaxNoteLength ? reflection.Overview[..JournalStore.MaxNoteLength] : reflection.Overview)"
@@ -197,11 +233,15 @@
                     <div class="journal-end" @ref="_end"></div>
                     <section class="composer-wrap @(_entries.Count == 0 ? "composer-empty" : "")" aria-label="Continuar la conversación">
                         <button type="button" class="composer-current-notebook" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy" aria-haspopup="dialog"><Icon Name="book" Size="17" /><span>Estás escribiendo en <strong>@SelectedNotebook.Name</strong></span><span class="notebook-change-label">Cambiar <Icon Name="chevron" Size="13" /></span></button>
+                        @if (_threadRoot is not null && _replyTarget is not null)
+                        {
+                            <div class="composer-reply-context" role="status"><Icon Name="reply" Size="18" /><div><strong>Respondiendo en este hilo</strong><p>@ReplyPrompt</p></div></div>
+                        }
                         <div class="composer">
                             <div class="brisa-composer-greeting"><BrisaPortrait Size="mini" Activity="CurrentBrisaActivity" Animated="true" /><span>Te leo. ¿Qué te gustaría contarme?</span></div>
                             <label class="visually-hidden" for="entry-text">Tu mensaje para Brisa</label>
                             <textarea id="entry-text" @ref="_composerInput" @bind="_draft" @bind:event="oninput" maxlength="@JournalStore.MaxTextLength" rows="3"
-                                      placeholder="@(RendererInfo.IsInteractive ? "Brisa, hoy me está pasando que…" : "Abriendo tu espacio con Brisa…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
+                                      placeholder="@(RendererInfo.IsInteractive ? (_threadRoot is null ? "Brisa, hoy me está pasando que…" : "Tu respuesta para seguir este hilo…") : "Abriendo tu espacio con Brisa…")" disabled="@(!RendererInfo.IsInteractive || _busy)"></textarea>
                             @if (_files.Count > 0)
                             {
                                 <div class="draft-files">
@@ -446,7 +486,7 @@
             {
                 <p class="eyebrow"><Icon Name="book" Size="17" /> ORGANIZAR</p>
                 <h2 id="dialog-title">Mover a otro diario.</h2>
-                <p>La entrada, sus adjuntos y su respuesta se moverán juntos, conservando su fecha.</p>
+                <p>La conversación completa, con las respuestas de su hilo y los adjuntos, se moverá junta. Cada mensaje conserva su fecha.</p>
                 <label class="notebook-label" for="move-notebook">Diario de destino</label>
                 <select id="move-notebook" class="notebook-input" @bind="_moveNotebookValue" disabled="@_busy" autofocus>
                     @foreach (var notebook in _notebooks)

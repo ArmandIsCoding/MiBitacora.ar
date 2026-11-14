@@ -8,6 +8,7 @@
     <div class="reply-ready" @key="reflection.GeneratedUtc">
     <ReflectionCard Reflection="reflection" Selected="_current.ForSession" Busy="@(Busy || _generating)"
                     SaveAsNote="SaveAsNote" ToggleSession="ToggleSession" Regenerating="_generating"
+                    Respond="@(Respond.HasDelegate ? EventCallback.Factory.Create(this, () => Respond.InvokeAsync(_current)) : default)"
                     Regenerate="@(CanRegenerate ? EventCallback.Factory.Create(this, RegenerateAsync) : default)" JustResponded="FreshResponse" />
     </div>
 }
@@ -22,6 +23,7 @@
     [Parameter] public EventCallback<JournalEntry> Updated { get; set; }
     [Parameter] public EventCallback SaveAsNote { get; set; }
     [Parameter] public EventCallback ToggleSession { get; set; }
+    [Parameter] public EventCallback<JournalEntry> Respond { get; set; }
     [Parameter] public bool JustResponded { get; set; }
     [Parameter] public EventCallback<BrisaActivity> ActivityChanged { get; set; }
     private JournalEntry _current = default!;

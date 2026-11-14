@@ -115,7 +115,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     }
 
     public async Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files,
-        CancellationToken cancellationToken = default, Guid? notebookId = null)
+        CancellationToken cancellationToken = default, Guid? notebookId = null, Guid? replyToEntryId = null)
     {
         text = text.Trim();
         RequireLength(text, MaxTextLength, "Tu entrada");
@@ -140,6 +140,15 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var notebookName = await RequireNotebookAsync(db, userId, notebookId, cancellationToken);
+        if (replyToEntryId is { } parentId)
+        {
+            var parent = await db.JournalEntries.SingleOrDefaultAsync(row => row.UserId == userId && row.Id == parentId,
+                cancellationToken) ?? throw EntryUnavailable();
+            if (parent.NotebookId != notebookId)
+                throw new JournalInputException("La respuesta debe guardarse en el mismo diario que su hilo.");
+            entry.ReplyToEntryId = parent.Id;
+            entry.ReplyToQuestion = ReadReflection(parent.ReflectionJson)?.OpenQuestions.FirstOrDefault();
+        }
         if (entry.Attachments.Count > 0)
         {
             var quota = await db.JournalAttachments
@@ -181,7 +190,8 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
         }
 
         return new JournalEntry(entry.Id, entry.Text, entry.CreatedUtc, null, false,
-            entry.Attachments.Select(ToAttachment).ToArray(), NotebookId: notebookId, NotebookName: notebookName);
+            entry.Attachments.Select(ToAttachment).ToArray(), NotebookId: notebookId, NotebookName: notebookName,
+            ReplyToEntryId: entry.ReplyToEntryId, ReplyToQuestion: entry.ReplyToQuestion);
     }
 
     public async Task<JournalEntry> UpdateEntryAsync(string userId, Guid entryId, string text,
@@ -336,10 +346,13 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             ?? throw EntryUnavailable();
         var profile = await ReadProfileAsync(db, userId, cancellationToken);
         var terms = SearchTerms(current);
-        // Conversational continuity belongs to this diary. Semantic memory still searches
-        // the entire account through JournalCorpusReader, including all other diaries.
-        var earlier = owned.Where(row => row.CreatedUtc < current.CreatedUtc && row.NotebookId == current.NotebookId);
-        var history = await FindHistoryAsync(earlier, terms, cancellationToken);
+        // Explicit replies follow their ancestors, never a more recent, unrelated thread.
+        // Retrieval still searches original texts throughout the account.
+        var earlier = owned.Where(row => row.CreatedUtc < current.CreatedUtc && row.NotebookId == current.NotebookId
+            && row.ReplyToEntryId == null);
+        var history = current.ReplyToEntryId.HasValue
+            ? await ReadReplyHistoryAsync(db, userId, current, cancellationToken)
+            : await FindHistoryAsync(earlier, terms, cancellationToken);
         var notes = SelectNotes(await ReadNotesAsync(db, userId, cancellationToken), terms);
 
         var earlierFiles = db.JournalAttachments.Where(row => row.Entry.UserId == userId
@@ -502,13 +515,15 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     {
         var rows = await entries.AsSplitQuery().Select(row => new EntryProjection(
             row.Id, row.Text, row.CreatedUtc, row.ReflectionJson, row.ForSession, row.IsDateOnly,
-            row.NotebookId, row.Notebook == null ? DefaultNotebookName : row.Notebook.Name, row.Attachments
+            row.NotebookId, row.Notebook == null ? DefaultNotebookName : row.Notebook.Name,
+            row.ReplyToEntryId, row.ReplyToQuestion, row.Attachments
                 .OrderBy(attachment => attachment.Position)
                 .Select(attachment => new JournalAttachment(attachment.Id, attachment.EntryId, attachment.FileName,
                     attachment.ContentType, attachment.Size, attachment.ExtractionStatus, attachment.ExtractedText, attachment.IsVoiceMessage))
                 .ToList())).ToListAsync(cancellationToken);
         return rows.Select(row => new JournalEntry(row.Id, row.Text, AsUtc(row.CreatedUtc),
-            ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments, row.IsDateOnly, row.NotebookId, row.NotebookName)).ToList();
+            ReadReflection(row.ReflectionJson), row.ForSession, row.Attachments, row.IsDateOnly, row.NotebookId, row.NotebookName,
+            row.ReplyToEntryId, row.ReplyToQuestion)).ToList();
     }
 
     private static IQueryable<JournalAttachment> ProjectAttachments(IQueryable<JournalAttachmentRow> query) =>
@@ -617,5 +632,6 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
     private static partial Regex SearchWord();
 
     private sealed record EntryProjection(Guid Id, string Text, DateTime CreatedUtc, string? ReflectionJson,
-        bool ForSession, bool IsDateOnly, Guid? NotebookId, string NotebookName, List<JournalAttachment> Attachments);
+        bool ForSession, bool IsDateOnly, Guid? NotebookId, string NotebookName,
+        Guid? ReplyToEntryId, string? ReplyToQuestion, List<JournalAttachment> Attachments);
 }

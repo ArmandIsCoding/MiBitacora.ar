@@ -330,6 +330,12 @@ namespace MiBitacora.Migrations
                     b.Property<string>("ReflectionJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("ReplyToEntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReplyToQuestion")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SearchText")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -346,6 +352,8 @@ namespace MiBitacora.Migrations
 
                     b.HasIndex("UserId", "CreatedUtc")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "ReplyToEntryId");
 
                     b.HasIndex("UserId", "NotebookId", "CreatedUtc");
 

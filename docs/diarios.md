@@ -4,6 +4,8 @@
 
 Las entradas existentes e importadas quedan en **Mi diario**, el diario inicial permanente de cada cuenta. No se clasifican automáticamente. El botón de libro de cada entrada permite moverla a otro diario, junto con sus adjuntos, respuesta y marca para terapia. Mantiene su identificador y fecha originales, así que los enlaces desde el informe siguen funcionando.
 
+Cada diario puede tener varios [hilos conversacionales](hilos-conversacionales.md) a partir de las preguntas de Brisa. Si la entrada forma parte de uno, moverla traslada el hilo completo con sus ramas y adjuntos, para conservar la conversación en un mismo diario.
+
 **Quitar diario** pide confirmación y pasa sus entradas a Mi diario. No elimina mensajes ni archivos. El diario inicial no se renombra ni se quita. Los nombres propios admiten hasta 80 caracteres y deben distinguirse de los demás diarios de esa cuenta, sin diferencias sólo de mayúsculas o espacios.
 
 Cada diario conserva su borrador y los adjuntos todavía sin enviar mientras se cambia de conversación en la misma pestaña. Son borradores en memoria de la sesión, no un guardado automático: recargar o cerrar la página puede perderlos. Si se quita un diario con un borrador, se conserva en Mi diario; si ya había otro allí, se reúnen ambos para que el usuario pueda revisarlos antes de enviar. Siguen vigentes los límites por entrada.
@@ -12,7 +14,7 @@ La URL `/bitacora?diario=<id>` vuelve al diario seleccionado al recargar. Se val
 
 ## Continuidad y memoria
 
-Los turnos recientes y las preguntas anteriores de la IA proceden del **mismo diario** que el mensaje actual. El nombre del diario se envía como etiqueta de organización, no como instrucción. La recuperación semántica sigue recorriendo los textos originales de **todos los diarios de esa cuenta**, incluso antecedentes antiguos. La IA sólo debe relacionarlos cuando sean pertinentes.
+Los turnos recientes y las preguntas anteriores de la IA proceden del **hilo elegido dentro del mismo diario** que el mensaje actual. Fuera de un hilo se usan las entradas del diario sin destinatario explícito. El nombre del diario se envía como etiqueta de organización, no como instrucción. La recuperación semántica sigue recorriendo los textos originales de **todos los diarios de esa cuenta**, incluso antecedentes antiguos. La IA sólo debe relacionarlos cuando sean pertinentes.
 
 El corpus, sus identificadores de fuentes y sus huellas no dependen de la organización en diarios. Mover una entrada o renombrar un diario no reindexa textos intactos ni invalida el informe para terapia. No genera llamadas a la IA. El calendario, la racha, las notitas, el contexto del perfil, Para retomar, el informe y la exportación de datos continúan siendo del cuaderno completo.
 

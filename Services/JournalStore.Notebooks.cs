@@ -72,8 +72,10 @@ public sealed partial class JournalStore
         var entry = await db.JournalEntries.SingleOrDefaultAsync(row => row.UserId == userId && row.Id == entryId, cancellationToken)
             ?? throw EntryUnavailable();
         await RequireNotebookAsync(db, userId, notebookId, cancellationToken);
-        entry.NotebookId = notebookId;
-        await db.SaveChangesAsync(cancellationToken);
+        var links = await ReadThreadLinksAsync(db, userId, entry.NotebookId, cancellationToken);
+        var ids = ThreadEntryIds(links, ThreadRootId(links, entry.Id));
+        await db.JournalEntries.Where(row => row.UserId == userId && ids.Contains(row.Id))
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.NotebookId, notebookId), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 

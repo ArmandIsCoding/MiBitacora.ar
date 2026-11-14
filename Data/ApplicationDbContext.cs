@@ -107,6 +107,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.HasIndex(row => new { row.UserId, row.CreatedUtc }).IsUnique();
             entity.HasIndex(row => new { row.UserId, row.NotebookId, row.CreatedUtc });
+            entity.HasIndex(row => new { row.UserId, row.ReplyToEntryId });
             entity.HasOne(row => row.Notebook).WithMany()
                 .HasForeignKey(row => new { row.UserId, row.NotebookId })
                 .HasPrincipalKey(row => new { row.UserId, row.Id }).OnDelete(DeleteBehavior.NoAction);

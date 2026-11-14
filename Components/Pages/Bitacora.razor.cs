@@ -113,15 +113,39 @@ public partial class Bitacora : IAsyncDisposable
             var notes = Store.GetNotesAsync(_userId, Lifetime);
             var selected = Store.GetSessionEntriesAsync(_userId, Lifetime);
             var entryDays = Store.GetEntryDaysAsync(_userId, JournalTimeZone, Lifetime);
-            await Task.WhenAll(profile, entries, notes, selected, entryDays);
+            var threads = Store.GetThreadsAsync(_userId, _selectedNotebookId, Lifetime);
+            await Task.WhenAll(profile, entries, notes, selected, entryDays, threads);
 
             _profile = await profile;
             _entries.AddRange(await entries);
+            _threads = await threads;
             _notes.AddRange(await notes);
             _sessionEntries.AddRange(await selected);
             _entryDays = await entryDays;
             UpdateCalendarDay();
             _hasEarlier = _entries.Count == PageSize;
+            if (RequestedThreadId() is { } threadId)
+            {
+                try
+                {
+                    var page = await ReadConversationAsync(_selectedNotebookId, threadId);
+                    _threadRoot = page.Thread!.Root;
+                    _entries.Clear();
+                    _entries.AddRange(page.Entries);
+                    _hasEarlier = page.Thread.HasEarlier;
+                    _replyTarget = InitialReplyTo is { } targetId
+                        ? await Store.GetEntryAsync(_userId, targetId, Lifetime) : null;
+                    if (_replyTarget is null || (await Store.GetThreadAsync(_userId, _replyTarget.Id, 1, cancellationToken: Lifetime)).Root.Id != _threadRoot.Id)
+                        _replyTarget = _entries.LastOrDefault() ?? _threadRoot;
+                    _focusComposer = InitialReplyTo.HasValue;
+                    _normalizeThreadUrl = threadId != _threadRoot.Id || InitialReplyTo.HasValue;
+                }
+                catch (JournalInputException)
+                {
+                    _notice = "Ese hilo no está disponible en este diario. Podés seguir escribiendo acá.";
+                    _normalizeThreadUrl = true;
+                }
+            }
             _ready = true;
             _scrollToEnd = _section == WorkspaceSection.Conversation && _entries.Count > 0;
         }
@@ -137,6 +161,11 @@ public partial class Bitacora : IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_normalizeThreadUrl)
+        {
+            _normalizeThreadUrl = false;
+            Navigation.NavigateTo(ConversationUrl(_selectedNotebookId, _threadRoot?.Id), replace: true);
+        }
         if (_ready)
         {
             _calendarDayWatcher ??= WatchCalendarDayAsync();
@@ -216,9 +245,11 @@ public partial class Bitacora : IAsyncDisposable
         _readingEarlier = true;
         try
         {
-            var earlier = await Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, _entries[0].CreatedUtc, Lifetime);
+            var threadPage = _threadRoot is { } root
+                ? await Store.GetThreadAsync(_userId, root.Id, PageSize, _entries[0].CreatedUtc, Lifetime) : null;
+            var earlier = threadPage?.Entries ?? await Store.GetNotebookEntriesAsync(_userId, _selectedNotebookId, PageSize, _entries[0].CreatedUtc, Lifetime);
             _entries.InsertRange(0, earlier);
-            _hasEarlier = earlier.Count == PageSize;
+            _hasEarlier = threadPage?.HasEarlier ?? earlier.Count == PageSize;
         }
         catch (Exception ex) when (!_disposed)
         {
@@ -358,14 +389,17 @@ public partial class Bitacora : IAsyncDisposable
         {
             if (entryId is null)
             {
-                var entry = await Store.AddEntryAsync(_userId, _draft, _files.ToArray(), Lifetime, _selectedNotebookId);
+                var entry = await Store.AddEntryAsync(_userId, _draft, _files.ToArray(), Lifetime, _selectedNotebookId,
+                    replyToEntryId: _threadRoot is null ? null : _replyTarget?.Id ?? _threadRoot.Id);
                 _entries.Add(entry);
+                if (_threadRoot is not null) _replyTarget = entry;
                 ChangeNotebookCount(_selectedNotebookId, 1);
                 _draft = "";
                 _files.Clear();
                 _uploadResults.Clear();
                 _uploadError = null;
                 entryId = entry.Id;
+                _threads = await Store.GetThreadsAsync(_userId, _selectedNotebookId, Lifetime);
                 await RefreshEntryDaysAsync();
             }
 
@@ -463,6 +497,8 @@ public partial class Bitacora : IAsyncDisposable
 
     private void ReplaceEntry(JournalEntry entry)
     {
+        if (_replyTarget?.Id == entry.Id) _replyTarget = entry;
+        if (_threadRoot?.Id == entry.Id) _threadRoot = entry;
         var index = _entries.FindIndex(item => item.Id == entry.Id);
         if (index >= 0)
         {
@@ -562,10 +598,21 @@ public partial class Bitacora : IAsyncDisposable
             else
             {
                 await Store.DeleteEntryAsync(_userId, id, Lifetime);
+                if (_threadRoot?.Id != id && _notebookDrafts.Remove(DraftKey(_selectedNotebookId, id), out var orphan))
+                {
+                    if (_threadRoot is null) MergeDraft(orphan);
+                    else
+                    {
+                        var key = DraftKey(_selectedNotebookId, null);
+                        var general = _notebookDrafts.GetValueOrDefault(key) ?? new("", []);
+                        _notebookDrafts[key] = new(JoinDrafts(general.Text, orphan.Text), general.Files.Concat(orphan.Files).ToArray());
+                    }
+                }
                 ChangeNotebookCount(_entries.FirstOrDefault(entry => entry.Id == id)?.NotebookId, -1);
                 _entries.RemoveAll(item => item.Id == id);
                 _sessionEntries.RemoveAll(item => item.Id == id);
                 _entryErrors.Remove(id);
+                await ReloadConversationAsync();
                 _notice = "Entrada y adjuntos eliminados.";
                 await RefreshEntryDaysAsync();
             }

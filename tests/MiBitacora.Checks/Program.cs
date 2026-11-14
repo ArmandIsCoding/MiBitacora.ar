@@ -133,6 +133,7 @@ await MemoryReportChecks.RunAsync(Check);
 await VectorMemoryChecks.RunAsync(Check, args.Contains("--live-embeddings"));
 await EntryEditingChecks.RunAsync(Check);
 await NotebookChecks.RunAsync(Check);
+await ThreadChecks.RunAsync(Check);
 await AttachmentViewerChecks.RunAsync(Check);
 await ConversationDepthChecks.RunAsync(Check);
 await AudioConversationChecks.RunAsync(Check);

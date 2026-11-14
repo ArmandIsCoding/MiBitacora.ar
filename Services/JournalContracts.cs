@@ -13,7 +13,13 @@ public sealed record JournalEntry(
     IReadOnlyList<JournalAttachment> Attachments,
     bool IsDateOnly = false,
     Guid? NotebookId = null,
-    string NotebookName = "Mi diario");
+    string NotebookName = "Mi diario",
+    Guid? ReplyToEntryId = null,
+    string? ReplyToQuestion = null);
+
+public sealed record JournalThread(Guid EntryId, string Question, int ReplyCount, DateTime UpdatedUtc);
+
+public sealed record JournalThreadPage(JournalEntry Root, IReadOnlyList<JournalEntry> Entries, bool HasEarlier);
 
 public sealed record JournalNote(Guid Id, string Text, DateTime CreatedUtc, bool ForSession);
 
@@ -89,6 +95,9 @@ public interface IJournalStore
     Task MoveEntryAsync(string userId, Guid entryId, Guid? notebookId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalEntry>> GetNotebookEntriesAsync(string userId, Guid? notebookId, int take = 40,
         DateTime? beforeUtc = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JournalThread>> GetThreadsAsync(string userId, Guid? notebookId, CancellationToken cancellationToken = default);
+    Task<JournalThreadPage> GetThreadAsync(string userId, Guid entryId, int take = 40,
+        DateTime? beforeUtc = null, CancellationToken cancellationToken = default);
     Task<JournalProfile> GetProfileAsync(string userId, CancellationToken cancellationToken = default);
     Task SaveProfileAsync(string userId, JournalProfile profile, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalEntry>> GetEntriesAsync(string userId, int take = 40, DateTime? beforeUtc = null, CancellationToken cancellationToken = default);
@@ -96,7 +105,7 @@ public interface IJournalStore
     Task<IReadOnlyDictionary<DateOnly, int>> GetEntryDaysAsync(string userId, TimeZoneInfo timeZone, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalEntry>> GetEntriesInRangeAsync(string userId, DateTime fromUtc, DateTime untilUtc, CancellationToken cancellationToken = default);
     Task<JournalEntry> AddEntryAsync(string userId, string text, IReadOnlyList<PendingAttachment> files, CancellationToken cancellationToken = default,
-        Guid? notebookId = null);
+        Guid? notebookId = null, Guid? replyToEntryId = null);
     Task<JournalEntry> UpdateEntryAsync(string userId, Guid entryId, string text, CancellationToken cancellationToken = default,
         string? expectedText = null);
     Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default,

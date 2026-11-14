@@ -21,7 +21,12 @@
 
     @if (IsConversation && Reflection.OpenQuestions.FirstOrDefault() is { } focusQuestion)
     {
-        <p class="conversation-question">@focusQuestion</p>
+        <div class="conversation-question"><p>@focusQuestion</p>
+            @if (Respond.HasDelegate)
+            {
+                <button type="button" class="quiet-action question-respond" @onclick="Respond" disabled="@(Busy || !RendererInfo.IsInteractive)"><Icon Name="reply" Size="17" /> Responder</button>
+            }
+        </div>
     }
 
     @if (Reflection.Themes.Count > 0)
@@ -59,6 +64,11 @@
                 }
             </ul>
         </details>
+    }
+
+    @if (Respond.HasDelegate && (!IsConversation || Reflection.OpenQuestions.Count == 0))
+    {
+        <button type="button" class="quiet-action question-respond" @onclick="Respond" disabled="@(Busy || !RendererInfo.IsInteractive)"><Icon Name="reply" Size="17" /> Responder en un hilo</button>
     }
 
     @if (!string.IsNullOrWhiteSpace(Reflection.NextStep))
@@ -108,5 +118,6 @@
     [Parameter] public EventCallback SaveAsNote { get; set; }
     [Parameter] public EventCallback ToggleSession { get; set; }
     [Parameter] public EventCallback Regenerate { get; set; }
+    [Parameter] public EventCallback Respond { get; set; }
     [Parameter] public bool Regenerating { get; set; }
 }

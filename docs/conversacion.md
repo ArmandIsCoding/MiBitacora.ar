@@ -4,6 +4,8 @@
 
 La conversación se organiza en [diarios creados por la persona](diarios.md). Cada diario tiene sus propios turnos recientes; la memoria relevante y el informe para terapia siguen abarcando el cuaderno completo. Las entradas previas quedan en Mi diario y pueden moverse con sus respuestas y adjuntos.
 
+Las preguntas de las devoluciones tienen **Responder** para abrir un [hilo conversacional](hilos-conversacionales.md). Cada respuesta queda enlazada al mensaje elegido. **Tus hilos** permite retomar conversaciones distintas dentro del mismo diario; el editor indica qué pregunta se está respondiendo. Brisa recibe los ancestros de ese mensaje como conversación y puede recuperar originales pertinentes del resto del cuaderno como antecedentes.
+
 Sólo el editor y sus controles permanecen pegados al borde inferior al recorrer la conversación. Los avisos de privacidad, límites de adjuntos y alcance de la IA están fuera de ese bloque, en el flujo normal de la página: se pueden leer al llegar al final y no restan altura al chat durante el desplazamiento. El marcador `.journal-end` sigue inmediatamente antes de `.composer-wrap`, para que `journal.js` reserve únicamente la altura del editor al mostrar el último mensaje.
 
 Pedir o reintentar una respuesta conserva el lugar de lectura al iniciar. Durante la espera se pueden recorrer otros mensajes; al terminar, la conversación vuelve a la tarjeta de la devolución solicitada. Las respuestas largas se muestran desde el comienzo, reservando espacio para el encabezado y el editor. La regeneración hace lo mismo. Un editor modal abierto conserva su lugar, sin desplazar la página que queda detrás.
