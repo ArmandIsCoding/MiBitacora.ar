@@ -11,8 +11,8 @@ using MiBitacora.Services;
 using System.Threading.RateLimiting;
 
 var prepareImages = args.Contains("--prepare-local-images", StringComparer.Ordinal);
-var checkBilling = args.Contains("--check-billing", StringComparer.Ordinal) || args.Contains("--check-merchant", StringComparer.Ordinal);
-var appArgs = args.Where(arg => arg is not ("--prepare-local-images" or "--check-billing" or "--check-merchant")).ToArray();
+var checkBilling = args.Any(arg => arg is "--check-billing" or "--check-merchant" or "--check-mail");
+var appArgs = args.Where(arg => arg is not ("--prepare-local-images" or "--check-billing" or "--check-merchant" or "--check-mail")).ToArray();
 var builder = WebApplication.CreateBuilder(appArgs);
 // Private deployment configuration: excluded from Git/publish and outside static wwwroot.
 builder.Configuration.AddJsonFile("App_Data/ai.settings.json", optional: true, reloadOnChange: false);
@@ -20,7 +20,7 @@ if (builder.Environment.IsDevelopment()) builder.Configuration.AddUserSecrets<Pr
 builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddCommandLine(appArgs);
 if (checkBilling) {
-    Environment.ExitCode = await BillingReadiness.RunAsync(builder.Configuration, args.Contains("--check-merchant", StringComparer.Ordinal));
+    Environment.ExitCode = await BillingReadiness.RunAsync(builder.Configuration, args.Contains("--check-merchant", StringComparer.Ordinal), args.Contains("--check-mail", StringComparer.Ordinal));
     return;
 }
 

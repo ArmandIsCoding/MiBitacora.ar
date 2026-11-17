@@ -45,6 +45,8 @@ La política, condiciones y datos de COGNITIVA están en `/condiciones`, `/priva
 
 ## Correo, identidad y facturación
 
+La atención comercial usa `contacto@cognitiva.ar`. MailKit soporta el puerto 465 con TLS implícito y otros puertos con STARTTLS obligatorio, validando el certificado del servidor y sin permitir un descenso a texto plano.
+
 El correo soporta `Disabled`, `Local` solo en Development, o SMTP autenticado con TLS. La bandeja de salida es durable, con clave única, bloqueo temporal de entrega y reintentos. Después de entregar se elimina el cuerpo con sus tokens; los metadatos entregados se purgan a los 30 días, excepto las claves de correos de pago que evitan reenviar constancias históricas al conciliar. SMTP ofrece entrega al menos una vez: si el proceso cae después de enviar y antes de guardar, un mensaje puede repetirse con el mismo Message-ID. Revisar la cola y el proveedor, no solo que la configuración sea válida. No se incluyen entradas ni contraseñas en correos ni logs.
 
 Recuperación de contraseña y confirmación de correo usan tokens de Identity con vencimiento de dos horas, origen público configurado y respuesta genérica para no enumerar cuentas. Hay límites por IP/cuenta y por correo. La sesión gratuita no exige correo confirmado; la contratación sí. Las claves de Data Protection se conservan en `App_Data/data-protection` y se protegen con DPAPI en Windows. La primera publicación con el nombre estable de aplicación puede cerrar sesiones existentes; conservar claves y la identidad de IIS en adelante. Recuperar una contraseña invalida las sesiones previas al revalidarse.

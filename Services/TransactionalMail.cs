@@ -1,7 +1,4 @@
-using System.Net;
 using System.Net.Mail;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MiBitacora.Data;
@@ -79,15 +76,7 @@ public sealed class TransactionalMailWorker(IServiceScopeFactory scopes, IOption
                             }
                             else
                             {
-                                using var message = new MailMessage(new MailAddress(settings.From, "Mi Bitácora · COGNITIVA"), new MailAddress(row.Recipient))
-                                { Subject = row.Subject, Body = row.Body, BodyEncoding = Encoding.UTF8, IsBodyHtml = false };
-                                message.Headers.Add("Message-ID", $"<{row.Id:N}@mibitacora.ar>");
-                                message.ReplyToList.Add(new MailAddress(BusinessIdentity.SupportEmail));
-                                using var smtp = new SmtpClient(settings.Host, settings.Port)
-                                { EnableSsl = true, Credentials = new NetworkCredential(settings.Username, settings.Password), Timeout = 20_000 };
-                                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                                deadline.CancelAfter(TimeSpan.FromSeconds(25));
-                                await smtp.SendMailAsync(message, deadline.Token);
+                                await SmtpDelivery.SendAsync(settings, row, stoppingToken);
                             }
                             row.SentUtc = now;
                             row.Body = ""; // Do not retain account recovery or identity-verification tokens after delivery.

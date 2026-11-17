@@ -6,7 +6,7 @@ namespace MiBitacora.Services;
 // Read-only launch check. It never opens the database or creates a subscription/payment.
 public static class BillingReadiness
 {
-    public static async Task<int> RunAsync(IConfiguration configuration, bool checkMerchant)
+    public static async Task<int> RunAsync(IConfiguration configuration, bool checkMerchant, bool checkMail = false)
     {
         var billing = configuration.GetSection("Subscriptions").Get<SubscriptionOptions>() ?? new();
         var mail = configuration.GetSection("Mail").Get<MailOptions>() ?? new();
@@ -43,6 +43,14 @@ public static class BillingReadiness
                 }
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException) { Check(false, "No se pudo verificar el vendedor. No se realizaron cobros."); }
             }
+        }
+        if (checkMail)
+        {
+            try {
+                await SmtpDelivery.CheckConnectionAsync(mail);
+                Check(true, "Conexión SMTP cifrada y autenticación verificadas. No se envió ningún mensaje.");
+            }
+            catch (Exception) { Check(false, "No se pudo verificar TLS y autenticación SMTP. Revisá servidor, puerto, usuario y clave en la configuración privada."); }
         }
         Console.WriteLine("Este control no valida entrega SMTP, disponibilidad de modelos, checkout, renovación, firma de notificaciones ni reintegros. Completá la prueba integral documentada antes de abrir ventas.");
         return ok ? 0 : 2;

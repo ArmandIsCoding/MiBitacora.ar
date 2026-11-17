@@ -49,7 +49,7 @@ Combinar estas secciones en `App_Data/ai.settings.json`, conservando OpenAI, Oll
 }
 ```
 
-Se necesita un proveedor SMTP con STARTTLS (habitualmente 587), remitente autorizado y SPF/DKIM/DMARC configurados según ese proveedor. El puerto 465 con TLS implícito no está soportado por `SmtpClient`; usar el puerto STARTTLS del proveedor. No asumir que el correo iCloud de contacto sirve automáticamente como servicio SMTP transaccional. Verificar entrega efectiva de recuperación, confirmación y constancia comercial en una casilla externa y en correo no deseado.
+El envío usa MailKit con TLS obligatorio y validación normal del certificado: puerto **465** con TLS desde el inicio de la conexión, o STARTTLS para los demás puertos (habitualmente **587**), sin volver a texto plano si no está disponible. El correo comercial y de atención es **contacto@cognitiva.ar**. Configurar el remitente autorizado y SPF/DKIM/DMARC según el proveedor. Verificar entrega efectiva de recuperación, confirmación y constancia comercial en una casilla externa y en correo no deseado.
 
 `AcceptNewSubscriptions=false` permite preparar la instalación manteniendo la gestión de clientes existentes. Para probar checkout productivo, ponerlo en `true` **con `LaunchUserIds` limitado a los usuarios de prueba autorizados**. El servidor aplica esa lista, incluso ante un POST manipulado. Cuando se complete la aceptación, vaciar la lista y mantener `true` para abrir al público. Reiniciar IIS después de cada cambio.
 
@@ -60,9 +60,10 @@ Desde la carpeta publicada, bajo la misma identidad/configuración de producció
 ```powershell
 dotnet MiBitacora.dll --check-billing
 dotnet MiBitacora.dll --check-merchant
+dotnet MiBitacora.dll --check-mail
 ```
 
-El primer comando no abre SQLite ni llama servicios externos. El segundo agrega solamente `GET https://api.mercadopago.com/users/me`; no crea ni cancela suscripciones. No imprimen claves ni datos del diario. Salida 2 indica configuración pendiente. Estos controles no verifican por sí mismos SMTP, modelos, checkout, notificaciones, renovación ni reintegros.
+El primer comando no abre SQLite ni llama servicios externos. El segundo agrega solamente `GET https://api.mercadopago.com/users/me`; no crea ni cancela suscripciones. El tercero verifica TLS y autenticación SMTP sin enviar un correo. Pueden combinarse los indicadores. No imprimen claves ni datos del diario. Salida 2 indica configuración pendiente. Estos controles no verifican por sí mismos la entrega de correo, modelos, checkout, notificaciones, renovación ni reintegros.
 
 ## Publicación y aceptación
 
