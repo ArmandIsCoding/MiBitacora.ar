@@ -49,7 +49,7 @@
 @if (_payments.Count > 0) {
     <h3>Historial de pagos</h3><div class="subscription-payments"><table><thead><tr><th>Período</th><th>Importe</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>@foreach (var p in _payments) { <tr><td>@Date(p.FromUtc) — @Date(p.ThroughUtc)</td><td>ARS @Money(p.AmountCents)</td><td>@Status(p.Status)</td><td><a href="@($"/Account/Subscription/Receipt/{Uri.EscapeDataString(p.Id)}")">Constancia</a></td></tr> }</tbody></table></div>
 }
-<p class="topic-scope">Las constancias del sitio no sustituyen una factura. Para tu factura C, <a href="/soporte">contactanos</a> con la referencia del pago. @BusinessIdentity.Name · CUIT @BusinessIdentity.TaxId.</p><CommerceLinks />
+<p class="topic-scope">Por cada cobro emitimos la factura C correspondiente. Las constancias del sitio no sustituyen esa factura. Para consultas de facturación, <a href="/soporte">contactanos</a> con la referencia del pago. @BusinessIdentity.Name · CUIT @BusinessIdentity.TaxId.</p><CommerceLinks />
 @code {
     [CascadingParameter] private HttpContext Context { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "returned")] public string? Returned { get; set; }
