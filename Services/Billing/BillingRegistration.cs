@@ -10,6 +10,13 @@ public static class BillingRegistration
             .ValidateOnStart();
         builder.Services.AddSingleton<BillingGate>();
         builder.Services.AddScoped<SubscriptionService>();
+        builder.Services.AddScoped<AiUsageService>();
+        builder.Services.AddOptions<MailOptions>().Bind(builder.Configuration.GetSection("Mail"))
+            .Validate(options => options.IsValid(builder.Environment.IsDevelopment()), "La configuración de correo no es válida.").ValidateOnStart();
+        builder.Services.AddScoped<TransactionalMail>();
+        builder.Services.AddScoped<AccountRecoveryService>();
+        builder.Services.AddScoped<CustomerRequestService>();
+        builder.Services.AddHostedService<TransactionalMailWorker>();
         builder.Services.AddScoped<BillingWebhookInbox>();
         builder.Services.AddHttpClient<ISubscriptionGateway, MercadoPagoGateway>(client => client.Timeout = TimeSpan.FromSeconds(30))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });

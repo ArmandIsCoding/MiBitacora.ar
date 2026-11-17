@@ -1,0 +1,58 @@
+@page "/admin/suscripciones"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = AdminAccess.Policy)]
+@attribute [ExcludeFromInteractiveRouting]
+@using Microsoft.EntityFrameworkCore
+@using MiBitacora.Data
+@inject IDbContextFactory<ApplicationDbContext> Factory
+@inject TimeProvider Clock
+@inject SubscriptionService Billing
+@inject TransactionalMail Mail
+<PageTitle>Suscripciones y atención · Mi Bitácora</PageTitle>
+<main class="commerce-admin"><header class="site-header"><Brand /><a href="/admin">Administración</a></header><p class="eyebrow">OPERACIÓN COMERCIAL</p><h1>Suscripciones y atención</h1><p>Importes en ARS. No se muestra contenido del diario. Datos actualizados al abrir la página.</p>
+<div class="subscription-plans"><section class="subscription-card"><h2>@_active suscripciones</h2><p>Vigentes con renovación autorizada y período aprobado.</p><strong>ARS @Money(_mrr) de ingreso mensual contratado</strong></section><section class="subscription-card"><h2>Movimientos registrados este mes</h2><p>Bruto aprobado: ARS @Money(_gross)<br />Reintegrado: ARS @Money(_refunds)<br />Contracargos: ARS @Money(_chargebacks)</p><p>Según fecha de conciliación. No incluye comisiones ni impuestos.</p></section></div>
+<section class="care-request"><h2>Estado operativo</h2><p>Nuevas ventas: @(Billing.CanSubscribe ? "habilitadas" : "deshabilitadas") · Correo: @(Mail.IsReady ? "configurado" : "sin configurar")</p><p>Notificaciones pendientes: @_webhooks · Conciliaciones demoradas más de una hora: @_stale<br />Correos pendientes: @_emails · Con más de cinco intentos: @_failedEmails</p><p>La recepción HTTP de un webhook no confirma un pago: el trabajador consulta a Mercado Pago. Revisá los pendientes y los registros del servidor si crecen.</p></section>
+<h2>Atención al cliente · @_open solicitudes abiertas</h2>
+@foreach (var row in _requests) {
+<article class="care-request"><h3>@row.Code · @CustomerRequestService.KindLabel(row.Kind)</h3><p>@row.CreatedUtc.ToString("dd/MM/yyyy HH:mm") UTC · @CustomerRequestService.StatusLabel(row.Status)<br /><a href="mailto:@row.Email">@row.Email</a> · Identidad: @(row.VerifiedUtc is null ? "sin verificar" : "verificada")<br />Cuenta: @(row.UserId ?? "no encontrada") · Intentos: @row.Attempts</p><p style="white-space:pre-wrap">@row.Message</p><p>@row.Resolution</p>
+@if (row.Status != "completed") {
+    @if (row.VerifiedUtc is not null && row.Kind != "support") {
+        <form method="post" action="@($"/admin/suscripciones/solicitud/{row.Id}/retry")"><AntiforgeryToken /><button class="btn btn-outline" type="submit">Reintentar gestión automática</button></form>
+        @if (row.Kind is "withdraw" or "refund") {
+            <details><summary>Autorizar reintegro fuera del plazo comercial</summary><p>Solo para la cuenta verificada. Cancela su renovación y reintegra el pago identificado o su último pago aprobado. Si el importe se reintegró, la clave de operación impide repetirlo.</p><form method="post" action="@($"/admin/suscripciones/solicitud/{row.Id}/refund")" class="account-form"><AntiforgeryToken /><label>Motivo de la autorización<input name="resolution" minlength="5" maxlength="2000" required /></label><button class="btn btn-outline" type="submit">Autorizar reintegro</button></form></details>
+        }
+    }
+    <details><summary>Responder y cerrar la solicitud</summary><p>Usá esta opción tras resolver el caso. Cerrar un pedido no ejecuta una baja ni devuelve dinero. Para cuentas sin verificar, comprobá la identidad por otra vía antes de gestionar cobros en Mercado Pago.</p><form method="post" action="@($"/admin/suscripciones/solicitud/{row.Id}/resolve")" class="account-form"><AntiforgeryToken /><label>Respuesta al cliente<textarea name="resolution" minlength="5" maxlength="2000" required></textarea></label><button class="btn btn-outline" type="submit">Guardar respuesta y cerrar</button></form></details>
+}
+</article>
+}
+<h2>Facturación · @_unbilled cobros pendientes de factura</h2><p>Emití la factura C en tu sistema fiscal y enviásela al cliente. Registrá acá su número para llevar control; este panel no emite comprobantes de ARCA. Ante reintegros, gestioná también la nota de crédito que corresponda.</p>
+<div class="subscription-payments"><table><thead><tr><th>Referencia / fecha UTC</th><th>Cuenta / correo de pago</th><th>Importe y estado</th><th>Factura C</th></tr></thead><tbody>@foreach (var item in _payments) { <tr><td>@item.Payment.ProviderPaymentId<br />@item.Payment.PeriodStartUtc.ToString("dd/MM/yyyy")</td><td>@item.UserId<br />@item.Email</td><td>ARS @Money(item.Payment.AmountCents)<br />@item.Payment.Status</td><td>@if (item.Payment.FiscalInvoiceReference is { } reference) { @reference } else { <form method="post" action="@($"/admin/suscripciones/factura/{item.Payment.Id}")"><AntiforgeryToken /><label>Comprobante<input name="reference" placeholder="C 00001-00000001" minlength="5" maxlength="100" required /></label><button class="quiet-action" type="submit">Registrar emitida</button></form> }</td></tr> }</tbody></table></div><p>Se muestran los últimos 100 cobros y hasta 100 solicitudes, priorizando las abiertas. Los registros completos siguen en la base y sus respaldos.</p>
+</main>
+@code {
+    private int _active, _webhooks, _stale, _emails, _failedEmails, _open, _unbilled;
+    private long _mrr, _gross, _refunds, _chargebacks;
+    private List<CustomerRequestRow> _requests = [];
+    private List<PaymentItem> _payments = [];
+    protected override async Task OnInitializedAsync() {
+        await using var db = await Factory.CreateDbContextAsync();
+        var now = Clock.GetUtcNow().UtcDateTime;
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/Argentina/Buenos_Aires");
+        var local = TimeZoneInfo.ConvertTimeFromUtc(now, zone);
+        var month = JournalDates.StartOfDayUtc(new DateOnly(local.Year, local.Month, 1), zone);
+        var live = await db.BillingSubscriptions.AsNoTracking().Where(row => row.Provider == "MercadoPago" && row.Status == "authorized" && !row.CancellationRequested && db.BillingPayments.Any(p => p.SubscriptionId == row.Id && p.Status == "approved" && p.PeriodStartUtc <= now && p.PeriodEndUtc > now)).ToListAsync();
+        _active = live.Count; _mrr = live.Sum(row => row.MonthlyPriceCents);
+        _gross = await db.BillingAudit.Where(row => row.Type == "payment.approved" && row.CreatedUtc >= month).SumAsync(row => (long?)row.AmountCents) ?? 0;
+        _refunds = await db.BillingAudit.Where(row => row.Type == "payment.refunded" && row.CreatedUtc >= month).SumAsync(row => (long?)row.AmountCents) ?? 0;
+        _chargebacks = await db.BillingAudit.Where(row => row.Type == "payment.charged_back" && row.CreatedUtc >= month).SumAsync(row => (long?)row.AmountCents) ?? 0;
+        _webhooks = await db.BillingWebhooks.CountAsync(row => row.ProcessedUtc == null);
+        _stale = await db.BillingSubscriptions.CountAsync(row => row.Provider == "MercadoPago" && row.Status != "creation_failed" && (row.LastSyncedUtc == null || row.LastSyncedUtc < now.AddHours(-1)));
+        _emails = await db.TransactionalEmails.CountAsync(row => row.SentUtc == null);
+        _failedEmails = await db.TransactionalEmails.CountAsync(row => row.SentUtc == null && row.Attempts >= 5);
+        _open = await db.CustomerRequests.CountAsync(row => row.Status != "completed");
+        _requests = await db.CustomerRequests.AsNoTracking().OrderBy(row => row.Status == "completed").ThenBy(row => row.CreatedUtc).Take(100).ToListAsync();
+        _unbilled = await db.BillingPayments.CountAsync(row => row.ApprovedUtc != null && row.FiscalInvoiceReference == null);
+        _payments = await (from p in db.BillingPayments.AsNoTracking() join s in db.BillingSubscriptions.AsNoTracking() on p.SubscriptionId equals s.Id where p.ApprovedUtc != null orderby p.FiscalInvoiceReference != null, p.PeriodStartUtc descending select new PaymentItem(p, s.UserId, s.PayerEmail)).Take(100).ToListAsync();
+    }
+    private sealed record PaymentItem(BillingPaymentRow Payment, string UserId, string Email);
+    private static string Money(long cents) => (cents / 100m).ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+}

@@ -32,6 +32,11 @@ public sealed class BillingSubscriptionRow
     public DateTime? LastSyncAttemptUtc { get; set; }
     public DateTime? BillingAnchorUtc { get; set; }
     public bool CancellationRequested { get; set; }
+    public DateTime? CancellationRequestedUtc { get; set; }
+    public DateTime? AcceptedUtc { get; set; }
+    public string TermsVersion { get; set; } = "";
+    public string PayerEmail { get; set; } = "";
+    public int MonthlyCredits { get; set; } = 200;
 }
 
 public sealed class BillingPaymentRow
@@ -45,6 +50,71 @@ public sealed class BillingPaymentRow
     public DateTime PeriodStartUtc { get; set; }
     public DateTime PeriodEndUtc { get; set; }
     public DateTime ProviderUpdatedUtc { get; set; }
+    public DateTime? ApprovedUtc { get; set; }
+    public long RefundedCents { get; set; }
+    public string? FiscalInvoiceReference { get; set; }
+    public DateTime? FiscalInvoiceIssuedUtc { get; set; }
+}
+
+public sealed class AiUsageReservationRow
+{
+    public Guid Id { get; set; }
+    public string UserId { get; set; } = "";
+    public DateTime PeriodStartUtc { get; set; }
+    public DateTime PeriodEndUtc { get; set; }
+    public string Kind { get; set; } = "";
+    public int Credits { get; set; }
+    public DateTime CreatedUtc { get; set; }
+    public DateTime ExpiresUtc { get; set; }
+    public bool Completed { get; set; }
+}
+
+public sealed class CustomerRequestRow
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = "";
+    public string? UserId { get; set; }
+    public string Email { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string Status { get; set; } = "received";
+    public DateTime CreatedUtc { get; set; }
+    public DateTime? VerifiedUtc { get; set; }
+    public string? VerificationHash { get; set; }
+    public DateTime? VerificationExpiresUtc { get; set; }
+    public DateTime? ResolvedUtc { get; set; }
+    public string Resolution { get; set; } = "";
+    public string? PaymentId { get; set; }
+    public Guid? SubscriptionId { get; set; }
+    public int Attempts { get; set; }
+    public DateTime? LastAttemptUtc { get; set; }
+    public bool RefundApprovedByAdmin { get; set; }
+}
+
+public sealed class TransactionalEmailRow
+{
+    public Guid Id { get; set; }
+    public string Key { get; set; } = "";
+    public string Recipient { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string Body { get; set; } = "";
+    public DateTime CreatedUtc { get; set; }
+    public DateTime NextAttemptUtc { get; set; }
+    public DateTime? SentUtc { get; set; }
+    public int Attempts { get; set; }
+    public DateTime? LockedUntilUtc { get; set; }
+}
+
+public sealed class BillingAuditRow
+{
+    public Guid Id { get; set; }
+    public string UserId { get; set; } = "";
+    public Guid? SubscriptionId { get; set; }
+    public string Type { get; set; } = "";
+    public string Reference { get; set; } = "";
+    public long AmountCents { get; set; }
+    public string Currency { get; set; } = "ARS";
+    public DateTime CreatedUtc { get; set; }
 }
 
 public sealed class BillingWebhookRow

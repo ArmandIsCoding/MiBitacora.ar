@@ -1,0 +1,47 @@
+@page "/baja"
+@page "/arrepentimiento"
+@page "/soporte"
+@attribute [ExcludeFromInteractiveRouting]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@inject CustomerRequestService Requests
+@inject NavigationManager Navigation
+<PageTitle>@Title · Mi Bitácora</PageTitle>
+<div class="reading-page"><header class="site-header wrap"><Brand /><a href="/Account/Manage/Subscription" class="text-link">Mi plan</a></header><main class="reading-paper">
+<p class="eyebrow">ATENCIÓN AL CLIENTE</p><h1>@Title</h1>
+@if (_code is { } code)
+{
+    <div class="journal-notice" role="status"><h2>Recibimos tu solicitud</h2><p>Tu código es <strong>@(code)</strong>. Guardalo como constancia. La fecha de recepción queda registrada.</p><p>Si necesitás verificar tu identidad, enviamos un enlace al correo indicado. No hace falta registrarte. Si no lo recibís o no tenés acceso, escribinos citando el código.</p><a href="@($"/solicitud/{code}")">Ver estado de mi solicitud</a></div>
+}
+else
+{
+    <p>No necesitás ingresar ni registrarte. Recibirás un código de recepción al enviar el formulario.</p>
+    @if (Kind == "cancel") { <p>La baja detiene futuras renovaciones. Conservás el período ya abonado y tu cuaderno.</p> }
+    else if (Kind == "withdraw") { <p>Pediremos la baja y revisaremos el reintegro. Nuestra garantía devuelve el último cargo solicitado dentro de los 10 días corridos de su aprobación, incluso si usaste el servicio. También recibimos reclamos fuera de ese plazo.</p> }
+    <p>Para proteger tu cuenta, usá el correo con el que ingresás a Mi Bitácora. Si no tenés acceso, explicalo en el mensaje y contactanos para verificar tu identidad por otra vía.</p>
+    @if (_error is not null) { <p role="alert" class="journal-alert">@_error</p> }
+    <EditForm Model="Input" method="post" OnValidSubmit="Submit" FormName="customer-request" class="account-form">
+        <DataAnnotationsValidator /><div class="account-field"><label for="care-email">Correo de tu cuenta</label><InputText id="care-email" type="email" @bind-Value="Input.Email" maxlength="254" autocomplete="email" required /><ValidationMessage For="() => Input.Email" /></div>
+        <div class="account-field"><label for="care-message">@(Kind == "support" ? "Tu consulta" : "Comentario (opcional)")</label><InputTextArea id="care-message" @bind-Value="Input.Message" maxlength="2000" rows="5" /><small>No incluyas contraseñas, datos de tarjeta ni textos privados de tu diario.</small><ValidationMessage For="() => Input.Message" /></div>
+        <button class="account-button" type="submit">Enviar solicitud</button>
+    </EditForm>
+}
+<p><a href="mailto:@BusinessIdentity.SupportEmail">@BusinessIdentity.SupportEmail</a><br />@BusinessIdentity.SupportHours</p><p class="topic-scope">@BusinessIdentity.Name · CUIT @BusinessIdentity.TaxId<br />@BusinessIdentity.Address</p><CommerceLinks />
+</main></div>
+@code {
+    [CascadingParameter] private HttpContext Context { get; set; } = default!;
+    [SupplyParameterFromForm] private InputModel Input { get; set; } = default!;
+    protected override void OnInitialized() => Input ??= new();
+    private string Kind => new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant() switch { "/baja" => "cancel", "/arrepentimiento" => "withdraw", _ => "support" };
+    private string Title => Kind switch { "cancel" => "Baja del servicio", "withdraw" => "Arrepentimiento y reintegro", _ => "Ayuda y contacto" };
+    private string? _code, _error;
+    private async Task Submit()
+    {
+        try { _code = await Requests.CreateAsync(Input.Email, Kind, Input.Message, Context.User.FindFirstValue(ClaimTypes.NameIdentifier), Context.RequestAborted); }
+        catch (JournalInputException ex) { _error = ex.Message; }
+    }
+    private sealed class InputModel {
+        [Required, EmailAddress, StringLength(254)] public string Email { get; set; } = "";
+        [StringLength(2000)] public string Message { get; set; } = "";
+    }
+}

@@ -17,6 +17,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<BillingWebhookRow> BillingWebhooks => Set<BillingWebhookRow>();
     public DbSet<BillingAccessGrantRow> BillingAccessGrants => Set<BillingAccessGrantRow>();
     public DbSet<AccountAiPreferenceRow> AccountAiPreferences => Set<AccountAiPreferenceRow>();
+    public DbSet<AiUsageReservationRow> AiUsageReservations => Set<AiUsageReservationRow>();
+    public DbSet<CustomerRequestRow> CustomerRequests => Set<CustomerRequestRow>();
+    public DbSet<TransactionalEmailRow> TransactionalEmails => Set<TransactionalEmailRow>();
+    public DbSet<BillingAuditRow> BillingAudit => Set<BillingAuditRow>();
     internal DbSet<JournalVectorStateRow> JournalVectorStates => Set<JournalVectorStateRow>();
     internal DbSet<JournalVectorChunkRow> JournalVectorChunks => Set<JournalVectorChunkRow>();
     internal DbSet<JournalVectorQueryRow> JournalVectorQueries => Set<JournalVectorQueryRow>();
@@ -24,6 +28,28 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<AiUsageReservationRow>(entity =>
+        {
+            entity.HasIndex(row => new { row.UserId, row.PeriodStartUtc });
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<CustomerRequestRow>(entity =>
+        {
+            entity.HasIndex(row => row.Code).IsUnique();
+            entity.HasIndex(row => new { row.Status, row.CreatedUtc });
+            entity.HasIndex(row => new { row.Email, row.CreatedUtc });
+            entity.HasIndex(row => new { row.UserId, row.Kind, row.PaymentId });
+        });
+        builder.Entity<TransactionalEmailRow>(entity =>
+        {
+            entity.HasIndex(row => row.Key).IsUnique();
+            entity.HasIndex(row => new { row.SentUtc, row.NextAttemptUtc });
+        });
+        builder.Entity<BillingAuditRow>(entity =>
+        {
+            entity.HasIndex(row => new { row.Type, row.Reference }).IsUnique();
+            entity.HasIndex(row => row.CreatedUtc);
+        });
         builder.Entity<BillingAccessGrantRow>(entity =>
         {
             entity.HasKey(row => row.UserId);
@@ -63,7 +89,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(row => row.UserId);
             entity.HasIndex(row => new { row.UserId, row.Provider }).IsUnique()
                 .HasFilter("\"Status\" NOT IN ('cancelled', 'canceled', 'creation_failed')");
-            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+            // Financial records outlive deletion of the journal account, including late charges/refunds.
         });
         builder.Entity<BillingPaymentRow>(entity =>
         {

@@ -41,7 +41,7 @@ internal static class BillingHttpChecks
         builder.Services.AddAntiforgery();
         builder.Services.AddRazorComponents();
         builder.Services.AddSingleton<NavigationManager, Navigation>();
-        var settings = new SubscriptionOptions { Provider = "Simulated", MonthlyPriceArs = 8000, PublicBaseUrl = "http://localhost:5264" };
+        var settings = new SubscriptionOptions { Provider = "Simulated", MonthlyPriceArs = 15000, PublicBaseUrl = "http://localhost:5264" };
         builder.Services.AddSingleton<IOptions<SubscriptionOptions>>(Options.Create(settings));
         var aiSettings = new JournalAiOptions { OpenAiForAllAccounts = false };
         builder.Services.AddSingleton<IOptions<JournalAiOptions>>(Options.Create(aiSettings));
@@ -49,19 +49,25 @@ internal static class BillingHttpChecks
         builder.Services.AddSingleton(TimeZoneInfo.Utc);
         builder.Services.AddSingleton<BillingGate>();
         builder.Services.AddScoped<SubscriptionService>();
+        builder.Services.AddScoped<AiUsageService>();
+        builder.Services.AddScoped<TransactionalMail>();
+        builder.Services.AddSingleton<IOptions<MailOptions>>(Options.Create(new MailOptions { Delivery = "Local" }));
         builder.Services.AddScoped<BillingWebhookInbox>();
         builder.Services.AddSingleton<ISubscriptionGateway, NoNetwork>();
         await using var app = builder.Build();
         app.MapSubscriptionEndpoints();
+        app.MapBillingAdministration();
         var endpoints = ((IEndpointRouteBuilder)app).DataSources.SelectMany(s => s.Endpoints).OfType<RouteEndpoint>().ToArray();
         check(endpoints.Where(e => e.RoutePattern.RawText!.StartsWith("/Account/")).All(e => e.Metadata.GetMetadata<IAuthorizeData>() is not null),
             "HTTP suscripciones: checkout, cancelación y simulación requieren autenticación");
+        check(endpoints.Where(e => e.RoutePattern.RawText!.StartsWith("/admin/")).All(e => e.Metadata.GetMetadata<IAuthorizeData>()?.Policy == AdminAccess.Policy),
+            "HTTP comercial: todas las acciones de atención y facturación exigen la política administrativa");
         await using var scope = app.Services.CreateAsyncScope();
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync();
-            db.Users.AddRange(new ApplicationUser { Id = "http-a", UserName = "http-a", Email = "a@example.test" },
+            db.Users.AddRange(new ApplicationUser { Id = "http-a", UserName = "http-a", Email = "a@example.test", EmailConfirmed = true },
                 new ApplicationUser { Id = "http-b", UserName = "http-b", Email = "b@example.test" });
             await db.SaveChangesAsync();
         }
@@ -71,7 +77,15 @@ internal static class BillingHttpChecks
         await endpoint.RequestDelegate!(noCsrf);
         check(noCsrf.Response.StatusCode == 400 && await billing.GetSummaryAsync("http-a") is null,
             "HTTP suscripciones: un POST sin antiforgery no crea contrataciones");
-        var subscribe = Context("http-a", "accept=yes"); subscribe.Request.RouteValues["action"] = "Subscribe";
+        var unconfirmed = Context("http-b", "accept=yes&price=1500000&credits=200&terms=" + BusinessIdentity.TermsVersion + "&payerEmail=b%40example.test");
+        unconfirmed.Request.RouteValues["action"] = "Subscribe"; AddToken(unconfirmed); await endpoint.RequestDelegate!(unconfirmed);
+        check(unconfirmed.Response.Headers.Location.ToString().Contains("error=email") && await billing.GetSummaryAsync("http-b") is null,
+            "HTTP contratación: requiere correo confirmado incluso con un POST válido");
+        var staleOffer = Context("http-a", "accept=yes&price=1&credits=200&terms=" + BusinessIdentity.TermsVersion + "&payerEmail=a%40example.test");
+        staleOffer.Request.RouteValues["action"] = "Subscribe"; AddToken(staleOffer); await endpoint.RequestDelegate!(staleOffer);
+        check(staleOffer.Response.Headers.Location.ToString().Contains("error=offer") && await billing.GetSummaryAsync("http-a") is null,
+            "HTTP contratación: rechaza una oferta vieja o manipulada antes de crear un cobro");
+        var subscribe = Context("http-a", "accept=yes&price=1500000&credits=200&terms=" + BusinessIdentity.TermsVersion + "&payerEmail=a%40example.test"); subscribe.Request.RouteValues["action"] = "Subscribe";
         AddToken(subscribe);
         await endpoint.RequestDelegate!(subscribe);
         check(subscribe.Response.StatusCode == 302 && subscribe.Response.Headers.Location.ToString().StartsWith("/Account/Subscription/Simulate/"),
@@ -91,7 +105,7 @@ internal static class BillingHttpChecks
         {
             var html = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<RenderPlan>(
                 ParameterView.FromDictionary(new Dictionary<string, object?> { [nameof(RenderPlan.Context)] = Context("http-a", "") }))).ToHtmlString());
-            check(html.Contains("Plan Profundo") && html.Contains("Acceso pago hasta") && html.Contains("Confirmar cancelación") && html.Contains("simulados"),
+            check(html.Contains("Profundo") && html.Contains("Acceso pago hasta") && html.Contains("Confirmar baja") && html.Contains("simulados") && html.Contains("200"),
                 "UI suscripciones: muestra vigencia, cancelación y aviso de cobros simulados");
         }
         var cancel = Context("http-a", ""); cancel.Request.RouteValues["action"] = "Cancel"; AddToken(cancel);
@@ -121,10 +135,8 @@ internal static class BillingHttpChecks
         {
             var html = await previewRenderer.Dispatcher.InvokeAsync(async () => (await previewRenderer.RenderComponentAsync<RenderPlan>(
                 ParameterView.FromDictionary(new Dictionary<string, object?> { [nameof(RenderPlan.Context)] = Context("http-b", "") }))).ToHtmlString());
-            check(html.Contains("name=\"provider\"") && html.Contains("OpenAI disponible para todas") &&
-                html.Contains("value=\"Ollama\" selected") && !html.Contains("action=\"/Account/Subscription/Subscribe\"") &&
-                !html.Contains("Renovación mensual automática"),
-                "UI OpenAI para todos: muestra ambas opciones a una cuenta gratuita sin pedir contratar un plan");
+            check(html.Contains("name=\"provider\"") && html.Contains("value=\"Ollama\" selected") && html.Contains("créditos de este período"),
+                "UI de desarrollo: la promoción local conserva elección de proveedor y muestra el cupo");
         }
         aiSettings.OpenAiForAllAccounts = false;
         settings.Provider = "MercadoPago"; settings.AllowLiveRequests = true; settings.WebhookSecret = "synthetic-webhook-secret";

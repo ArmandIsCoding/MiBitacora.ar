@@ -7,16 +7,22 @@ public sealed class SubscriptionOptions
     // Live requests require two explicit settings. No production credentials are shipped.
     public string Provider { get; set; } = "Disabled";
     public bool AllowLiveRequests { get; set; }
+    public bool AcceptNewSubscriptions { get; set; } = true;
+    public string[] LaunchUserIds { get; set; } = [];
     public string AccessToken { get; set; } = "";
     public string WebhookSecret { get; set; } = "";
     public string CollectorId { get; set; } = "";
     public string PublicBaseUrl { get; set; } = "http://localhost:5234";
-    public decimal MonthlyPriceArs { get; set; }
+    public decimal MonthlyPriceArs { get; set; } = 15_000;
+    public int MonthlyCredits { get; set; } = 200;
+    public int ReportCredits { get; set; } = 10;
+    public int WithdrawalDays { get; set; } = 10;
     public int ReconcileMinutes { get; set; } = 15;
     public long PriceCents => checked((long)(MonthlyPriceArs * 100));
     public bool IsValid(bool development)
     {
-        if (Provider == "Disabled") return true;
+        if (MonthlyCredits is < 10 or > 100_000 || ReportCredits is < 1 || ReportCredits > MonthlyCredits || WithdrawalDays is < 10 or > 30) return false;
+        if (Provider == "Disabled") return MonthlyPriceArs > 0;
         if (ReconcileMinutes is < 1 or > 1440 || MonthlyPriceArs is <= 0 or > 10_000_000 ||
             decimal.Round(MonthlyPriceArs, 2) != MonthlyPriceArs ||
             !Uri.TryCreate(PublicBaseUrl, UriKind.Absolute, out var url) || url.AbsolutePath != "/" ||
@@ -24,7 +30,7 @@ public sealed class SubscriptionOptions
         if (Provider == "Simulated") return development && url.IsLoopback && !AllowLiveRequests;
         return Provider == "MercadoPago" && AllowLiveRequests && url.Scheme == "https" &&
             !string.IsNullOrWhiteSpace(AccessToken) && !AccessToken.Any(char.IsWhiteSpace) &&
-            WebhookSecret.Length >= 16 && CollectorId.Length > 0 && CollectorId.All(char.IsAsciiDigit);
+            (WebhookSecret.Length == 0 || WebhookSecret.Length >= 16) && CollectorId.Length > 0 && CollectorId.All(char.IsAsciiDigit);
     }
 }
 
@@ -35,8 +41,10 @@ public sealed record SubscriptionAccess(bool IsPaid, DateTime? PaidThroughUtc, b
     public bool CanUseOpenAi => IsPaid || OpenAiForAllAccounts;
 }
 public sealed record SubscriptionSummary(Guid Id, string Status, bool CancellationRequested, long MonthlyPriceCents,
-    DateTime? PaidThroughUtc, string? CheckoutUrl, string Provider);
-public sealed record SubscriptionPayment(string Id, string Status, long AmountCents, DateTime FromUtc, DateTime ThroughUtc);
+    DateTime? PaidThroughUtc, string? CheckoutUrl, string Provider, DateTime? LastSyncedUtc = null,
+    string TermsVersion = "", DateTime? AcceptedUtc = null, string PayerEmail = "", int MonthlyCredits = 200);
+public sealed record SubscriptionPayment(string Id, string Status, long AmountCents, DateTime FromUtc, DateTime ThroughUtc,
+    DateTime? ApprovedUtc = null, long RefundedCents = 0);
 public class SubscriptionException(string message) : Exception(message);
 // A definitive rejection of POST /preapproval is safe to retry as a new intent. Transport errors are ambiguous.
 public sealed class SubscriptionCreationRejectedException() : SubscriptionException("Mercado Pago rechazó la contratación. Podés volver a intentarlo desde Mi plan.");
@@ -45,7 +53,7 @@ public sealed record RemoteSubscription(string Id, string ExternalReference, str
     long AmountCents, string Currency, int Frequency, string FrequencyType, DateTime UpdatedUtc, string? CheckoutUrl);
 public sealed record RemoteInvoice(string Id, string SubscriptionId, string? PaymentId, DateTime DebitUtc);
 public sealed record RemotePayment(string Id, string CollectorId, string ExternalReference, string Status,
-    long AmountCents, string Currency, DateTime UpdatedUtc);
+    long AmountCents, string Currency, DateTime UpdatedUtc, DateTime? ApprovedUtc = null, long RefundedCents = 0);
 
 public interface ISubscriptionGateway
 {
@@ -56,4 +64,6 @@ public interface ISubscriptionGateway
     Task<IReadOnlyList<RemoteInvoice>> GetInvoicesAsync(string subscriptionId, CancellationToken ct);
     Task<RemotePayment> GetPaymentAsync(string id, CancellationToken ct);
     Task CancelAsync(string id, CancellationToken ct);
+    Task RefundAsync(string paymentId, string idempotencyKey, CancellationToken ct) =>
+        throw new SubscriptionException("El proveedor no permite procesar este reintegro.");
 }

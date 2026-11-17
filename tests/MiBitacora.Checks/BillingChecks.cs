@@ -365,7 +365,7 @@ internal static class BillingChecks
         config.Provider = "MercadoPago"; config.AllowLiveRequests = true; config.AccessToken = "synthetic-test-token";
         config.WebhookSecret = "synthetic-webhook-secret"; config.CollectorId = "42";
         config.PublicBaseUrl = "https://example.test"; config.MonthlyPriceArs = 8000;
-        var offsets = new List<int>(); var postValidated = false; var cancelValidated = false; var cancelLegacy = false;
+        var offsets = new List<int>(); var postValidated = false; var cancelValidated = false; var cancelLegacy = false; var refundValidated = false;
         var cancelRequests = new List<string>(); var searchPages = 0;
         var errorStatus = HttpStatusCode.OK;
         using var fixtureHttp = new HttpClient(new Handler(async (request, ct) =>
@@ -376,6 +376,10 @@ internal static class BillingChecks
             {
                 using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
                 var body = json.RootElement;
+                if (request.RequestUri.AbsolutePath == "/v1/payments/123/refunds") {
+                    refundValidated = !body.EnumerateObject().Any() && request.Headers.GetValues("X-Idempotency-Key").Single() == "mb-refund-123";
+                    return Json(new { id = 987, payment_id = 123, status = "approved" });
+                }
                 postValidated = body.GetProperty("external_reference").GetString() == "opaque-ref" &&
                     body.GetProperty("status").GetString() == "pending" && body.GetProperty("payer_email").GetString() == "payer@example.test" &&
                     body.GetProperty("auto_recurring").GetProperty("transaction_amount").GetDecimal() == 8000 &&
@@ -427,6 +431,8 @@ internal static class BillingChecks
             "Mercado Pago: recupera una contratación por su referencia exacta en otra página");
         await fixture.CancelAsync(created.Id, default);
         check(cancelValidated, "Mercado Pago: cancela futuras renovaciones mediante la API de suscripciones");
+        await fixture.RefundAsync("123", "mb-refund-123", default);
+        check(refundValidated, "Mercado Pago: reintegro total con clave estable y validación de la respuesta");
         cancelLegacy = true; cancelRequests.Clear();
         await fixture.CancelAsync(created.Id, default);
         check(cancelRequests.SequenceEqual(new[] { "canceled", "cancelled" }),

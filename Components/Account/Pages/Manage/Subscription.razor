@@ -1,130 +1,74 @@
 @page "/Account/Manage/Subscription"
 @using System.Globalization
-@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@using MiBitacora.Data
 @inject SubscriptionService Billing
+@inject AiUsageService Usage
+@inject UserManager<ApplicationUser> Users
 @inject TimeZoneInfo TimeZone
-
 <PageTitle>Mi plan · Mi Bitácora</PageTitle>
-<h2>Mi plan</h2>
-<div class="brisa-report-heading"><BrisaPortrait Size="large" /><p class="account-intro">Elegí cómo querés conversar con Brisa. Tu cuaderno y tus informes guardados siguen siendo tuyos.</p></div>
-@if (Billing.IsSimulation)
-{
-    <p class="journal-notice" role="status"><strong>Prueba local.</strong> Todos los cobros de esta pantalla son simulados. No se conecta con Mercado Pago ni se mueve dinero. El precio mostrado es de prueba.</p>
-}
-@if (Error == "1")
-{
-    <p class="journal-alert" role="alert">No pudimos confirmar la operación. Tu cuaderno y tu período ya abonado se conservan. Actualizá el estado para volver a comprobarlo.</p>
-}
-else if (Returned == "1")
-{
-    <p class="journal-notice" role="status">Volviste de la contratación. El Plan Profundo se habilita cuando se confirma el pago. Podés actualizar el estado desde acá.</p>
-}
-else if (Updated == "1") { <p class="journal-notice" role="status">Actualizamos el estado de tu suscripción.</p> }
-else if (ProviderSaved == "1") { <p class="journal-notice" role="status">Guardamos tu elección. Se aplica a las próximas respuestas de Brisa.</p> }
-
-<section class="subscription-current" aria-label="Tu acceso actual">
-    <span class="eyebrow">TU PLAN ACTUAL</span>
-    <h3>@(_access.IsPaid ? "Plan Profundo" : "Plan gratuito")</h3>
-    @if (_access.OpenAiForAllAccounts)
-    { <p><strong>OpenAI disponible para todas las cuentas.</strong> Por ahora podés elegir ambas opciones sin contratar un plan.</p> }
-    @if (_access.IsComplimentary)
-    { <p><strong>Acceso premium de cortesía.</strong> Otorgado por la administración para pruebas, sin cobros ni renovación automática.</p> }
-    @if (_access.PaidThroughUtc is { } through)
-    { <p>Acceso pago hasta el <strong>@Date(through)</strong>.</p> }
-    @if (_subscription is { } subscription)
-    {
-        <p>Suscripción: <strong>@Status(subscription.Status)</strong>.</p>
-        @if (subscription.CancellationRequested || subscription.Status is "cancelled" or "canceled")
-        { <p>No se programarán nuevas renovaciones cuando la cancelación esté confirmada. Conservás el período que ya pagaste.</p> }
-        @if (subscription.CheckoutUrl is { } checkout && subscription.Status == "pending")
-        { <a class="btn btn-primary" href="@checkout">Continuar contratación</a> }
+<h2>Mi plan</h2><p class="account-intro">Tu cuaderno y tus conversaciones siguen siendo tuyos. Acá podés ver el cupo, tus pagos y la renovación.</p>
+@if (Billing.IsSimulation) { <p class="journal-notice" role="status">Entorno local: los cobros son simulados y no mueven dinero.</p> }
+@if (Error is not null) { <p class="journal-alert" role="alert">@(Error == "email" ? "Confirmá el correo de tu cuenta antes de contratar." : Error == "offer" ? "La oferta cambió desde que abriste la página. Revisá el precio y las condiciones antes de continuar." : "La operación sigue sin confirmar. No iniciamos otro cobro. Actualizá el estado o contactanos para revisarlo.")</p> }
+@if (Returned == "1") { <p class="journal-notice" role="status">Volviste de Mercado Pago. Profundo se activa cuando verificamos el pago aprobado. Podés actualizar el estado desde acá.</p> }
+@if (Updated == "1") { <p class="journal-notice" role="status">Revisamos el estado con el proveedor. Podés ver el resultado a continuación.</p> }
+@if (ProviderSaved == "1") { <p class="journal-notice" role="status">Guardamos tu elección para las próximas respuestas.</p> }
+<section class="subscription-current" aria-label="Tu acceso actual"><p class="eyebrow">TU PLAN ACTUAL</p><h3>@(_access.IsPaid ? "Profundo" : "Gratuito")</h3>
+    @if (_access.IsComplimentary) { <p>Acceso de cortesía, sin cobros ni renovación automática.</p> }
+    @if (_access.PaidThroughUtc is { } through) { <p>Acceso pago hasta el <strong>@Date(through)</strong>.</p> }
+    @if (_subscription is { } sub) {
+        <p>Suscripción: <strong>@Status(sub.Status)</strong>. Precio contratado: ARS @Money(sub.MonthlyPriceCents) por mes.</p>
+        @if (sub.CancellationRequested) { <p role="status">@(sub.Status is "cancelled" or "canceled" ? "Renovación cancelada. Conservás el período abonado." : "Recibimos tu baja. Estamos confirmándola con Mercado Pago y volveremos a intentar si demora. Los cobros posteriores al pedido serán reintegrados.")</p> }
+        @if (sub.LastSyncedUtc is { } synced) { <p class="topic-scope">Última conciliación: @Date(synced).</p> }
+        @if (sub.CheckoutUrl is { } checkout && sub.Status == "pending") { <a class="btn btn-primary" href="@checkout">Continuar en Mercado Pago</a> }
         <form method="post" action="/Account/Subscription/Refresh"><AntiforgeryToken /><button class="quiet-action" type="submit">Actualizar estado</button></form>
-        @if (subscription.Status is not ("cancelled" or "canceled" or "creation_failed"))
-        {
-            <details class="subscription-cancel"><summary>Cancelar renovación</summary>
-                <p>Detenemos los futuros cobros. No borra tu cuaderno y conservás el acceso hasta terminar el período abonado.</p>
-                <form method="post" action="/Account/Subscription/Cancel"><AntiforgeryToken /><button class="btn btn-outline" type="submit">Confirmar cancelación de la renovación</button></form>
-            </details>
+        @if (!sub.CancellationRequested && sub.Status is not ("cancelled" or "canceled" or "creation_failed")) {
+            <details class="subscription-cancel"><summary>Cancelar renovación</summary><p>Detenemos los futuros cobros. Tu cuaderno se conserva y podés usar Profundo hasta terminar el período abonado. La baja no tiene penalidad.</p><form method="post" action="/Account/Subscription/Cancel"><AntiforgeryToken /><button class="btn btn-outline" type="submit">Confirmar baja de la renovación</button></form></details>
         }
-        @if (Billing.IsSimulation && subscription.Status is not ("cancelled" or "canceled"))
-        { <a class="quiet-action" href="@($"/Account/Subscription/Simulate/{subscription.Id}")">Abrir simulador local</a> }
+        @if (sub.AcceptedUtc is { } accepted) { <p class="topic-scope">Condiciones @sub.TermsVersion aceptadas el @Date(accepted). Cupo contratado: @sub.MonthlyCredits créditos por período.</p> }
+        @if (Billing.IsSimulation && sub.Status is not ("cancelled" or "canceled")) { <a href="@($"/Account/Subscription/Simulate/{sub.Id}")">Simulador local</a> }
     }
 </section>
-
-@if (_access.CanUseOpenAi)
-{
-    <section class="subscription-current" aria-label="Cómo responde Brisa">
-        <h3>Cómo querés conversar con Brisa</h3>
-        <form method="post" action="/Account/Subscription/AiProvider" class="account-form">
-            <AntiforgeryToken />
-            <label for="brisa-provider">IA para las próximas respuestas</label>
-            <select id="brisa-provider" class="brisa-provider-select" name="provider" value="@_access.AiProvider">
-                <option value="OpenAI" selected="@(_access.AiProvider == "OpenAI")">OpenAI · respuestas más profundas</option>
-                <option value="Ollama" selected="@(_access.AiProvider == "Ollama")">IA local · puede demorar más</option>
-            </select>
-            <p class="topic-scope">Con OpenAI, tu mensaje, las fotos optimizadas, los audios que requieran transcripción y el contexto pertinente se envían a ese proveedor. Con IA local, se procesan en la infraestructura de Mi Bitácora. Esta elección no cambia tu plan.</p>
-            <button class="account-button" type="submit">Guardar mi elección</button>
-        </form>
-    </section>
+@if (_access.CanUseOpenAi && _usage is { } usage) {
+    <section class="subscription-current" aria-label="Cupo de OpenAI"><h3>Tus créditos de este período</h3><p><strong>@usage.Used de @usage.Limit usados</strong>@(usage.Reserved > 0 ? $" · {usage.Reserved} en proceso" : "") · @usage.Remaining disponibles.</p><progress class="usage-meter" value="@(usage.Used + usage.Reserved)" max="@usage.Limit">@(usage.Used + usage.Reserved) de @usage.Limit</progress><p>Período: @Date(usage.FromUtc) a @Date(usage.ThroughUtc). No se acumulan ni generan cargos adicionales.</p>
+    @if (usage.NearLimit) { <p role="status" class="journal-alert">@(usage.Remaining == 0 ? "Agotaste el cupo del período. Podés continuar con IA local, guardar y leer tu cuaderno." : "Estás cerca del cupo mensual. Podés alternar con IA local para reservar tus créditos.")</p> }
+    <p>Respuesta o regeneración: 1 crédito. Cada transcripción de audio: 1 adicional. Informe completo: @Billing.Settings.ReportCredits créditos.</p>
+    <form method="post" action="/Account/Subscription/AiProvider" class="account-form"><AntiforgeryToken /><label for="ai-provider">IA para las próximas respuestas</label><select id="ai-provider" name="provider" class="brisa-provider-select"><option value="OpenAI" selected="@(_access.AiProvider == "OpenAI")">OpenAI · usa créditos</option><option value="Ollama" selected="@(_access.AiProvider == "Ollama")">IA local · sin créditos de OpenAI</option></select><p class="topic-scope">Con OpenAI se envían a ese proveedor tu mensaje y el contexto pertinente. Con IA local se procesan en la infraestructura de Mi Bitácora. <a href="/privacidad">Ver privacidad</a>.</p><button class="account-button" type="submit">Guardar mi elección</button></form></section>
 }
-
-<div class="subscription-plans">
-    <section class="subscription-card"><h3>Gratuito</h3><p class="subscription-price">Sin cargo</p>
-        <p>Conversá con Brisa, adjuntá archivos, guardá notitas y prepará tus informes. Podés leer, exportar y borrar tu contenido.</p>
-        @if (_access.OpenAiForAllAccounts)
-        { <p>Ahora también incluye OpenAI por defecto. Podés elegir IA local cuando quieras desde esta pantalla.</p> }
-        else { <p>Este plan usa IA local. Las respuestas pueden demorar y tener menor precisión.</p> }
-    </section>
-    <section class="subscription-card subscription-card-paid"><h3>Profundo</h3>
-        @if (Billing.CanSubscribe && !_access.OpenAiForAllAccounts) { <p class="subscription-price">@Money(Billing.Settings.PriceCents)<small> por mes</small></p> }
-        <p>La misma Brisa, con una IA de mayor capacidad mediante OpenAI, para desarrollar tus ideas, explorar conexiones y acompañarte con respuestas más profundas.</p>
-        @if (!_access.IsComplimentary && !_access.OpenAiForAllAccounts) { <p>Renovación mensual automática. Podés cancelar futuras renovaciones desde esta pantalla.</p> }
-        @if (_access.IsComplimentary) { <p>Ya tenés acceso de cortesía. Podés elegir el proveedor arriba, sin contratar una suscripción.</p> }
-        else if (_access.OpenAiForAllAccounts) { <p>OpenAI está disponible ahora para todas las cuentas. No necesitás contratar para usarlo.</p> }
-        else if (!Billing.CanSubscribe) { <p>Las contrataciones todavía no están habilitadas. El plan gratuito sigue disponible.</p> }
-        else if (_access.IsPaid && _subscription?.Status is "cancelled" or "canceled")
-        { <p>Conservás el período abonado. Podés volver a contratar cuando termine para evitar cobros superpuestos.</p> }
-        else if (_subscription is null || _subscription.Status is "cancelled" or "canceled" or "creation_failed")
-        {
-            <form method="post" action="/Account/Subscription/Subscribe" class="account-form">
-                <AntiforgeryToken />
-                <label><input type="checkbox" name="accept" value="yes" required /> Acepto el cobro mensual de @Money(Billing.Settings.PriceCents) y que, al pedir una devolución con este plan, mi texto y el contexto pertinente se procesen con OpenAI. <a href="/privacidad">Ver privacidad</a>.</label>
-                <button class="account-button" type="submit">@(Billing.IsSimulation ? "Probar contratación simulada" : "Contratar con Mercado Pago")</button>
-            </form>
-        }
-    </section>
-</div>
-<p class="topic-scope">Brisa puede equivocarse en ambos planes. Revisá sus miradas y llevá a terapia los temas que quieras profundizar.</p>
-
-@if (_payments.Count > 0)
-{
-    <h3>Historial de pagos</h3>
-    <div class="subscription-payments"><table><thead><tr><th>Período</th><th>Importe</th><th>Estado</th></tr></thead><tbody>
-    @foreach (var payment in _payments)
-    { <tr><td>@Date(payment.FromUtc) — @Date(payment.ThroughUtc)</td><td>@Money(payment.AmountCents)</td><td>@Status(payment.Status)</td></tr> }
-    </tbody></table></div>
+@if (!_access.IsPaid) {
+<section class="subscription-current subscription-card-paid"><p class="eyebrow">PARA IR MÁS A FONDO</p><h3>Elegir Profundo</h3><p class="subscription-price">ARS @Money(Billing.Settings.PriceCents)<small> por mes · precio final</small></p><p>@Billing.Settings.MonthlyCredits créditos por período para conversar con OpenAI. Renovación mensual automática con Mercado Pago. Sin permanencia mínima ni cargos por excedentes.</p>
+    @if (_user is null || !Billing.CanSubscribeFor(_user.Id)) { <p>Las nuevas contrataciones todavía no están disponibles. Podés usar el plan gratuito y <a href="/soporte">contactarnos</a>.</p> }
+    else if (_user?.EmailConfirmed != true) { <p>Para proteger tu contratación, primero <a href="/Account/ResendConfirmation">confirmá el correo de tu cuenta</a>. Podés seguir usando el plan gratuito.</p> }
+    else if (_subscription is null || _subscription.Status is "cancelled" or "canceled" or "creation_failed") {
+        <form method="post" action="/Account/Subscription/Subscribe" class="account-form"><AntiforgeryToken /><input type="hidden" name="price" value="@Billing.Settings.PriceCents" /><input type="hidden" name="credits" value="@Billing.Settings.MonthlyCredits" /><input type="hidden" name="terms" value="@BusinessIdentity.TermsVersion" />
+        <div class="account-field"><label for="payer-email">Correo de tu cuenta de Mercado Pago</label><input id="payer-email" type="email" name="payerEmail" value="@_user.Email" maxlength="254" autocomplete="email" required /><small>Puede ser distinto del correo de Mi Bitácora. Lo usaremos para las constancias de pago.</small></div>
+        <label><input type="checkbox" name="accept" value="yes" required /> Soy mayor de 18 años y acepto el cobro recurrente de ARS @Money(Billing.Settings.PriceCents) por mes, el cupo de @Billing.Settings.MonthlyCredits créditos y las <a href="/condiciones">condiciones de contratación y reintegros</a>. Al usar OpenAI, mi mensaje y el contexto pertinente se procesan con ese proveedor según la <a href="/privacidad">política de privacidad</a>.</label><button class="account-button" type="submit">@(Billing.IsSimulation ? "Ir al checkout simulado" : "Continuar a Mercado Pago")</button></form>
+    }
+</section>
 }
-
+@if (_payments.Count > 0) {
+    <h3>Historial de pagos</h3><div class="subscription-payments"><table><thead><tr><th>Período</th><th>Importe</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>@foreach (var p in _payments) { <tr><td>@Date(p.FromUtc) — @Date(p.ThroughUtc)</td><td>ARS @Money(p.AmountCents)</td><td>@Status(p.Status)</td><td><a href="@($"/Account/Subscription/Receipt/{Uri.EscapeDataString(p.Id)}")">Constancia</a></td></tr> }</tbody></table></div>
+}
+<p class="topic-scope">Las constancias del sitio no sustituyen una factura. Para tu factura C, <a href="/soporte">contactanos</a> con la referencia del pago. @BusinessIdentity.Name · CUIT @BusinessIdentity.TaxId.</p><CommerceLinks />
 @code {
-    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [CascadingParameter] private HttpContext Context { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "returned")] public string? Returned { get; set; }
     [SupplyParameterFromQuery(Name = "updated")] public string? Updated { get; set; }
     [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
     [SupplyParameterFromQuery(Name = "providerSaved")] public string? ProviderSaved { get; set; }
     private SubscriptionAccess _access = SubscriptionAccess.Free;
     private SubscriptionSummary? _subscription;
+    private AiUsageSnapshot? _usage;
+    private ApplicationUser? _user;
     private IReadOnlyList<SubscriptionPayment> _payments = [];
-    protected override async Task OnInitializedAsync()
-    {
-        var id = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (id is null) return;
-        _access = await Billing.GetAccessAsync(id, HttpContext.RequestAborted);
-        _subscription = await Billing.GetSummaryAsync(id, HttpContext.RequestAborted);
-        _payments = await Billing.GetPaymentsAsync(id, HttpContext.RequestAborted);
+    protected override async Task OnInitializedAsync() {
+        _user = await Users.GetUserAsync(Context.User); if (_user is null) return;
+        _access = await Billing.GetAccessAsync(_user.Id, Context.RequestAborted);
+        _subscription = await Billing.GetSummaryAsync(_user.Id, Context.RequestAborted);
+        _payments = await Billing.GetPaymentsAsync(_user.Id, Context.RequestAborted);
+        if (_access.CanUseOpenAi) _usage = await Usage.GetAsync(_user.Id, Context.RequestAborted);
     }
-    private static string Money(long cents) => (cents / 100m).ToString(cents % 100 == 0 ? "C0" : "C2", CultureInfo.GetCultureInfo("es-AR"));
-    private string Date(DateTime date) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(date, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy", CultureInfo.GetCultureInfo("es-AR"));
-    private static string Status(string status) => status switch
-    { "creating" => "Contratación por confirmar", "creation_failed" => "Contratación rechazada", "pending" => "Pendiente", "authorized" => "Autorizada", "approved" => "Aprobado",
-      "paused" => "Pausada", "cancelled" or "canceled" => "Cancelada", "refunded" => "Devuelto", "charged_back" => "Contracargo", "rejected" => "Rechazado", _ => "En proceso" };
+    private static string Money(long cents) => (cents / 100m).ToString(cents % 100 == 0 ? "N0" : "N2", CultureInfo.GetCultureInfo("es-AR"));
+    private string Date(DateTime date) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(date, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy HH:mm", CultureInfo.GetCultureInfo("es-AR"));
+    private static string Status(string status) => status switch { "creating" => "Contratación por confirmar", "creation_failed" => "Contratación rechazada", "pending" => "Pendiente", "authorized" => "Renovación autorizada", "approved" => "Aprobado", "paused" => "Pausada", "cancelled" or "canceled" => "Cancelada", "refunded" => "Devuelto", "charged_back" => "Contracargo", "rejected" => "Rechazado", _ => "En proceso" };
 }

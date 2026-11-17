@@ -159,7 +159,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             if ((quota?.Bytes ?? 0) + entry.Attachments.Sum(row => row.Size) > storage.MaxAccountAttachmentBytes
                 || (quota?.Count ?? 0) + entry.Attachments.Count > storage.MaxAccountFiles)
             {
-                throw new JournalInputException("Alcanzaste el espacio de adjuntos del piloto. Podés guardar la entrada sin archivos o liberar espacio.");
+                throw new JournalInputException("Alcanzaste el espacio de adjuntos de tu cuenta. Podés guardar la entrada sin archivos o liberar espacio.");
             }
         }
 
@@ -293,7 +293,7 @@ public sealed partial class JournalStore(IDbContextFactory<ApplicationDbContext>
             var count = await db.JournalNotes.CountAsync(item => item.UserId == userId, cancellationToken);
             if (count >= MaxNotes)
             {
-                throw new JournalInputException("Alcanzaste el límite de notitas del piloto.");
+                throw new JournalInputException("Alcanzaste el límite de notitas de tu cuenta.");
             }
 
             row = new JournalNoteRow { Id = Guid.NewGuid(), UserId = userId, CreatedUtc = DateTime.UtcNow };

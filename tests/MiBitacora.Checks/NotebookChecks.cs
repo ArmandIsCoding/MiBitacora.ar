@@ -52,8 +52,8 @@ internal static class NotebookChecks
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.GetService<IMigrator>().MigrateAsync("20261109212031_AddJournalMemory");
-            db.Users.AddRange(new ApplicationUser { Id = a, UserName = "notebook-a" }, new ApplicationUser { Id = b, UserName = "notebook-b" });
-            await db.SaveChangesAsync();
+            // Populate the historical schema without asking the current Identity model for new columns.
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO AspNetUsers (Id, UserName, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES ({a}, 'notebook-a', 0, 0, 0, 0, 0), ({b}, 'notebook-b', 0, 0, 0, 0, 0)");
             var json = JsonSerializer.Serialize(reflection, new JsonSerializerOptions(JsonSerializerDefaults.Web));
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO JournalEntries (Id, UserId, Text, SearchText, CreatedUtc, ForSession, IsDateOnly, ReflectionJson)

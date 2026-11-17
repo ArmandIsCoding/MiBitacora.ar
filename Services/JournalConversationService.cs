@@ -10,7 +10,8 @@ public sealed class JournalConversationJobs
 }
 
 public sealed class JournalConversationService(IJournalStore store, IAudioTranscriber transcriber,
-    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs, AccountAiRouter? routing = null)
+    JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs, AccountAiRouter? routing = null,
+    AiUsageService? usage = null)
 {
     public bool IsConfigured => reflector.IsConfigured;
     public async Task<JournalEntry> GenerateAsync(string userId, Guid entryId, bool useAi = true,
@@ -20,6 +21,8 @@ public sealed class JournalConversationService(IJournalStore store, IAudioTransc
         if (!jobs.Start(userId, entryId)) throw new JournalReflectionException("Ya se está preparando una respuesta para esta entrada. Esperá a que termine.");
         try
         {
+            await using var quota = useAi && reflector.UsesExternalProvider && usage is not null
+                ? await usage.ReserveAsync(userId, "reply", 1, ct) : null;
             activity?.Report(BrisaActivity.Reading);
             progress?.Report("Brisa está leyendo lo que le contaste…");
             var entry = await store.GetEntryAsync(userId, entryId, ct) ?? throw new JournalInputException("La entrada ya no está disponible.");
@@ -46,6 +49,7 @@ public sealed class JournalConversationService(IJournalStore store, IAudioTransc
             ct.ThrowIfCancellationRequested();
             // Only replace after a complete, validated response. Failures keep the previous response.
             await store.SaveReflectionAsync(userId, entryId, response, ct, context.MemoryRevision);
+            if (quota is not null) await quota.CompleteAsync(ct);
             return await store.GetEntryAsync(userId, entryId, ct) ?? throw new JournalInputException("La entrada ya no está disponible.");
         }
         finally { jobs.Finish(userId, entryId); }

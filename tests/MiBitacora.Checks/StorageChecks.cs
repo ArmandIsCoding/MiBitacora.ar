@@ -47,8 +47,7 @@ internal static class StorageChecks
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.GetService<IMigrator>().MigrateAsync("20261106203108_AddAccountRegistrationDate");
-            db.Users.AddRange(new ApplicationUser { Id = aId, UserName = "a" }, new ApplicationUser { Id = bId, UserName = "b" });
-            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO AspNetUsers (Id, UserName, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES ({aId}, 'a', 0, 0, 0, 0, 0), ({bId}, 'b', 0, 0, 0, 0, 0)");
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO JournalEntries (Id, UserId, Text, SearchText, CreatedUtc, ForSession)
                 VALUES ({legacyEntry}, {aId}, 'Anterior', 'anterior', {DateTime.UtcNow}, 0)

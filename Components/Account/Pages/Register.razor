@@ -36,7 +36,9 @@
         <input type="password" name="Input.ConfirmPassword" id="register-confirmation" autocomplete="new-password" maxlength="@AccountText.MaximumPasswordLength" required />
         <ValidationMessage For="() => Input.ConfirmPassword" />
     </div>
-    <button type="submit" class="account-button">Crear mi cuenta</button>
+    <label><InputCheckbox @bind-Value="Input.Accept" /> Tengo 18 años o más y acepto las <a href="/condiciones">condiciones de uso</a> y la <a href="/privacidad">política de privacidad</a>.</label>
+    <ValidationMessage For="() => Input.Accept" />
+    <button type="submit" class="account-button">Crear mi cuenta gratuita</button>
 </EditForm>
 
 <p class="account-switch">¿Ya tenés cuenta? <a href="@LoginUrl">Ingresá</a>.</p>
@@ -62,7 +64,9 @@
         {
             UserName = email,
             Email = email,
-            RegisteredUtc = DateTime.UtcNow
+            RegisteredUtc = DateTime.UtcNow,
+            AcceptedTermsUtc = DateTime.UtcNow,
+            AcceptedTermsVersion = BusinessIdentity.TermsVersion
         };
         var result = await UserManager.CreateAsync(user, Input.Password);
         if (!result.Succeeded)
@@ -77,6 +81,8 @@
 
     private sealed class InputModel
     {
+        [Range(typeof(bool), "true", "true", ErrorMessage = "Para crear la cuenta, confirmá tu edad y la aceptación de las condiciones.")]
+        public bool Accept { get; set; }
         [Required(ErrorMessage = "Ingresá tu correo electrónico.")]
         [EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido.")]
         [StringLength(254, ErrorMessage = "El correo es demasiado largo.")]

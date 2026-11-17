@@ -139,6 +139,7 @@ await ConversationDepthChecks.RunAsync(Check);
 await AudioConversationChecks.RunAsync(Check);
 await BillingChecks.RunAsync(Check);
 await BillingHttpChecks.RunAsync(Check);
+await LaunchBillingChecks.RunAsync(Check);
 await AttachmentPreparationChecks.RunAsync(Check, args.Contains("--media-codecs"));
 await InferenceBridgeChecks.RunAsync(Check);
 var heicContext = await StorageChecks.RunAsync(image, Check);

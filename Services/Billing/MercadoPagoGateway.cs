@@ -63,6 +63,7 @@ public sealed class MercadoPagoGateway(HttpClient client, IOptions<SubscriptionO
             payer_email = payerEmail,
             auto_recurring = new { frequency = 1, frequency_type = "months", transaction_amount = amountCents / 100m, currency_id = "ARS" },
             back_url = options.Value.PublicBaseUrl.TrimEnd('/') + "/Account/Manage/Subscription?returned=1",
+            notification_url = options.Value.PublicBaseUrl.TrimEnd('/') + "/api/mercadopago/webhook",
             status = "pending"
         }, ct, reference));
 
@@ -135,7 +136,17 @@ public sealed class MercadoPagoGateway(HttpClient client, IOptions<SubscriptionO
     {
         var json = await SendAsync(HttpMethod.Get, "/v1/payments/" + Escape(id), null, ct);
         return new(Text(json, "id"), Text(json, "collector_id"), Text(json, "external_reference"), Text(json, "status"),
-            Money(json, "transaction_amount"), Text(json, "currency_id"), Date(json, "date_last_updated"));
+            Money(json, "transaction_amount"), Text(json, "currency_id"), Date(json, "date_last_updated"),
+            json.TryGetProperty("date_approved", out var approved) && approved.ValueKind == JsonValueKind.String
+                ? DateTimeOffset.Parse(approved.GetString()!, CultureInfo.InvariantCulture).UtcDateTime : null,
+            json.TryGetProperty("transaction_amount_refunded", out _) ? Money(json, "transaction_amount_refunded") : 0);
+    }
+
+    public async Task RefundAsync(string paymentId, string idempotencyKey, CancellationToken ct)
+    {
+        var result = await SendAsync(HttpMethod.Post, "/v1/payments/" + Escape(paymentId) + "/refunds", new { }, ct, idempotencyKey);
+        if (Text(result, "payment_id") != paymentId || Text(result, "status") != "approved")
+            throw new SubscriptionException("Mercado Pago todavía no confirmó el reintegro. Tu solicitud sigue guardada.");
     }
 
     public async Task CancelAsync(string id, CancellationToken ct)

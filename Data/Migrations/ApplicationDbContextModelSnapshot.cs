@@ -31,9 +31,54 @@ namespace MiBitacora.Migrations
                     b.ToTable("AccountAiPreferences");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.AiUsageReservationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodEndUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "PeriodStartUtc");
+
+                    b.ToTable("AiUsageReservations");
+                });
+
             modelBuilder.Entity("MiBitacora.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("AcceptedTermsUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcceptedTermsVersion")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("AccessFailedCount")
@@ -119,6 +164,47 @@ namespace MiBitacora.Migrations
                     b.ToTable("BillingAccessGrants");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.BillingAuditRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SubscriptionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedUtc");
+
+                    b.HasIndex("Type", "Reference")
+                        .IsUnique();
+
+                    b.ToTable("BillingAudit");
+                });
+
             modelBuilder.Entity("MiBitacora.Data.BillingPaymentRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -127,6 +213,15 @@ namespace MiBitacora.Migrations
 
                     b.Property<long>("AmountCents")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ApprovedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FiscalInvoiceIssuedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FiscalInvoiceReference")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("PeriodEndUtc")
                         .HasColumnType("TEXT");
@@ -144,6 +239,9 @@ namespace MiBitacora.Migrations
 
                     b.Property<DateTime>("ProviderUpdatedUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("RefundedCents")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -168,11 +266,17 @@ namespace MiBitacora.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("AcceptedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("BillingAnchorUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("CancellationRequested")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CancellationRequestedUtc")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("CheckoutUrl")
                         .HasColumnType("TEXT");
@@ -194,8 +298,15 @@ namespace MiBitacora.Migrations
                     b.Property<DateTime?>("LastSyncedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("MonthlyCredits")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("MonthlyPriceCents")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("PayerEmail")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Provider")
                         .IsRequired()
@@ -208,6 +319,10 @@ namespace MiBitacora.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TermsVersion")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -262,6 +377,83 @@ namespace MiBitacora.Migrations
                     b.HasIndex("ProcessedUtc", "NextAttemptUtc");
 
                     b.ToTable("BillingWebhooks");
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.CustomerRequestRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastAttemptUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RefundApprovedByAdmin")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Resolution")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResolvedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SubscriptionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("VerificationExpiresUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VerificationHash")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("VerifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("Email", "CreatedUtc");
+
+                    b.HasIndex("Status", "CreatedUtc");
+
+                    b.HasIndex("UserId", "Kind", "PaymentId");
+
+                    b.ToTable("CustomerRequests");
                 });
 
             modelBuilder.Entity("MiBitacora.Data.JournalAttachmentRow", b =>
@@ -603,6 +795,53 @@ namespace MiBitacora.Migrations
                     b.ToTable("JournalVectorStates");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.TransactionalEmailRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LockedUntilUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NextAttemptUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Recipient")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SentUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.HasIndex("SentUtc", "NextAttemptUtc");
+
+                    b.ToTable("TransactionalEmails");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -761,6 +1000,15 @@ namespace MiBitacora.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.AiUsageReservationRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MiBitacora.Data.BillingAccessGrantRow", b =>
                 {
                     b.HasOne("MiBitacora.Data.ApplicationUser", null)
@@ -775,15 +1023,6 @@ namespace MiBitacora.Migrations
                     b.HasOne("MiBitacora.Data.BillingSubscriptionRow", null)
                         .WithMany()
                         .HasForeignKey("SubscriptionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("MiBitacora.Data.BillingSubscriptionRow", b =>
-                {
-                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

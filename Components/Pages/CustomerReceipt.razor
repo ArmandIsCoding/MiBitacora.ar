@@ -1,0 +1,37 @@
+@page "/solicitud/{Code}"
+@attribute [ExcludeFromInteractiveRouting]
+@using MiBitacora.Data
+@inject CustomerRequestService Requests
+<PageTitle>Estado de tu solicitud · Mi Bitácora</PageTitle>
+<div class="reading-page"><header class="site-header wrap"><Brand /></header><main class="reading-paper">
+<h1>Tu solicitud</h1>
+@if (_request is null) { <p>No encontramos esa solicitud. Revisá el código o escribinos.</p> }
+else
+{
+    <p>Código: <strong>@_request.Code</strong><br />Recibida el @_request.CreatedUtc.ToString("dd/MM/yyyy HH:mm") UTC<br />Tipo: @CustomerRequestService.KindLabel(_request.Kind)<br />Estado: <strong>@CustomerRequestService.StatusLabel(_request.Status)</strong></p>
+    @if (_confirmed) { <p role="status" class="journal-notice">Identidad verificada. Tu pedido queda en gestión y conserva su fecha original.</p> }
+    else if (Requests.CanVerify(_request, Input.Token))
+    {
+        <p>Confirmá que vos enviaste este pedido. Abrir el enlace no modifica tu suscripción.</p>
+        <EditForm Model="Input" method="post" OnSubmit="Confirm" FormName="verify-customer-request"><input type="hidden" name="Input.Token" value="@Input.Token" /><button class="btn btn-primary" type="submit">Confirmar mi solicitud</button></EditForm>
+    }
+    else if (_request.VerifiedUtc is null) { <p>La solicitud está recibida. Verificá tu identidad con el enlace enviado por correo para gestionar cobros. Si venció o no podés acceder, escribinos citando este código.</p> }
+    @if (_error) { <p role="alert">El enlace no es válido o venció. Contactanos citando tu código.</p> }
+}
+<p>Por privacidad, los datos de la cuenta y la respuesta detallada se envían al correo verificado.</p><p><a href="mailto:@BusinessIdentity.SupportEmail">@BusinessIdentity.SupportEmail</a></p><CommerceLinks />
+</main></div>
+@code {
+    [Parameter] public string Code { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "token")] public string? Token { get; set; }
+    [SupplyParameterFromForm] private InputModel Input { get; set; } = default!;
+    private CustomerRequestRow? _request;
+    private bool _confirmed, _error;
+    protected override async Task OnInitializedAsync() {
+        Input ??= new();
+        Input.Token ??= "";
+        if (Input.Token.Length == 0 && Token?.Length == 64) Input.Token = Token;
+        _request = await Requests.GetReceiptAsync(Code);
+    }
+    private async Task Confirm(EditContext _) { _confirmed = await Requests.ConfirmAsync(Code, Input.Token); _error = !_confirmed; _request = await Requests.GetReceiptAsync(Code); }
+    private sealed class InputModel { public string Token { get; set; } = ""; }
+}

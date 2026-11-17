@@ -82,6 +82,7 @@ public sealed class BillingWorker(IServiceScopeFactory scopes, IOptions<Subscrip
                                     .Select(s => (Guid?)s.Id).SingleOrDefaultAsync(stoppingToken);
                             }
                             if (localId.HasValue) await service.ReconcileAsync(localId.Value, stoppingToken);
+                            else if (notification.Attempts < 5) throw new SubscriptionException("La notificación llegó antes que la contratación local.");
                             notification.ProcessedUtc = now;
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -103,6 +104,17 @@ public sealed class BillingWorker(IServiceScopeFactory scopes, IOptions<Subscrip
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         { logger.LogWarning("No se pudo conciliar una suscripción; se volverá a intentar."); }
                     }
+                }
+                await using (var requestScope = scopes.CreateAsyncScope())
+                {
+                    var factory = requestScope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+                    var service = requestScope.ServiceProvider.GetRequiredService<SubscriptionService>();
+                    await using var db = await factory.CreateDbContextAsync(stoppingToken);
+                    var cutoff = clock.GetUtcNow().UtcDateTime.AddMinutes(-2);
+                    var requests = await db.CustomerRequests.AsNoTracking().Where(row => row.Status == "processing" && row.VerifiedUtc != null &&
+                        (row.LastAttemptUtc == null || row.LastAttemptUtc < cutoff)).OrderBy(row => row.LastAttemptUtc).Select(row => row.Id).Take(25).ToListAsync(stoppingToken);
+                    foreach (var id in requests)
+                        await service.ProcessCustomerRequestAsync(id, stoppingToken);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }

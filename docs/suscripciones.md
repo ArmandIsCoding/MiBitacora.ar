@@ -1,137 +1,70 @@
-# Suscripciones y planes de IA
+# Suscripciones y operación comercial
 
-## OpenAI predeterminado para todas las cuentas
+Oferta inicial: **Profundo, ARS 15.000 finales por mes**, renovación automática con Mercado Pago. Incluye 200 créditos por período como valor inicial configurable. El código de producción conserva `Provider=Disabled` y `AllowLiveRequests=false` hasta configurar la cuenta. El simulador de Development es propio: no demuestra que una operación real de Mercado Pago funcione. La puesta en marcha está en [lanzamiento-mercado-pago.md](lanzamiento-mercado-pago.md).
 
-`AI:OpenAiForAllAccounts=true` habilita temporalmente OpenAI para todas las cuentas existentes y nuevas. Es el valor predeterminado del código y de `appsettings.json`, también cuando la configuración privada anterior no contiene la clave. Una cuenta sin preferencia usa OpenAI. Cada persona puede elegir OpenAI u Ollama desde **Mi cuenta → Mi plan**, con autenticación y antiforgery; su elección se conserva entre reinicios. Chat, informes y transcripción usan la misma selección por operación. La búsqueda y los embeddings siguen siendo locales.
+## Acceso y consumo
 
-`IsPaid` conserva su significado: período abonado o concesión administrativa. La disponibilidad global se informa por separado en `SubscriptionAccess.OpenAiForAllAccounts` y `CanUseOpenAi`; no se crean cobros, suscripciones ni concesiones para habilitarla. Las cuentas inexistentes o borradas no reciben el acceso global. La interfaz muestra el proveedor efectivo y ofrece ambas opciones sin pedir contratar un plan mientras está habilitado este acceso.
-
-Para aplicar el inicio con OpenAI a todas las preferencias ya guardadas, ejecutá **una sola vez**, después de respaldar la base:
-
-```powershell
-dotnet run --project tools/MiBitacora.Admin -c Release -- reset-ai-providers --database '<base existente>'
-```
-
-El comando cambia únicamente las preferencias existentes a OpenAI. Las cuentas sin fila de preferencia y las futuras ya usan ese valor por defecto. No se repite al arrancar la web: una elección posterior de Ollama debe respetarse.
-
-Para volver al acceso según plan, configurá `AI:OpenAiForAllAccounts=false` en la configuración privada o `AI__OpenAiForAllAccounts=false` en el entorno y reiniciá. Las operaciones revalidan el permiso antes de enviar contenido a OpenAI y no cambian de proveedor silenciosamente. No se alteran respuestas guardadas ni períodos abonados.
-
-## Acceso premium de cortesía y elección de proveedor
-
-El Plan Profundo también puede otorgarse administrativamente mediante `BillingAccessGrants`, sin inventar pagos ni suscripciones. `UserId` identifica al titular, `GrantedUtc` el inicio, `ExpiresUtc` es opcional y `Reason` deja el motivo. Eliminar la concesión la revoca; los períodos realmente abonados siguen vigentes. La migración `AddPremiumAccessAndProvider` sólo agrega tablas y claves con borrado en cascada.
-
-Para habilitar una cuenta, respaldá primero SQLite y ejecutá la herramienta local, con la web detenida si también se aplicarán migraciones:
-
-```powershell
-dotnet run --project tools/MiBitacora.Admin -c Release -- grant-premium --database '<base existente>' --user-id '<código de cuenta>'
-```
-
-`--only-account` reemplaza a `--user-id` únicamente en instalaciones con exactamente una cuenta; si encuentra cero o varias, aborta sin conceder acceso. El comando habilita OpenAI por defecto y no toca credenciales, pagos ni textos del diario. Para revocar, usá `revoke-premium` con el mismo destino e identificador.
-
-En **Mi cuenta → Mi plan**, una cuenta con acceso a OpenAI puede elegir **OpenAI** o **IA local**. La preferencia vive en `AccountAiPreferences`. El POST exige autenticación, antiforgery y acceso validado en el servidor, sea global, pago o de cortesía. Cada operación conserva su elección y revalida el acceso antes de transmitir a OpenAI. El plan, la preferencia y su vigencia se incluyen en la exportación; ambas tablas se eliminan con la cuenta. No hay fallback silencioso entre proveedores.
-
-Una concesión se muestra como **Acceso premium de cortesía**, sin cobros ni renovación. Elegir Ollama no dispara publicidad para contratar el plan que ya tiene.
-
-Integración incorporada a `main`, con enrutamiento por plan, memoria vectorial y mejoras de conversación. Los cobros reales se mantienen deshabilitados: `Subscriptions:Provider=Disabled` y `AllowLiveRequests=false`. No se incluyen credenciales de Mercado Pago ni se realizaron operaciones en la cuenta del propietario. Development usa un simulador propio; no es el entorno de pruebas de Mercado Pago.
-
-## Comportamiento
-
-Las siguientes reglas de elegibilidad se aplican cuando `AI:OpenAiForAllAccounts=false`. Con el acceso global habilitado, todas las cuentas pueden elegir OpenAI independientemente de su situación de pago.
-
-| Cuenta | Nuevas devoluciones, informes y transcripción |
+| Situación | Acceso |
 | --- | --- |
-| Gratuita, sin pago o período vencido | Ollama local, `gemma4:12b` |
-| Con una cuota aprobada que cubre el momento actual | OpenAI, con el modelo y las credenciales ya configurados |
-| Suscripción autorizada, sin pago aprobado | Continúa gratuita |
-| Renovación rechazada | Conserva únicamente los períodos que ya pagó |
-| Renovación cancelada | Conserva el período abonado; termina la renovación |
-| Pago devuelto o con contracargo | Ese pago deja de acreditar acceso |
+| Gratuita, vencida o autorización sin pago | IA local |
+| Pago aprobado que cubre el momento actual | OpenAI o IA local, a elección |
+| Renovación rechazada | Se conserva solo el período ya abonado |
+| Baja | Se detienen renovaciones; se conserva lo ya abonado |
+| Reintegro total o contracargo | Ese pago deja de habilitar Profundo |
+| Cortesía administrativa vigente | OpenAI con cupo, sin cobros |
 
-Todas las funciones del cuaderno siguen disponibles para cuentas gratuitas. El aviso del plan gratuito y **Mi cuenta → Mi plan** explican las diferencias. No se promete exactitud de ninguna IA. Las devoluciones ya guardadas siguen disponibles al cambiar de plan.
+`AI:OpenAiForAllAccounts` es falso por defecto y se ignora fuera de Development aunque una configuración privada histórica diga `true`. La decisión se revalida antes de enviar contenido a OpenAI. No hay cambio silencioso de proveedor. Un usuario puede elegir IA local al agotar créditos sin perder el período pago. El cuaderno, los archivos guardados, las notitas y los informes anteriores siguen disponibles.
 
-La espera de una devolución gratuita también presenta el Plan Profundo y explica que el procesamiento local puede tardar. El enlace abre la página del plan en otra pestaña para conservar la generación en curso. Se habla de respuestas por lo general más rápidas, sin garantizar un tiempo ni resultados. Las cuentas con un período pago vigente no reciben esa invitación.
+Una respuesta o regeneración consume 1 crédito; cada audio que requiere transcripción, 1 adicional; un informe completo, 10. Reutilizar transcripciones no consume. La reserva se registra en una transacción de escritura SQLite antes del proveedor: incluye operaciones concurrentes y se libera si falla. Una transcripción terminada conserva su consumo aunque después falle la respuesta. Los trabajos abandonados reservan saldo hasta una hora. No hay acumulación ni cobro por excedentes. El crédito de informe corresponde a toda su generación, aunque internamente use varios pedidos al modelo.
 
-Cada operación obtiene la cuenta desde la sesión autenticada y consulta el acceso en SQLite. El cliente no decide si una cuenta es paga. Antes de cada solicitud a OpenAI se vuelve a verificar la vigencia; si cambió durante un informe, la operación se interrumpe conservando el informe previo. No hay cambio silencioso entre proveedores. Las colas de Ollama y OpenAI son independientes. La [memoria de conversación usa embeddings locales](memoria-vectorial.md) en ambos planes y no se reconstruye al cambiar de plan. El informe completo conserva síntesis generativas diferenciadas por proveedor.
+El período de uso sigue la cuota aprobada actual. La cortesía usa el mes calendario de Buenos Aires. El precio y `MonthlyCredits` se guardan al contratar; cambiar la oferta no altera suscripciones existentes. No modificar `ReportCredits`, plazos comerciales ni condiciones aceptadas de cuentas vigentes sin diseñar y comunicar la nueva aceptación correspondiente. El aviso al 80% aparece en Mi plan y en el cuaderno; Mi plan siempre consulta el saldo actual. El aviso del cuaderno se actualiza al volver a renderizar, con un máximo de una lectura cada cinco segundos.
 
-`AI:Provider` se conserva por compatibilidad con herramientas anteriores; la web elige por plan. Configurar `AI:Provider=OpenAI` no convierte cuentas gratuitas en pagas.
+El cupo limita acciones, no el costo exacto de tokens: controlar también el presupuesto del proyecto OpenAI, los tamaños de contexto y el margen después de comisiones de Mercado Pago e impuestos. No se envían cobros por sobreconsumo.
 
-## Probar sin dinero ni cuenta de Mercado Pago
+## Contratación y conciliación
 
-Requisitos: SDK .NET 10; Node para las comprobaciones de JavaScript. Ollama y Gemma sólo son necesarios si se quieren generar devoluciones reales.
+El checkout es individual mediante `POST /preapproval`, estado `pending`, mensual en ARS, sin plan compartido. El servidor fija el importe y una referencia opaca. Guarda correo de pago, precio, cupo, fecha y versión de condiciones. El POST exige sesión, correo confirmado, antiforgery, aceptación y coincidencia con la oferta mostrada; una página vieja no puede aceptar un precio nuevo sin revisarlo. `LaunchUserIds` permite restringir las primeras contrataciones a cuentas concretas. No se guarda tarjeta.
 
-Desde la carpeta de esta rama:
+Autorizar o volver del checkout no acredita acceso. Se consulta el recurso remoto y se verifican vendedor, referencia, moneda, importe y frecuencia. Las cuotas se consultan con paginación, se preservan los intentos rechazados/reemplazados y se revisan también pagos antiguos para detectar reintegros. Los meses mantienen el ancla, incluso al pasar del día 31 a febrero. Los estados terminales no resucitan con un evento atrasado.
+
+Una intención ambigua por timeout se conserva: se busca por referencia y no se crea un segundo débito recurrente. Un rechazo definitivo de creación permite reintentar. Una restricción única de SQLite impide dos intenciones activas de la misma cuenta y proveedor durante un reciclado de IIS.
+
+El webhook exige cuerpo acotado, coincidencia de `data.id`, tipo admitido, HMAC `x-signature`, `x-request-id` y timestamp de hasta diez minutos. Primero se guarda en bandeja durable y después se responde 200. Las entregas idénticas no duplican eventos. El trabajador hace las consultas remotas y reintenta con espera creciente. Recursos que llegan antes de la intención local se reintentan; tras cinco intentos sin coincidencia se descartan como ajenos. La conciliación periódica incluye canceladas y es respaldo independiente de las notificaciones. Si falta clave de firma, el webhook devuelve 404: nunca se habilitan notificaciones sin verificar. Consultar la particularidad de documentación de MP en la guía de lanzamiento.
+
+`AcceptNewSubscriptions=false` detiene altas, **no** desactiva las consultas, bajas, reintegros o conciliación. No apagar `AllowLiveRequests` para detener ventas si existen cobros activos. Requiere un reciclado de la app porque se carga configuración al iniciar.
+
+## Atención, baja y reintegros
+
+`/baja`, `/arrepentimiento` y `/soporte` son públicos y entregan un código inmediato de recepción. La gestión automática requiere sesión del titular o confirmación de un enlace de correo aleatorio, de un solo uso y válido tres días. Abrir el enlace no modifica cobros; se confirma por POST con antiforgery. La fecha del pedido original se conserva aunque la verificación sea posterior. Sin acceso al correo, soporte verifica por otra vía y gestiona el caso. No se exige registrar una cuenta. Los códigos tienen 96 bits aleatorios; su página pública solo muestra código, tipo, fecha y estado, nunca correo, diario ni resolución privada.
+
+Mi plan también registra el pedido de baja y redirige a su constancia. Se persiste el intento de cancelación antes de consultar MP. Ante fallo queda pendiente, y el trabajador vuelve a intentar. La garantía comercial devuelve el último cargo solicitado dentro de diez días corridos de aprobación, incluso con uso del servicio; fuera de plazo se deriva a revisión. El administrador puede autorizar ese reintegro para una identidad verificada. La devolución consulta el pago antes y después, usa una clave estable por pago y no repite el intento si la devolución ya se confirmó tras un corte de conexión. Un cargo aprobado después del pedido de baja crea su propio reintegro pendiente.
+
+`/admin/suscripciones` requiere la política de administración existente (`Administration:UserIds`). Muestra suscripciones con renovación y acceso actuales, ingreso mensual contratado, movimientos conciliados del mes, colas demoradas, solicitudes y facturas pendientes. Permite reintentar, autorizar reintegros fuera del plazo comercial y responder/cerrar casos. Cerrar manualmente no ejecuta bajas ni reintegros: se usa después de resolverlos. El servidor valida sesión administrativa y antiforgery; las acciones quedan auditadas con código de administrador. No muestra textos del diario.
+
+La política, condiciones y datos de COGNITIVA están en `/condiciones`, `/privacidad` y `/planes`. Atención comercial declarada: lunes a viernes de 9 a 17, Argentina; recepción web permanente. El propietario debe sostener ese horario y revisar solicitudes a diario.
+
+## Correo, identidad y facturación
+
+El correo soporta `Disabled`, `Local` solo en Development, o SMTP autenticado con TLS. La bandeja de salida es durable, con clave única, bloqueo temporal de entrega y reintentos. Después de entregar se elimina el cuerpo con sus tokens; los metadatos entregados se purgan a los 30 días, excepto las claves de correos de pago que evitan reenviar constancias históricas al conciliar. SMTP ofrece entrega al menos una vez: si el proceso cae después de enviar y antes de guardar, un mensaje puede repetirse con el mismo Message-ID. Revisar la cola y el proveedor, no solo que la configuración sea válida. No se incluyen entradas ni contraseñas en correos ni logs.
+
+Recuperación de contraseña y confirmación de correo usan tokens de Identity con vencimiento de dos horas, origen público configurado y respuesta genérica para no enumerar cuentas. Hay límites por IP/cuenta y por correo. La sesión gratuita no exige correo confirmado; la contratación sí. Las claves de Data Protection se conservan en `App_Data/data-protection` y se protegen con DPAPI en Windows. La primera publicación con el nombre estable de aplicación puede cerrar sesiones existentes; conservar claves y la identidad de IIS en adelante. Recuperar una contraseña invalida las sesiones previas al revalidarse.
+
+Las constancias de operación tienen acceso del propietario (`/Account/Subscription/Receipt/{id}`), y no son facturas fiscales. **La emisión y entrega de factura C se hace en ARCA o el sistema fiscal del titular**, para todos los cobros que corresponda; no depende de que el cliente la solicite. El administrador registra el número ya emitido. Ante reintegros revisa la nota de crédito. La integración no inventa CAE ni emite facturas electrónicas.
+
+Al borrar una cuenta, se confirma primero el cese de renovaciones; se eliminan el diario, archivos, memoria, preferencias y consumo. Se conservan suscripciones, pagos, auditoría y solicitudes comerciales mínimas para obligaciones fiscales y reclamos, y para devolver cobros tardíos. Esos registros no restauran acceso al diario ni permiten recrear la cuenta. Definir con el contador los plazos legales de conservación y revisar/purgar mensajes de soporte y colas vencidas según su necesidad. Respaldos, credenciales y correos temporales requieren permisos de servidor y una política de conservación real.
+
+## Pruebas locales
 
 ```powershell
 .\scripts\Run-SubscriptionsLocal.ps1
 ```
 
-Abrir [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription). El script escucha sólo en loopback, fuerza `Simulated` y `AllowLiveRequests=false`, y usa `.artifacts/local-subscriptions.db`. No modifica variables permanentes, inicia descargas, reinicia Ollama ni copia la base de producción. Los adjuntos de estas cuentas de prueba se guardan en el `uploads` de este checkout. Ctrl+C cierra la aplicación.
-
-1. Registrar una cuenta local nueva. Verificar el aviso gratuito y el acceso a conversación, informes y demás secciones.
-2. Abrir **Mi plan**, aceptar las condiciones y elegir **Probar contratación simulada**.
-3. **Autorizar sin pagar** conserva el plan gratuito. **Aprobar primera cuota** habilita Profundo para esa cuenta.
-4. Volver a **Mi plan** para ver la vigencia y el historial. **Abrir simulador local** permite agregar una renovación, rechazarla o devolver el último pago.
-5. Cancelar desde **Cancelar renovación → Confirmar**. La cuenta conserva el período abonado y luego vuelve automáticamente al acceso gratuito. No hace falta una tarea que cambie banderas de usuarios.
-6. Abrir otra cuenta en una ventana privada y verificar que siga gratuita.
-
-**ARS 8000 es exclusivamente un precio de prueba.** El precio comercial queda por decidir. El simulador modifica el acceso local: si se pide una devolución desde una cuenta simulada paga y hay credenciales OpenAI configuradas, esa devolución utiliza realmente OpenAI. Las pruebas automáticas usan transportes falsos y no consumen IA ni realizan cobros.
-
-Las acciones del simulador exigen Development, configuración Simulated, conexión loopback, sesión de la cuenta propietaria y antiforgery. Un registro simulado nunca acredita acceso en Production. El formulario de prueba no está disponible en producción.
-
-## Implementación de Mercado Pago
-
-Se usa **suscripción sin plan asociado, con pago pendiente**. No necesita crear previamente un plan comercial en la cuenta de Mercado Pago: cada contratación crea su propia suscripción con el importe mensual definido en el servidor. No se capturan tarjetas en Mi Bitácora.
-
-- El POST autenticado `/Account/Subscription/Subscribe` exige consentimiento y antiforgery. Guarda una intención con referencia opaca `mb_<UUID>` antes de llamar a `POST /preapproval`. El importe se toma de la configuración, nunca del formulario.
-- El backend envía correo del pagador, referencia, razón, recurrencia mensual ARS y URL de retorno. No envía entradas, informes ni notas a Mercado Pago. Redirige al checkout HTTPS validado de Mercado Pago Argentina.
-- Volver desde el checkout **no habilita** el plan. Tampoco lo habilita el estado `authorized`: hace falta un pago aprobado, consultado en la API y relacionado con una cuota de esa suscripción.
-- El webhook `POST /api/mercadopago/webhook` comprueba `x-signature`, `x-request-id`, `data.id` y antigüedad de diez minutos. Liga el identificador firmado de la URL al cuerpo. Acepta `payment`, `subscription_preapproval` y `subscription_authorized_payment` y guarda una bandeja durable antes de responder 200.
-- El trabajador procesa esa bandeja y consulta la API para verificar comerciante, referencia, moneda, importe, recurrencia y relación cuota/pago/suscripción. No confía en estados enviados por el navegador ni en el cuerpo del webhook como prueba de pago.
-- La conciliación periódica y **Actualizar estado** recuperan notificaciones perdidas, aprobaciones tardías, cancelaciones, devoluciones y contracargos. Incluye las suscripciones canceladas y los intentos de pago anteriores.
-- Índices únicos y verificaciones de versión evitan duplicar pagos y meses. SQLite impide dos contrataciones activas del mismo proveedor para una cuenta, incluso si se superponen procesos durante un reinicio de IIS. Si una cuota cambia de identificador de pago al reintentarse, se conservan ambos intentos, con un único período cubierto. Los períodos contiguos se unen, sin extenderse por recibir otra vez el mismo evento. Se conserva el ancla mensual del día 31 al atravesar febrero.
-- Un error de red o 5xx al crear deja la intención pendiente: no se inicia otra suscripción. La conciliación busca la referencia exacta en todas las páginas y recupera el enlace. Un rechazo definitivo 400/401/403/422 deja la intención rechazada y permite volver a contratar. Una búsqueda ambigua queda para revisión, sin iniciar un segundo cobro.
-- Cancelar persiste primero el pedido; confirma la respuesta de Mercado Pago antes de marcar la cancelación completa. El trabajador reintenta si falla. Se bloquean nuevas contrataciones mientras haya una anterior activa o quede un período pago, para evitar renovaciones superpuestas.
-- Borrar la cuenta requiere confirmar primero la cancelación remota. La contratación y el borrado comparten un bloqueo por cuenta. Una falla conserva la cuenta y el pedido pendiente. La exportación JSON incluye el estado de la suscripción y su historial de pagos.
-
-El trabajador procesa hasta 25 eventos y 25 suscripciones pendientes por vuelta. Los errores de webhook tienen espera progresiva hasta una hora. Los intentos de conciliación se registran para que una suscripción que falla no postergue indefinidamente las demás. El transporte tiene plazo de 30 segundos por solicitud, host fijo, sin proxy ni redirecciones y respuestas acotadas. No registra credenciales ni cuerpos HTTP. Los límites de búsqueda son de 10.000 resultados y las entregas se limitan a 16 KiB.
-
-## Configuración futura, todavía sin activar
-
-La activación requiere una decisión posterior del propietario. No se realizó ninguno de estos pasos en la cuenta de Mercado Pago.
-
-| Configuración privada | Uso |
-| --- | --- |
-| `Subscriptions:Provider=MercadoPago` | Selecciona el gateway real |
-| `Subscriptions:AllowLiveRequests=true` | Habilitación explícita adicional |
-| `Subscriptions:AccessToken` | Token del comerciante, sólo backend |
-| `Subscriptions:CollectorId` | ID numérico del comerciante esperado |
-| `Subscriptions:WebhookSecret` | Clave de firma de notificaciones, mínimo 16 caracteres |
-| `Subscriptions:PublicBaseUrl` | Origen HTTPS público, sin rutas ni parámetros |
-| `Subscriptions:MonthlyPriceArs` | Precio mensual positivo, hasta dos decimales |
-| `Subscriptions:ReconcileMinutes` | Intervalo periódico, 15 por defecto |
-
-Las opciones admiten el archivo privado `App_Data/ai.settings.json`, secretos de .NET en desarrollo y variables `Subscriptions__...`. No colocar secretos en `appsettings.json`, Git, comandos compartidos ni código cliente. La aplicación valida la configuración al iniciar. Desactivar nuevas contrataciones no elimina períodos abonados ya acreditados; desactivar el gateway también impide cancelaciones remotas, por lo que no debe hacerse como sustituto de cancelar suscripciones activas.
-
-Para una validación externa posterior se necesitarán cuentas de prueba separadas, credenciales del vendedor de prueba, un origen HTTPS de prueba y las notificaciones configuradas para `/api/mercadopago/webhook`. Verificar checkout, firma, primer pago, renovación y cancelación de extremo a extremo antes de habilitar usuarios reales. Nunca hacer esta validación con los ahorros del propietario.
-
-La actualización agrega `BillingSubscriptions`, `BillingPayments`, `BillingWebhooks` y las tablas de memoria vectorial mediante migraciones EF. La app aplica migraciones al iniciar. Antes de desplegar, respaldar juntos SQLite y `uploads`, según la guía existente. La integración a `main` no publica automáticamente la instalación de IIS ni habilita los cobros.
-
-## IA local y conexión al servidor
-
-El valor predeterminado es `gemma4:12b`, junto a `embeddinggemma` para la memoria. Ambos modelos están instalados y se verificaron con datos ficticios en desarrollo; las mediciones están en [memoria vectorial](memoria-vectorial.md). La transcripción usa `/v1/audio/transcriptions` con WAV; el grabador y su botón **Subir audio** convierten a WAV mono 16 kHz en el navegador para las cuentas gratuitas. Un archivo de audio adjuntado por otra vía necesita WAV para transcripción local. Si el navegador no puede convertirlo o el modelo no admite audio, el original sigue disponible y se muestra un error; no se envía a OpenAI.
-
-La dirección de Ollama sigue restringida a loopback. El servidor web de bajo consumo y la notebook son equipos diferentes; el [puente de IA local](puente-ia-local.md) permite conectar ambos sin publicar el puerto de Ollama. La PC abre conexiones HTTPS autenticadas al sitio y atiende generaciones y embeddings. No basta conservar `AI:Provider=OpenAI`: la web nueva elige por cuenta y las gratuitas usan Ollama. La publicación debe comprobar el transporte y los dos modelos con datos ficticios, conservar un respaldo y verificar el circuito desde IIS tras el arranque, recuperando la versión anterior si falla. La PC debe permanecer encendida y conectada para atender las cuentas gratuitas.
-
-## Verificación de esta entrega
+Base separada: `.artifacts/local-subscriptions.db`. Los correos se escriben en `App_Data/mail-outbox` y no se envían. Confirmar la cuenta con el enlace de ese archivo antes del checkout. La simulación de pagos no consume dinero; si luego se pide IA y hay credenciales reales configuradas, sí puede consumir OpenAI. Las pruebas automáticas usan transportes falsos:
 
 ```powershell
-.\scripts\Test-Subscriptions.ps1
+dotnet build tests/MiBitacora.Checks -p:UseAppHost=false
+dotnet tests/MiBitacora.Checks/bin/Debug/net10.0/MiBitacora.Checks.dll
+node --test tests/voice-recorder.test.mjs tests/journal-scroll.test.mjs tests/brisa-motion.test.mjs
 ```
 
-Incluye la suite previa y pruebas de SQLite/migración, acceso por cuenta, idempotencia, primer pago, fechas de renovación, rechazo, devolución, timeout ambiguo, reintentos, cancelación y borrado. Ejecuta los delegados HTTP reales en proceso con antiforgery y firma, y renderiza el componente Razor de Mi plan. Verifica transporte de Mercado Pago con respuestas de contrato simuladas, incluido un cuerpo que no entrega datos después de las cabeceras: el plazo HTTP debe interrumpir también esa lectura y permitir reintentar la conciliación. Comprueba texto/audio por plan, ausencia de fallback externo para cuentas gratuitas, WAV y el ciclo del grabador con Node.
-
-Verificación de integración en `main` del 12/11/2026: compilación sin advertencias ni errores, 345 comprobaciones .NET y 14 pruebas de JavaScript correctas. Incluye edición y carreras de actualización, memoria vectorial, enrutamiento por plan y transporte de Mercado Pago, incluido su plazo de lectura del cuerpo. La revisión visual con cuenta y datos ficticios cubre espera, enlace del plan, scroll y edición en escritorio y móvil; también se probó inferencia real local con Gemma y EmbeddingGemma. No se leyó ni modificó el diario de producción para estas pruebas.
-
-Los cobros reales permanecen deshabilitados. Sigue pendiente la validación externa del circuito real de Mercado Pago; la verificación local tampoco sustituye los controles de configuración, conectividad de IA, respaldo e integridad al publicar en IIS.
-
-Referencias oficiales consultadas el 11/11/2026: [crear suscripción con pago pendiente](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/integration-configuration/subscription-no-associated-plan/pending-payments), [gestión](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/subscription-management), [API de cuotas](https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/authorized-payment-search/get), [webhooks](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/additional-content/your-integrations/notifications/webhooks), [audio Ollama](https://docs.ollama.com/api/openai-compatibility), [alcance del plazo de espera con ResponseHeadersRead](https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpcompletionoption?view=net-10.0).
+Se cubren autorización sin pago, repetición, intento ambiguo, moneda/vendedor/referencia, fin de mes, aislamiento, firma y replay, antiforgery, selección de IA, recuperación, reservas concurrentes, reintegros y aprobaciones posteriores a la baja/borrado. Las pruebas de actualización parten de esquemas anteriores y conservan diarios, hilos, búsquedas y archivos. No equivalen a una validación del checkout ni de una renovación en la cuenta real de MP.

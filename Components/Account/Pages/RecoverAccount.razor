@@ -1,0 +1,40 @@
+@page "/Account/ForgotPassword"
+@page "/Account/ResendConfirmation"
+@layout AccessLayout
+@using System.ComponentModel.DataAnnotations
+@inject AccountRecoveryService Recovery
+@inject NavigationManager Navigation
+
+<PageTitle>@Title · Mi Bitácora</PageTitle>
+<p class="account-kicker">TU CUENTA</p><h1>@Title</h1>
+<p class="account-intro">@(_reset ? "Te vamos a enviar un enlace para elegir una contraseña nueva." : "Confirmá que este correo es tuyo para contratar y recibir los avisos de tu suscripción.")</p>
+@if (_sent) { <p class="journal-notice" role="status">@AccountRecoveryService.GenericMessage</p> }
+else
+{
+    <EditForm Model="Input" method="post" OnValidSubmit="SendAsync" FormName="recover-account" class="account-form">
+        <DataAnnotationsValidator />
+        <label for="recovery-email">Correo electrónico</label><InputText id="recovery-email" type="email" @bind-Value="Input.Email" autocomplete="email" maxlength="254" required />
+        <ValidationMessage For="() => Input.Email" />
+        @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
+        <button class="account-button" type="submit">Enviar enlace</button>
+    </EditForm>
+}
+<p class="account-switch"><a href="/Account/Login">Volver a ingresar</a> · <a href="/soporte">Necesito ayuda</a></p>
+@code {
+    [SupplyParameterFromForm] private RecoveryInput Input { get; set; } = default!;
+    private string? _error;
+    private bool _sent;
+    private bool _reset => new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').EndsWith("ForgotPassword", StringComparison.OrdinalIgnoreCase);
+    private string Title => _reset ? "Recuperá tu contraseña" : "Confirmá tu correo";
+    protected override void OnInitialized() => Input ??= new();
+    private async Task SendAsync()
+    {
+        try { await Recovery.RequestAsync(Input.Email, _reset); _sent = true; }
+        catch (JournalInputException ex) { _error = ex.Message; }
+    }
+    private sealed class RecoveryInput
+    {
+        [Required(ErrorMessage = "Ingresá tu correo."), EmailAddress(ErrorMessage = "Ingresá un correo válido."), StringLength(254)]
+        public string Email { get; set; } = "";
+    }
+}

@@ -648,6 +648,18 @@ h1[tabindex="-1"]:focus-visible { outline: none; }
 .topic-evidence figure { margin: 1rem 0; }
 .topic-evidence blockquote { border-left: 2px solid var(--line); margin: .5rem 0 0; padding-left: .8rem; }
 .topic-empty { margin-top: 1.6rem; }
+.commerce-links { display: flex; flex-wrap: wrap; gap: .7rem 1.3rem; padding: 1rem 0; font-size: .85rem; line-height: 1.5; }
+.commerce-links a { color: var(--sage-dark, #465d44); text-underline-offset: .2em; }
+.commerce-paper { max-width: 1000px; }
+.reading-paper .subscription-plans { margin: 1.8rem 0; }
+.subscription-price small { display: block; font-size: .85rem; font-weight: 400; }
+.subscription-card ul { padding-left: 1.2rem; line-height: 1.8; }
+.usage-meter { width: 100%; height: 1rem; accent-color: #526b48; }
+.usage-notice { margin-bottom: 1rem; }
+.subscription-payments { overflow-x: auto; }
+.commerce-admin { max-width: 1150px; margin: auto; padding: 2rem 1rem 5rem; }
+.care-request { border: 1px solid var(--line, #d8d9cb); border-radius: 16px; padding: 1.25rem; margin: 1rem 0; overflow-wrap: anywhere; }
+.care-request form { margin: .8rem 0; }
 @media (max-width: 620px) {
     .topic-toolbar { flex-direction: column; align-items: flex-start; gap: .8rem; }
     .topic-card { padding: 1rem; }

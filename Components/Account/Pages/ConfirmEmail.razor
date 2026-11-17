@@ -1,0 +1,17 @@
+@page "/Account/ConfirmEmail"
+@layout AccessLayout
+@inject AccountRecoveryService Recovery
+
+<PageTitle>Confirmar correo · Mi Bitácora</PageTitle>
+<h1>@(_confirmed ? "Tu correo está confirmado" : "No pudimos confirmar el correo")</h1>
+<p class="account-intro">@(_confirmed ? "Ya podés volver a Mi plan y contratar Profundo." : "El enlace puede haber vencido o haber sido usado. Podés pedir otro.")</p>
+<a class="account-button" href="@(_confirmed ? "/Account/Manage/Subscription" : "/Account/ResendConfirmation")">@(_confirmed ? "Ir a Mi plan" : "Enviar otro enlace")</a>
+@code {
+    [SupplyParameterFromQuery(Name = "email")] public string? Email { get; set; }
+    [SupplyParameterFromQuery(Name = "code")] public string? Code { get; set; }
+    private bool _confirmed;
+    protected override async Task OnInitializedAsync()
+    {
+        if (Email is { Length: <= 254 } && Code is { Length: > 0 and < 4000 }) _confirmed = await Recovery.ConfirmAsync(Email, Code);
+    }
+}

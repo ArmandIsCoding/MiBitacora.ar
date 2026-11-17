@@ -11,7 +11,7 @@ namespace MiBitacora.Services;
 public sealed class JournalAiOptions
 {
     public string Provider { get; set; } = "Ollama";
-    public bool OpenAiForAllAccounts { get; set; } = true;
+    public bool OpenAiForAllAccounts { get; set; }
 }
 
 public sealed class OpenAiOptions

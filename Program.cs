@@ -8,19 +8,38 @@ using MiBitacora.Components;
 using MiBitacora.Components.Account;
 using MiBitacora.Data;
 using MiBitacora.Services;
+using System.Threading.RateLimiting;
 
 var prepareImages = args.Contains("--prepare-local-images", StringComparer.Ordinal);
-var builder = WebApplication.CreateBuilder(args.Where(arg => arg != "--prepare-local-images").ToArray());
+var checkBilling = args.Contains("--check-billing", StringComparer.Ordinal) || args.Contains("--check-merchant", StringComparer.Ordinal);
+var appArgs = args.Where(arg => arg is not ("--prepare-local-images" or "--check-billing" or "--check-merchant")).ToArray();
+var builder = WebApplication.CreateBuilder(appArgs);
 // Private deployment configuration: excluded from Git/publish and outside static wwwroot.
 builder.Configuration.AddJsonFile("App_Data/ai.settings.json", optional: true, reloadOnChange: false);
 if (builder.Environment.IsDevelopment()) builder.Configuration.AddUserSecrets<Program>(optional: true);
 builder.Configuration.AddEnvironmentVariables();
-builder.Configuration.AddCommandLine(args.Where(arg => arg != "--prepare-local-images").ToArray());
+builder.Configuration.AddCommandLine(appArgs);
+if (checkBilling) {
+    Environment.ExitCode = await BillingReadiness.RunAsync(builder.Configuration, args.Contains("--check-merchant", StringComparer.Ordinal));
+    return;
+}
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-// Keep local authentication keys inside the isolated checkout; production keeps its existing configuration.
-if (builder.Environment.IsDevelopment()) builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, ".artifacts", "data-protection")));
+builder.Services.AddRateLimiter(options => {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context => {
+        var path = context.Request.Path.Value ?? "";
+        var limited = HttpMethods.IsPost(context.Request.Method) &&
+            (path.StartsWith("/Account", StringComparison.OrdinalIgnoreCase) || path is "/baja" or "/arrepentimiento" or "/soporte" || path.StartsWith("/solicitud/", StringComparison.OrdinalIgnoreCase));
+        return limited ? RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }) : RateLimitPartition.GetNoLimiter("other");
+    });
+});
+var protection = builder.Services.AddDataProtection().SetApplicationName("MiBitacora")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath,
+        builder.Environment.IsDevelopment() ? ".artifacts" : "App_Data", "data-protection")));
+if (OperatingSystem.IsWindows()) protection.ProtectKeysWithDpapi();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
@@ -147,6 +166,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(2));
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -214,16 +234,22 @@ app.Use(async (context, next) =>
     {
         context.Response.Headers.CacheControl = "private, no-store";
     }
+    if (context.Request.Path.StartsWithSegments("/solicitud") || context.Request.Path is { Value: "/baja" or "/arrepentimiento" or "/soporte" }) {
+        context.Response.Headers.CacheControl = "private, no-store";
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+    }
     await next(context);
 });
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapAdditionalIdentityEndpoints();
 app.MapSubscriptionEndpoints();
+app.MapBillingAdministration();
 app.MapLocalInferenceEndpoints();
 
 app.MapJournalAttachments();

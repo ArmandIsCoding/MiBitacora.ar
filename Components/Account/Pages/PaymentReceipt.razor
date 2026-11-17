@@ -1,0 +1,19 @@
+@page "/Account/Subscription/Receipt/{PaymentId}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@layout MiBitacora.Components.Account.Shared.AccessLayout
+@using System.Security.Claims
+@inject SubscriptionService Billing
+<PageTitle>Constancia de pago · Mi Bitácora</PageTitle>
+<h1>Constancia de operación</h1>
+@if (_payment is { } p) {
+    <p>@BusinessIdentity.Name<br />CUIT @BusinessIdentity.TaxId · @BusinessIdentity.TaxStatus<br />@BusinessIdentity.Address</p>
+    <dl><dt>Servicio</dt><dd>Mi Bitácora · Plan Profundo mensual</dd><dt>Referencia</dt><dd>@p.Id</dd><dt>Importe</dt><dd>ARS @((p.AmountCents / 100m).ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-AR")))</dd><dt>Estado del proveedor</dt><dd>@p.Status</dd><dt>Período (UTC)</dt><dd>@p.FromUtc.ToString("dd/MM/yyyy HH:mm") a @p.ThroughUtc.ToString("dd/MM/yyyy HH:mm")</dd><dt>Importe reintegrado</dt><dd>ARS @((p.RefundedCents / 100m).ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-AR")))</dd></dl>
+    <p><strong>No válida como factura fiscal.</strong> Para tu factura C, escribí a <a href="mailto:@BusinessIdentity.SupportEmail">@BusinessIdentity.SupportEmail</a> indicando esta referencia.</p>
+} else { <p>No encontramos esa operación en tu cuenta.</p> }
+<a href="/Account/Manage/Subscription">Volver a Mi plan</a>
+@code {
+    [Parameter] public string PaymentId { get; set; } = "";
+    [CascadingParameter] private HttpContext Context { get; set; } = default!;
+    private SubscriptionPayment? _payment;
+    protected override async Task OnInitializedAsync() { var id = Context.User.FindFirstValue(ClaimTypes.NameIdentifier); if (id is not null && PaymentId.Length <= 100) _payment = (await Billing.GetPaymentsAsync(id, take: 1000)).SingleOrDefault(p => p.Id == PaymentId); }
+}

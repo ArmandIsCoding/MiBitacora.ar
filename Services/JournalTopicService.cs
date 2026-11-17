@@ -16,7 +16,8 @@ public sealed class JournalTopicJobs
 }
 
 public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> factory,
-    IJournalTopicAnalyzer analyzer, JournalTopicJobs jobs, AccountAiRouter? routing = null)
+    IJournalTopicAnalyzer analyzer, JournalTopicJobs jobs, AccountAiRouter? routing = null,
+    AiUsageService? usage = null, Microsoft.Extensions.Options.IOptions<SubscriptionOptions>? billingOptions = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const int SourceLength = 2400;
@@ -44,6 +45,8 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
         if (!jobs.Start(userId)) throw new JournalInputException("Ya se está generando una devolución para tu cuenta. Esperá a que termine.");
         try
         {
+            await using var quota = analyzer.UsesExternalProvider && usage is not null
+                ? await usage.ReserveAsync(userId, "report", billingOptions?.Value.ReportCredits ?? 10, ct) : null;
             Input input;
             await using (var db = await factory.CreateDbContextAsync(ct))
             {
@@ -128,6 +131,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
             }
+            if (quota is not null) await quota.CompleteAsync(ct);
             return snapshot;
         }
         finally { jobs.Finish(userId); }

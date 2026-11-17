@@ -7,12 +7,10 @@
     <main class="reading-paper">
         <p class="eyebrow">MI BITÁCORA</p><h1>Tu cuaderno y tus datos</h1>
         <div class="brisa-report-heading"><BrisaPortrait Size="large" /><p>Brisa es el personaje y la voz de la IA de Mi Bitácora. No es una persona ni una terapeuta acreditada. Te acompaña a escribir y reflexionar; vos elegís qué conservar, corregir o compartir.</p></div>
-        <p>Podés escribir tu diario a cualquier edad. Tu cuaderno se guarda asociado a tu cuenta y sus conversaciones no son públicas. El plan y la opción que elijas determinan qué proveedor procesa las nuevas respuestas; podés verlo en <a href="/Account/Manage/Subscription">Mi plan</a>.</p>
+        <p>Mi Bitácora está destinada a personas de 18 años o más. Tu cuaderno se guarda asociado a tu cuenta y sus conversaciones no son públicas. El plan y la opción que elijas determinan qué proveedor procesa las nuevas respuestas; podés verlo en <a href="/Account/Manage/Subscription">Mi plan</a>.</p>
         <h2>Qué guardamos</h2>
         <p>Guardamos tus entradas, notitas, adjuntos, transcripciones y respuestas. Podés exportar tus textos, descargar los archivos guardados y borrar tu cuenta. Los archivos compatibles pueden aportar texto o imágenes a una respuesta. Los formatos no compatibles se conservan y se informa cuando quedan fuera.</p>
         <p>Los archivos nuevos admiten hasta 256 MB antes de procesarse. Las fotos se convierten localmente a JPG, se corrige su orientación, se quitan metadatos como ubicación GPS y se reducen a Full HD conservando la proporción. Los videos se convierten a MP4 Full HD y los audios se comprimen o preparan como WAV según el proveedor. Audio y video admiten hasta 10 minutos. Guardamos la versión optimizada, hasta 64 MB por archivo y 128 MB por entrada; el archivo de entrada se elimina al terminar. Los adjuntos anteriores se conservan tal como estaban.</p>
-        @if (AiSettings.Value.OpenAiForAllAccounts)
-        { <p><strong>Por ahora, OpenAI es la opción predeterminada para todas las cuentas.</strong> Podés elegir IA local desde <a href="/Account/Manage/Subscription">Mi plan</a>. Esa elección se aplica a las próximas respuestas e informes.</p> }
         <h2>Cuando elegís IA local</h2>
         <p>Las nuevas respuestas y los informes se procesan con Gemma 4 12B mediante un servicio de IA local administrado por Mi Bitácora. Con esta opción no enviamos esos contenidos a OpenAI. Las respuestas pueden demorar y ser menos precisas. La transcripción local necesita un modelo y una versión de Ollama compatibles con audio WAV.</p>
         <h2>Memoria del cuaderno</h2>
@@ -28,8 +26,12 @@
         <h2>Suscripciones y pagos</h2>
         <p>Mercado Pago procesa la contratación y los cobros recurrentes. Recibe los datos necesarios para pagar y una referencia de contratación; no le enviamos tu diario, tus notitas ni tus informes. Mi Bitácora guarda identificadores de suscripción y pagos, importes, estados y períodos para administrar el acceso. No almacena números de tarjeta. Podés cancelar futuras renovaciones en Mi plan y conservar el período ya abonado.</p>
         <h2>Administración y seguridad</h2>
-        <p>El panel del piloto muestra códigos de cuenta, fechas y recuentos de actividad. El acceso técnico al servidor y a sus respaldos puede permitir leer los datos guardados. Este piloto no ofrece cifrado de extremo a extremo. El borrado de una cuenta requiere confirmar antes la cancelación de sus cobros recurrentes.</p>
+        <p>El panel de administración muestra códigos de cuenta, fechas y recuentos de actividad. El panel comercial incluye pagos, solicitudes de atención y sus correos de contacto, sin textos del diario. El acceso técnico al servidor y a sus respaldos puede permitir leer los datos guardados. No ofrecemos cifrado de extremo a extremo. El borrado de una cuenta requiere confirmar antes la cancelación de sus cobros recurrentes.</p>
+        <h2>Responsable y derechos sobre tus datos</h2>
+        <p>El responsable es @BusinessIdentity.Name, CUIT @BusinessIdentity.TaxId, con domicilio en @BusinessIdentity.Address. Podés solicitar acceso, rectificación o supresión y consultar sobre transferencias internacionales escribiendo a <a href="mailto:@BusinessIdentity.SupportEmail">@BusinessIdentity.SupportEmail</a>. Verificaremos tu identidad sin pedirte tu contraseña. Podés realizar reclamos ante la <a href="https://www.argentina.gob.ar/aaip/datospersonales">Agencia de Acceso a la Información Pública</a>.</p>
+        <p>Guardamos registros de aceptación de condiciones, consumo de créditos y solicitudes de atención para prestar y administrar el servicio. Las claves de recuperación y verificación son temporales; los mensajes de correo no contienen tu diario. Al borrar la cuenta se eliminan sus textos, adjuntos, memoria, preferencias y consumo. Conservamos las constancias mínimas de operaciones económicas y solicitudes comerciales cuando sean necesarias para facturación, reintegros, reclamos u obligaciones legales. Los respaldos no son de acceso público y su eliminación sigue el ciclo de conservación informado por soporte; no se reutilizan para restablecer una cuenta borrada en el servicio activo.</p>
         <h2>Para qué sirve</h2>
         <p>Mi Bitácora ayuda a escribir, ordenar ideas, explorar conexiones y preparar temas para conversar. La IA puede equivocarse y no reemplaza a un terapeuta. Los informes no son evaluaciones clínicas ni diagnósticos. Revisá y elegí qué conservar o compartir.</p>
+        <CommerceLinks />
     </main>
 </div>

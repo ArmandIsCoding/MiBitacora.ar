@@ -10,7 +10,9 @@ $settings = @{
     DOTNET_ENVIRONMENT = 'Development'
     Subscriptions__Provider = 'Simulated'
     Subscriptions__AllowLiveRequests = 'false'
-    Subscriptions__MonthlyPriceArs = '8000'
+    Subscriptions__MonthlyPriceArs = '15000'
+    Mail__Delivery = 'Local'
+    AI__OpenAiForAllAccounts = 'false'
     Subscriptions__PublicBaseUrl = $origin
     ConnectionStrings__DefaultConnection = "Data Source=$(Join-Path $localArtifacts 'local-subscriptions.db');Default Timeout=15"
     MSBuildEnableWorkloadResolver = 'false'
@@ -24,7 +26,8 @@ foreach ($name in $settings.Keys) {
 Push-Location $projectRoot
 try {
     Write-Host "Prueba local: $origin/Account/Manage/Subscription"
-    Write-Host 'Mercado Pago simulado. ARS 8000 es un precio de prueba. No se mueve dinero.'
+    Write-Host 'Mercado Pago simulado. Precio de lanzamiento: ARS 15.000/mes. No se mueve dinero.'
+    Write-Host 'Los correos se guardan en App_Data/mail-outbox; no se envían por Internet.'
     Write-Host 'La base de prueba se conserva en .artifacts/local-subscriptions.db. Ctrl+C para cerrar.'
     dotnet run --project MiBitacora.csproj --no-launch-profile --urls $origin
     if ($LASTEXITCODE -ne 0) { throw "La aplicación finalizó con código $LASTEXITCODE." }

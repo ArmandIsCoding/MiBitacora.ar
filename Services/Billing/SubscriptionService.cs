@@ -14,14 +14,16 @@ public sealed class BillingGate : IDisposable
     public void Dispose() { Semaphore.Dispose(); foreach (var gate in _accounts.Values) gate.Dispose(); }
 }
 
-public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> factory, ISubscriptionGateway gateway,
+public sealed partial class SubscriptionService(IDbContextFactory<ApplicationDbContext> factory, ISubscriptionGateway gateway,
     IOptions<SubscriptionOptions> options, IWebHostEnvironment environment, BillingGate gate, TimeProvider clock,
-    IOptions<JournalAiOptions>? aiOptions = null)
+    IOptions<JournalAiOptions>? aiOptions = null, TransactionalMail? mail = null)
 {
     private readonly JournalAiOptions aiSettings = aiOptions?.Value ?? new();
     public SubscriptionOptions Settings => options.Value;
     public bool IsSimulation => Settings.Provider == "Simulated" && environment.IsDevelopment();
-    public bool CanSubscribe => Settings.Provider != "Disabled" && Settings.IsValid(environment.IsDevelopment());
+    public bool CanSubscribe => Settings.AcceptNewSubscriptions && Settings.Provider != "Disabled" && Settings.IsValid(environment.IsDevelopment()) &&
+        (mail is null || mail.IsReady || IsSimulation);
+    public bool CanSubscribeFor(string userId) => CanSubscribe && (Settings.LaunchUserIds.Length == 0 || Settings.LaunchUserIds.Contains(userId, StringComparer.Ordinal));
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
     private bool ProviderCanGrant(string provider) => provider == "MercadoPago" || (provider == "Simulated" && IsSimulation);
     private static bool Terminal(string state) => state is "cancelled" or "canceled" or "creation_failed";
@@ -43,7 +45,7 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
 
     private SubscriptionAccess ApplyAiPolicy(SubscriptionAccess access, AccountAiPreferenceRow? preference) =>
         access with { AiProvider = preference?.Provider == "Ollama" ? "Ollama" : "OpenAI",
-            OpenAiForAllAccounts = aiSettings.OpenAiForAllAccounts };
+            OpenAiForAllAccounts = environment.IsDevelopment() && aiSettings.OpenAiForAllAccounts };
 
     public async Task SetAiProviderAsync(string userId, string provider, CancellationToken ct = default)
     {
@@ -67,24 +69,31 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
     public async Task<SubscriptionSummary?> GetSummaryAsync(string userId, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        if (!await db.Users.AnyAsync(row => row.Id == userId, ct)) return null;
         var row = await db.BillingSubscriptions.AsNoTracking().Where(s => s.UserId == userId).OrderByDescending(s => s.CreatedUtc).FirstOrDefaultAsync(ct);
         if (row is null) return null;
         var access = await GetAccessAsync(userId, ct);
         return new(row.Id, row.Status, row.CancellationRequested, row.MonthlyPriceCents, access.PaidThroughUtc,
-            row.CancellationRequested || Terminal(row.Status) ? null : row.CheckoutUrl, row.Provider);
+            row.CancellationRequested || Terminal(row.Status) ? null : row.CheckoutUrl, row.Provider,
+            row.LastSyncedUtc, row.TermsVersion, row.AcceptedUtc, row.PayerEmail, row.MonthlyCredits);
     }
 
     public async Task<IReadOnlyList<SubscriptionPayment>> GetPaymentsAsync(string userId, CancellationToken ct = default, int take = 100)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        if (!await db.Users.AnyAsync(row => row.Id == userId, ct)) return [];
         var ids = db.BillingSubscriptions.Where(s => s.UserId == userId).Select(s => s.Id);
         return await db.BillingPayments.AsNoTracking().Where(p => ids.Contains(p.SubscriptionId)).OrderByDescending(p => p.PeriodStartUtc)
-            .Select(p => new SubscriptionPayment(p.ProviderPaymentId, p.Status, p.AmountCents, p.PeriodStartUtc, p.PeriodEndUtc)).Take(take).ToListAsync(ct);
+            .Select(p => new SubscriptionPayment(p.ProviderPaymentId, p.Status, p.AmountCents, p.PeriodStartUtc, p.PeriodEndUtc,
+                p.ApprovedUtc, p.RefundedCents)).Take(take).ToListAsync(ct);
     }
 
     public async Task<string> StartAsync(string userId, string payerEmail, CancellationToken ct = default)
     {
-        if (!CanSubscribe) throw new SubscriptionException("Las suscripciones todavía no están habilitadas. Tu plan gratuito sigue disponible.");
+        if (!CanSubscribeFor(userId)) throw new SubscriptionException("Las nuevas contrataciones no están disponibles para tu cuenta. Tu plan gratuito sigue disponible.");
+        payerEmail = payerEmail.Trim();
+        if (payerEmail.Length > 254 || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(payerEmail))
+            throw new SubscriptionException("Ingresá un correo válido para tu cuenta de Mercado Pago.");
         var accountGate = gate.ForAccount(userId);
         await accountGate.WaitAsync(ct);
         try
@@ -104,9 +113,11 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
             if ((await GetAccessAsync(userId, ct)).IsPaid)
                 throw new SubscriptionException("Conservás un período pago. Podés volver a contratar cuando termine, para evitar cobros superpuestos.");
             var row = new BillingSubscriptionRow { Id = Guid.NewGuid(), UserId = userId, Provider = Settings.Provider,
-                MonthlyPriceCents = Settings.PriceCents, CreatedUtc = Now };
+                MonthlyPriceCents = Settings.PriceCents, CreatedUtc = Now, AcceptedUtc = Now,
+                TermsVersion = BusinessIdentity.TermsVersion, PayerEmail = payerEmail, MonthlyCredits = Settings.MonthlyCredits };
             row.ExternalReference = "mb_" + row.Id.ToString("N");
             db.BillingSubscriptions.Add(row);
+            await AuditAsync(db, "subscription.accepted", row.ExternalReference, userId, row.Id, row.MonthlyPriceCents, ct);
             try { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException)
             {
@@ -166,6 +177,8 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
         foreach (var row in rows.Where(s => !Terminal(s.Status)))
         {
             row.CancellationRequested = true;
+            row.CancellationRequestedUtc ??= Now;
+            await AuditAsync(db, "subscription.cancellation_requested", row.Id.ToString(), userId, row.Id, ct: ct);
             await db.SaveChangesAsync(ct); // Persist intent, even when the remote request fails.
             if (row.ProviderId is null) throw new SubscriptionException("Hay una contratación pendiente de conciliación. No borramos la cuenta hasta confirmar su cancelación.");
             if (row.Provider == "MercadoPago") await gateway.CancelAsync(row.ProviderId, ct);
@@ -251,6 +264,7 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
     {
         if (payment.Id != invoice.PaymentId || payment.CollectorId != (row.Provider == "Simulated" ? "simulation" : Settings.CollectorId) ||
             payment.ExternalReference != row.ExternalReference || payment.AmountCents != row.MonthlyPriceCents || payment.Currency != row.Currency ||
+            payment.RefundedCents < 0 || payment.RefundedCents > payment.AmountCents ||
             payment.Status is not ("approved" or "pending" or "in_process" or "rejected" or "cancelled" or "refunded" or "charged_back"))
             throw new SubscriptionException("No pudimos validar el cobro. Tu acceso ya abonado se conserva.");
         var existing = await db.BillingPayments.SingleOrDefaultAsync(p => p.SubscriptionId == row.Id && p.ProviderPaymentId == payment.Id, ct);
@@ -274,6 +288,23 @@ public sealed class SubscriptionService(IDbContextFactory<ApplicationDbContext> 
             if (existing.Status is not ("refunded" or "charged_back") || payment.Status is "refunded" or "charged_back")
                 existing.Status = payment.Status;
             existing.ProviderUpdatedUtc = payment.UpdatedUtc;
+            existing.RefundedCents = Math.Max(existing.RefundedCents, payment.RefundedCents);
+            if (existing.Status == "refunded") existing.RefundedCents = existing.AmountCents;
+            if (payment.Status == "approved") existing.ApprovedUtc ??= payment.ApprovedUtc ?? payment.UpdatedUtc;
+            if (existing.RefundedCents >= existing.AmountCents && existing.AmountCents > 0) existing.Status = "refunded";
+        }
+        await AuditAsync(db, "payment." + existing.Status, payment.Id, row.UserId, row.Id, payment.AmountCents, ct);
+        // The outbox is durable. Reconciliation repeats this enqueue until it succeeds; its key prevents duplicates.
+        await db.SaveChangesAsync(ct);
+        await NotifyPaymentAsync(row, existing, ct);
+        if (existing.Status == "approved" && row.CancellationRequestedUtc is { } cancelled && existing.ApprovedUtc > cancelled)
+        {
+            var code = "MB-R-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(row.Id.ToString("N") + ":" + payment.Id)))[..24];
+            if (!await db.CustomerRequests.AnyAsync(request => request.Code == code, ct))
+                db.CustomerRequests.Add(new() { Id = Guid.NewGuid(), Code = code, UserId = row.UserId,
+                    Email = row.PayerEmail, Kind = "refund", Status = "processing", CreatedUtc = Now, VerifiedUtc = Now,
+                    PaymentId = payment.Id, SubscriptionId = row.Id, RefundApprovedByAdmin = true,
+                    Message = "Reintegro automático de cobro aprobado después de solicitar la baja." });
         }
     }
 

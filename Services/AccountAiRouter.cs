@@ -13,6 +13,7 @@ public sealed class AccountAiRouter(SubscriptionService subscriptions, OllamaMod
     public bool HasPremiumAccess => (_operation.Value?.Access ?? _display).IsPaid;
     public bool HasOpenAiAccess => (_operation.Value?.Access ?? _display).CanUseOpenAi;
     public bool UsesExternalProvider => HasOpenAiAccess && (_operation.Value?.Access ?? _display).AiProvider != "Ollama";
+    public string CurrentUserId => _operation.Value?.UserId ?? throw new JournalInputException("Falta identificar tu cuenta.");
     public string ProviderName => UsesExternalProvider ? "Brisa · OpenAI" : "Brisa · IA local";
     public bool IsConfigured => UsesExternalProvider || local.IsConfigured;
     public async Task<AccountAiSelection> ResolveAsync(string userId, CancellationToken ct = default)
@@ -53,12 +54,16 @@ public sealed class AccountJournalService(AccountAiRouter router, ILogger<Accoun
 }
 
 public sealed class AccountAudioTranscriber(AccountAiRouter routing, OpenAiAudioTranscriber cloud,
-    OllamaAudioTranscriber local) : IAudioTranscriber
+    OllamaAudioTranscriber local, AiUsageService? usage = null) : IAudioTranscriber
 {
     public bool IsConfigured => routing.UsesExternalProvider ? cloud.IsConfigured : local.IsConfigured;
     public async Task<string> TranscribeAsync(AttachmentContent file, CancellationToken ct = default)
     {
         await routing.EnsureAccessAsync(ct);
-        return await (routing.UsesExternalProvider ? (IAudioTranscriber)cloud : local).TranscribeAsync(file, ct);
+        await using var quota = routing.UsesExternalProvider && usage is not null
+            ? await usage.ReserveAsync(routing.CurrentUserId, "audio", 1, ct) : null;
+        var transcript = await (routing.UsesExternalProvider ? (IAudioTranscriber)cloud : local).TranscribeAsync(file, ct);
+        if (quota is not null) await quota.CompleteAsync(ct);
+        return transcript;
     }
 }

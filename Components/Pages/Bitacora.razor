@@ -10,7 +10,7 @@
         <div class="journal-top-inner">
             <Brand Href="/bitacora" />
             <div class="journal-top-actions">
-                <a href="/privacidad" class="top-pilot"><span class="status-dot"></span> Piloto privado</a>
+                <a href="/privacidad" class="top-pilot"><span class="status-dot"></span> Tu espacio privado</a>
                 <a class="account-link" href="/Account/Manage">
                     <span class="avatar" aria-hidden="true">@Initial</span>
                     <span>Mi cuenta</span>
@@ -91,6 +91,7 @@
                     <button type="button" class="quiet-action notebook-organize" @onclick="OpenNotebooks" disabled="@NotebookControlsBusy">Organizar mis diarios <Icon Name="chevron" Size="14" /></button>
                 </section>
                 <PlanNotice HasOpenAiAccess="Reflector.HasOpenAiAccess" />
+                @if (Reflector.HasOpenAiAccess) { <UsageNotice Revision="@(new object())" /> }
                 @if (_error is not null)
                 {
                     <div class="journal-alert" role="alert"><Icon Name="info" Size="19" /><span>@_error</span><button type="button" class="icon-button" aria-label="Cerrar aviso" @onclick="() => _error = null"><Icon Name="x" Size="17" /></button></div>

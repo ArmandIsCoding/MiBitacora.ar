@@ -2,11 +2,11 @@
 
 Tu espacio para conversar con **Brisa**, una compañera de IA amable, ilustrada y con lentes grandes. [Identidad, voz y assets](docs/brisa.md), [gestos y expresiones](docs/gestos-brisa.md).
 
-Piloto de un cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. Las devoluciones pueden usar Ollama local u OpenAI, según la configuración privada de la instalación.
+Cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. El plan gratuito usa IA local; Profundo ofrece OpenAI con cupo y suscripción mensual mediante Mercado Pago.
 
 ![Inicio de Mi Bitácora, con un cuaderno ilustrado y una vista de cómo funciona el piloto](docs/inicio-mi-bitacora.png)
 
-## Abrir el piloto
+## Desarrollo local
 
 Con el SDK de .NET 10 instalado, abrí PowerShell y ejecutá:
 
@@ -17,21 +17,21 @@ dotnet run --launch-profile http
 
 Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
-Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. Por ahora **OpenAI es la opción predeterminada para todas las cuentas actuales y nuevas**; cada persona puede elegir Ollama desde **Mi cuenta → Mi plan**. **Solo guardar** permite escribir sin pedir una respuesta ni transcribir audio; los textos disponibles se organizan localmente en segundo plano. Si falla el proveedor elegido, la entrada queda guardada y se puede reintentar. Ver [conversación](docs/conversacion.md).
+Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La cuenta gratuita usa IA local. Una cuenta con acceso a Profundo puede elegir OpenAI o IA local en **Mi cuenta → Mi plan**. **Solo guardar** permite escribir sin pedir una respuesta ni transcribir audio; los textos disponibles se organizan localmente en segundo plano. Si falla el proveedor elegido, la entrada queda guardada y se puede reintentar. Ver [conversación](docs/conversacion.md).
 
-## Suscripciones: prueba local
+## Suscripciones y lanzamiento
 
-La rama incorpora **Mi cuenta → Mi plan**, contratación mensual, confirmación de pagos, cancelación y un simulador sin dinero ni credenciales de Mercado Pago. Producción conserva los cobros deshabilitados. Para abrir el simulador con una base separada:
+**Profundo cuesta ARS 15.000 finales por mes**, con 200 créditos por período, aviso al 80%, baja, arrepentimiento, reintegros y atención comercial. Producción conserva los cobros deshabilitados hasta configurar y validar la cuenta. Ver la [guía de lanzamiento en Mercado Pago](docs/lanzamiento-mercado-pago.md) y el [funcionamiento y operación](docs/suscripciones.md). Para abrir el simulador con una base separada:
 
 ```powershell
 .\scripts\Run-SubscriptionsLocal.ps1
 ```
 
-Abrí [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription), registrá una cuenta y probá autorización, aprobación, renovación, rechazo y devolución. ARS 8000 es un precio de prueba. La [guía de suscripciones](docs/suscripciones.md) explica el flujo, las pruebas automáticas y qué queda pendiente antes de activar Mercado Pago. No se desplegó esta funcionalidad ni se operó la cuenta real del propietario.
+Abrí [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription), registrá y confirmá una cuenta con el correo guardado en `App_Data/mail-outbox`, y probá autorización, aprobación, renovación, rechazo y reintegro. El simulador no mueve dinero ni demuestra la integración externa de MP. `/planes`, `/condiciones`, `/baja`, `/arrepentimiento` y `/soporte` son públicos. `/admin/suscripciones` usa la política administrativa existente y controla colas y facturas C pendientes; la emisión fiscal se realiza en ARCA o el sistema del titular.
 
 ## IA local en Windows
 
-`AI:OpenAiForAllAccounts=true` habilita temporalmente OpenAI para todas las cuentas sin cambiar sus pagos ni suscripciones. Las cuentas sin preferencia comienzan con OpenAI; la elección posterior de Ollama se conserva. Con `false` se vuelve al acceso según el plan. La interfaz muestra el proveedor efectivo y no cambia de proveedor automáticamente cuando falla. Ver [configuración de OpenAI](docs/openai.md) y [acceso y planes](docs/suscripciones.md).
+`AI:OpenAiForAllAccounts=false` es el valor predeterminado. La excepción global solo funciona en Development y se ignora en producción. La interfaz muestra el proveedor efectivo y no cambia automáticamente cuando falla. Ver [configuración de OpenAI](docs/openai.md) y [acceso y planes](docs/suscripciones.md).
 
 1. Instalá una versión de [Ollama para Windows](https://ollama.com/download/windows) compatible con Gemma 4 12B si todavía no lo tenés.
 2. En los ajustes de la app de Ollama, desactivá **Expose Ollama to the network**. Fijá el contexto en 8192 si aparece esa opción: la app puede sobrescribir las variables de entorno con sus preferencias.

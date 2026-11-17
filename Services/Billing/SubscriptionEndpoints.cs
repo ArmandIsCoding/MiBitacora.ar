@@ -29,10 +29,18 @@ public static class SubscriptionEndpoints
                 {
                     var form = await context.Request.ReadFormAsync(context.RequestAborted);
                     if (form["accept"].ToString() != "yes") return Results.BadRequest();
-                    var link = await billing.StartAsync(user.Id, user.Email ?? "", context.RequestAborted);
+                    if (!user.EmailConfirmed) return Results.LocalRedirect("/Account/Manage/Subscription?error=email");
+                    if (!long.TryParse(form["price"], out var price) || price != billing.Settings.PriceCents ||
+                        !int.TryParse(form["credits"], out var credits) || credits != billing.Settings.MonthlyCredits ||
+                        form["terms"].ToString() != BusinessIdentity.TermsVersion)
+                        return Results.LocalRedirect("/Account/Manage/Subscription?error=offer");
+                    var link = await billing.StartAsync(user.Id, form["payerEmail"].ToString(), context.RequestAborted);
                     return Results.Redirect(link);
                 }
-                if (action == "Cancel") await billing.CancelAsync(user.Id, context.RequestAborted);
+                if (action == "Cancel") {
+                    var code = await billing.RequestCancellationAsync(user.Id, user.Email ?? "", context.RequestAborted);
+                    return Results.LocalRedirect("/solicitud/" + code);
+                }
                 else if (action == "Refresh") await billing.RefreshAsync(user.Id, context.RequestAborted);
                 else return Results.NotFound();
                 return Results.LocalRedirect("/Account/Manage/Subscription?updated=1");
@@ -59,7 +67,7 @@ public static class SubscriptionEndpoints
     private static async Task<IResult> ReceiveWebhookAsync(HttpContext context, SubscriptionService billing,
         BillingWebhookInbox inbox, TimeProvider clock)
     {
-        if (billing.Settings.Provider != "MercadoPago" || !billing.Settings.AllowLiveRequests) return Results.NotFound();
+        if (billing.Settings.Provider != "MercadoPago" || !billing.Settings.AllowLiveRequests || billing.Settings.WebhookSecret.Length < 16) return Results.NotFound();
         if (context.Request.ContentLength > 16_384) return Results.StatusCode(413);
         try
         {

@@ -5,7 +5,8 @@ using MiBitacora.Data;
 namespace MiBitacora.Services;
 
 public sealed class JournalReportService(IDbContextFactory<ApplicationDbContext> factory,
-    JournalMemoryService memory, IJournalReportAnalyzer analyzer, JournalTopicJobs jobs, AccountAiRouter? routing = null)
+    JournalMemoryService memory, IJournalReportAnalyzer analyzer, JournalTopicJobs jobs, AccountAiRouter? routing = null,
+    AiUsageService? usage = null, Microsoft.Extensions.Options.IOptions<SubscriptionOptions>? billingOptions = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public static string Fingerprint(JournalCorpus corpus) => "report-v1:" + corpus.Fingerprint;
@@ -17,6 +18,8 @@ public sealed class JournalReportService(IDbContextFactory<ApplicationDbContext>
         if (!jobs.Start(userId)) throw new JournalInputException("Ya hay una devolución en preparación para tu cuenta.");
         try
         {
+            await using var quota = analyzer.UsesExternalProvider && usage is not null
+                ? await usage.ReserveAsync(userId, "report", billingOptions?.Value.ReportCredits ?? 10, ct) : null;
             JournalCorpus corpus;
             await using (var db = await factory.CreateDbContextAsync(ct))
             {
@@ -78,6 +81,7 @@ public sealed class JournalReportService(IDbContextFactory<ApplicationDbContext>
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
             }
+            if (quota is not null) await quota.CompleteAsync(ct);
             return snapshot;
         }
         finally { jobs.Finish(userId); }

@@ -1,0 +1,22 @@
+@using System.Security.Claims
+@inject AuthenticationStateProvider Authentication
+@inject SubscriptionService Billing
+@inject AiUsageService Usage
+@inject Microsoft.Extensions.Options.IOptions<SubscriptionOptions> Options
+@if (_usage is { } usage) {
+    <aside class="plan-notice usage-notice" aria-label="Créditos de OpenAI"><div><strong>@usage.Remaining de @usage.Limit créditos disponibles</strong><p>Respuesta: 1 · Transcripción de audio: 1 adicional · Informe: @Options.Value.ReportCredits. <a href="/Account/Manage/Subscription">Ver período y elegir IA</a>.</p>
+    @if (usage.NearLimit) { <p role="status">@(usage.Remaining == 0 ? "Agotaste el cupo. Podés seguir con IA local desde Mi plan." : "Estás cerca del cupo mensual. No se cobrarán excedentes.")</p> }
+    </div></aside>
+}
+@code {
+    private AiUsageSnapshot? _usage;
+    private DateTime _checked;
+    [Parameter] public object? Revision { get; set; }
+    protected override async Task OnParametersSetAsync() {
+        if (DateTime.UtcNow - _checked < TimeSpan.FromSeconds(5)) return;
+        _checked = DateTime.UtcNow;
+        var id = (await Authentication.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (id is not null && (await Billing.GetAccessAsync(id)).CanUseOpenAi) _usage = await Usage.GetAsync(id);
+        else _usage = null;
+    }
+}

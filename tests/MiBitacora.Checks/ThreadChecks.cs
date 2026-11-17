@@ -43,8 +43,7 @@ internal static class ThreadChecks
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.GetService<IMigrator>().MigrateAsync("20261113045613_AddPremiumAccessAndProvider");
-            db.Users.AddRange(new ApplicationUser { Id = a, UserName = "thread-a" }, new ApplicationUser { Id = b, UserName = "thread-b" });
-            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO AspNetUsers (Id, UserName, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES ({a}, 'thread-a', 0, 0, 0, 0, 0), ({b}, 'thread-b', 0, 0, 0, 0, 0)");
             var json = JsonSerializer.Serialize(Reply("¿Qué querés hacer con tu MacBook?"), new JsonSerializerOptions(JsonSerializerDefaults.Web));
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO JournalEntries (Id, UserId, Text, SearchText, CreatedUtc, ForSession, IsDateOnly, ReflectionJson)
