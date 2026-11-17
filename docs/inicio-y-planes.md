@@ -4,7 +4,9 @@ La portada presenta a Brisa como una asistente de IA para registrar experiencias
 
 ## Dos opciones con la misma jerarquía
 
-El inicio muestra desde el primer bloque que existe un plan Gratuito de $0 sin tarjeta y un plan Profundo en pesos argentinos. Las dos tarjetas comparten tamaño, tipografía, bordes, fondo y estilo de botón; ninguna aparece como recomendada o preseleccionada. En pantallas pequeñas se apilan en el mismo orden: Gratuito y Profundo.
+El inicio muestra desde el primer bloque que existe un plan Gratuito de $0, gratis por siempre, sin tarjeta ni período de prueba, y un plan Profundo en pesos argentinos. Profundo se puede cancelar en cualquier momento: se conserva el período ya abonado y después se sigue usando la plataforma gratis por siempre, con los diarios y conversaciones. El mensaje también aparece en `/planes`, las condiciones y Mi plan.
+
+Las dos tarjetas comparten tamaño, tipografía, bordes, fondo y estilo de botón; ninguna aparece como recomendada o preseleccionada. En pantallas pequeñas se apilan en el mismo orden: Gratuito y Profundo. Las animaciones se activan automáticamente, sin selector ni aviso, con más presencia en Brisa, su burbuja y la estrella. Ver [gestos y movimiento](gestos-brisa.md).
 
 `Components/Shared/PlanComparison.razor` se utiliza tanto en `/` como en `/planes`, para conservar una sola presentación de sus características. El precio y el cupo se obtienen de `SubscriptionOptions`, igual que en la contratación: inicialmente ARS 15.000 finales por mes y 200 créditos por período. Se explicitan la renovación automática, la cancelación desde Mi plan y el aviso de consumo al 80%. Los detalles del cupo, transcripciones, informes, reintegros y almacenamiento siguen en `/planes`.
 
@@ -20,4 +22,4 @@ Se conserva el SVG original, sin cambios de colores, proporciones ni trazados, s
 
 Se revisaron el inicio y `/planes` en escritorio, tablet de 768 px y móviles de 390 y 320 px: sin desbordamiento horizontal, tarjetas de igual tamaño en escritorio, botones de igual énfasis y logo cargado. Se comprobaron los accesos al registro, al inicio de sesión previo a Mi plan y las anclas de planes y terapia. La revisión utiliza una base local vacía, sin correos, llamadas de IA ni cobros reales.
 
-Estos cambios modifican la presentación pública. No cambian permisos de los planes, créditos, procesamiento de pagos ni configuración privada.
+Estos cambios modifican la presentación y el movimiento de la interfaz. No cambian permisos de los planes, créditos, procesamiento de pagos ni configuración privada.

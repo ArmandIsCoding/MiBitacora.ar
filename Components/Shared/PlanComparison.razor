@@ -4,7 +4,7 @@
     <article class="plan-card" aria-label="Plan Gratuito">
         <p class="plan-kicker">PARA TU DÍA A DÍA</p>
         @if (HeadingLevel == 2) { <h2 class="plan-name">Gratuito</h2> } else { <h3 class="plan-name">Gratuito</h3> }
-        <p class="plan-price"><strong>$0</strong><span>Sin tarjeta</span></p>
+        <p class="plan-price"><strong>$0</strong><span>Gratis por siempre · sin tarjeta</span></p>
         <p class="plan-description">Un espacio para escribir y reflexionar con Brisa, a tu ritmo.</p>
         <ul role="list" class="plan-features">
             <li><Icon Name="check" Size="18" /><span>Tus diarios, fotos, audios, videos y documentos.</span></li>
@@ -13,12 +13,12 @@
             <li><Icon Name="check" Size="18" /><span>Descarga y exportación de tus textos y archivos.</span></li>
         </ul>
         <div class="plan-actions">
-            <div class="plan-payment"><Icon Name="leaf" Size="26" /><span>Sin tarjeta para empezar.</span></div>
+            <div class="plan-payment"><Icon Name="leaf" Size="26" /><span>Sin tarjeta. Sin período de prueba.</span></div>
             <AuthorizeView>
                 <Authorized><a class="btn btn-primary plan-action" href="/bitacora">Ir a mi cuaderno <Icon Name="arrow" Size="17" /></a></Authorized>
                 <NotAuthorized><a class="btn btn-primary plan-action" href="/Account/Register">Empezar gratis <Icon Name="arrow" Size="17" /></a></NotAuthorized>
             </AuthorizeView>
-            <p class="plan-commitment">Podés usar el plan Gratuito sin contratar una suscripción.</p>
+            <p class="plan-commitment">Gratis por siempre. Sin vencimiento ni obligación de contratar Profundo.</p>
         </div>
     </article>
     <article class="plan-card" aria-label="Plan Profundo">
@@ -38,7 +38,7 @@
                 <Authorized><a class="btn btn-primary plan-action" href="/Account/Manage/Subscription">Ver mi plan <Icon Name="arrow" Size="17" /></a></Authorized>
                 <NotAuthorized><a class="btn btn-primary plan-action" href="/Account/Manage/Subscription">Elegir Profundo <Icon Name="arrow" Size="17" /></a></NotAuthorized>
             </AuthorizeView>
-            <p class="plan-commitment">Renovación mensual automática. Cancelás desde Mi plan.</p>
+            <p class="plan-commitment">Renovación mensual automática. Cancelás cuando quieras desde Mi plan y seguís gratis por siempre.</p>
         </div>
     </article>
 </div>

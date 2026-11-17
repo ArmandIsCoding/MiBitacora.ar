@@ -1,33 +1,6 @@
 // One observer for the page. Motion never makes a request or reports anything to the server.
 const selector = '[data-brisa-animate="true"]';
 const watched = new Set();
-const preferenceKey = 'mibitacora.brisa.motion';
-const modes = ['system', 'on', 'off'];
-let mode = 'system';
-try { const saved = localStorage.getItem(preferenceKey); if (modes.includes(saved)) mode = saved; } catch { /* Storage may be unavailable. */ }
-const reduced = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
-function syncControls(node) {
-    document.documentElement.dataset.brisaMotion = mode;
-    for (const control of node.querySelectorAll('[data-brisa-motion-control]')) control.value = mode;
-    const note = mode === 'on' ? 'Animaciones suaves activadas. Podés detenerlas cuando quieras.' :
-        mode === 'off' ? 'Sin animaciones. Brisa conserva sus expresiones.' :
-        reduced?.matches ? 'Tu dispositivo pide reducir el movimiento. Las expresiones cambian sin animarse.' :
-        'Brisa se mueve suavemente y se pausa cuando no está a la vista.';
-    for (const element of node.querySelectorAll('[data-brisa-motion-note]')) element.textContent = note;
-}
-syncControls(document.documentElement);
-reduced?.addEventListener?.('change', () => syncControls(document.documentElement));
-document.addEventListener('change', event => {
-    if (!event.target.matches?.('[data-brisa-motion-control]') || !modes.includes(event.target.value)) return;
-    mode = event.target.value;
-    try { localStorage.setItem(preferenceKey, mode); } catch { /* The choice still works for this page. */ }
-    syncControls(document.documentElement);
-});
-globalThis.addEventListener?.('storage', event => {
-    if (event.key !== preferenceKey) return;
-    mode = modes.includes(event.newValue) ? event.newValue : 'system';
-    syncControls(document.documentElement);
-});
 const observer = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
     for (const entry of entries) entry.target.dataset.brisaVisible = String(entry.isIntersecting);
 }, { threshold: 0.01 }) : null;
@@ -60,10 +33,7 @@ new MutationObserver(records => {
             else unwatch(record.target);
         } else {
             for (const node of record.removedNodes) visit(node, unwatch);
-            for (const node of record.addedNodes) {
-                visit(node, watch);
-                if (node.nodeType === 1) syncControls(node.parentElement ?? node);
-            }
+            for (const node of record.addedNodes) visit(node, watch);
         }
     }
 }).observe(document.documentElement, { childList: true, subtree: true, attributes: true,

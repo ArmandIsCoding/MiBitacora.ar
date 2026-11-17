@@ -8,6 +8,7 @@
 @inject TimeZoneInfo TimeZone
 <PageTitle>Mi plan · Mi Bitácora</PageTitle>
 <h2>Mi plan</h2><p class="account-intro">Tu cuaderno y tus conversaciones siguen siendo tuyos. Acá podés ver el cupo, tus pagos y la renovación.</p>
+<p>El plan Gratuito es gratis por siempre. Si elegís Profundo, podés cancelarlo en cualquier momento y seguir usando la plataforma gratis por siempre, con tus diarios y conversaciones.</p>
 @if (Billing.IsSimulation) { <p class="journal-notice" role="status">Entorno local: los cobros son simulados y no mueven dinero.</p> }
 @if (Error is not null) { <p class="journal-alert" role="alert">@(Error == "email" ? "Confirmá el correo de tu cuenta antes de contratar." : Error == "offer" ? "La oferta cambió desde que abriste la página. Revisá el precio y las condiciones antes de continuar." : "La operación sigue sin confirmar. No iniciamos otro cobro. Actualizá el estado o contactanos para revisarlo.")</p> }
 @if (Returned == "1") { <p class="journal-notice" role="status">Volviste de Mercado Pago. Profundo se activa cuando verificamos el pago aprobado. Podés actualizar el estado desde acá.</p> }
@@ -23,7 +24,7 @@
         @if (sub.CheckoutUrl is { } checkout && sub.Status == "pending") { <a class="btn btn-primary" href="@checkout">Continuar en Mercado Pago</a> }
         <form method="post" action="/Account/Subscription/Refresh"><AntiforgeryToken /><button class="quiet-action" type="submit">Actualizar estado</button></form>
         @if (!sub.CancellationRequested && sub.Status is not ("cancelled" or "canceled" or "creation_failed")) {
-            <details class="subscription-cancel"><summary>Cancelar renovación</summary><p>Detenemos los futuros cobros. Tu cuaderno se conserva y podés usar Profundo hasta terminar el período abonado. La baja no tiene penalidad.</p><form method="post" action="/Account/Subscription/Cancel"><AntiforgeryToken /><button class="btn btn-outline" type="submit">Confirmar baja de la renovación</button></form></details>
+            <details class="subscription-cancel"><summary>Cancelar renovación</summary><p>Podés cancelar en cualquier momento, sin penalidad. Detenemos los futuros cobros y podés usar Profundo hasta terminar el período abonado. Después seguís con el plan Gratuito, gratis por siempre, conservando tu cuaderno.</p><form method="post" action="/Account/Subscription/Cancel"><AntiforgeryToken /><button class="btn btn-outline" type="submit">Confirmar baja de la renovación</button></form></details>
         }
         @if (sub.AcceptedUtc is { } accepted) { <p class="topic-scope">Condiciones @sub.TermsVersion aceptadas el @Date(accepted). Cupo contratado: @sub.MonthlyCredits créditos por período.</p> }
         @if (Billing.IsSimulation && sub.Status is not ("cancelled" or "canceled")) { <a href="@($"/Account/Subscription/Simulate/{sub.Id}")">Simulador local</a> }

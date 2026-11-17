@@ -8,6 +8,11 @@
 .hero-offers strong { color: var(--ink); font-size: 1.35rem; font-weight: 650; }
 .hero-offers small { color: var(--muted); font-size: .72rem; line-height: 1.5; }
 .hero-offers strong small { font-size: .8rem; font-weight: 400; }
+.plan-freedom { margin-top: .85rem; max-width: 55ch; color: var(--olive-dark); font-size: .84rem; line-height: 1.65; }
+.hero-copy { animation: landing-arrive .75s ease-out both; }
+.brisa-method .method-card { transition: transform .25s ease, box-shadow .25s ease; }
+.brisa-method .method-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px #72583c12; }
+@keyframes landing-arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .brisa-hero .hero-actions { gap: .5rem 1.2rem; }
 .brisa-hero .hero-secondary { font-size: .85rem; }
 .landing-plans { padding-block: 1.5rem 4rem; }
@@ -66,4 +71,9 @@
     .landing-header .site-nav .text-link, .landing-header .site-nav .btn { font-size: .72rem; }
     .hero-offers > p { padding: .7rem .6rem; }
     .hero-offers strong { font-size: 1.1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .hero-copy { animation: none; }
+    .brisa-method .method-card { transition: none; }
+    .brisa-method .method-card:hover { transform: none; }
 }

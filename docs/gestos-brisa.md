@@ -4,7 +4,11 @@ Brisa pasa por reposo, lectura, pensamiento y respuesta, según fases reales de 
 
 El módulo `brisa-motion.js` pausa los retratos fuera de pantalla o con la pestaña oculta y libera observadores cuando Blazor retira tarjetas. Usa CSS y una hoja transparente de seis expresiones.
 
-En el inicio y Mi cuenta, «Movimiento de Brisa» permite seguir el dispositivo, activar animaciones suaves o desactivarlas. Guarda la preferencia en este navegador con `mibitacora.brisa.motion`. Por defecto respeta `prefers-reduced-motion`. Sin movimiento se mantienen las expresiones informativas; no cambia el sistema operativo ni escribe datos en el servidor.
+Las animaciones se activan automáticamente, sin selector ni aviso en el inicio o Mi cuenta. Las preferencias antiguas guardadas en `mibitacora.brisa.motion` ya no se consultan ni se modifican. Los retratos se animan por defecto; las tarjetas históricas de respuestas conservan `Animated=false` para que la lectura del historial siga tranquila.
+
+La ilustración tiene un balanceo más perceptible; los retratos respiran, parpadean y acompañan las fases reales de la conversación. En el inicio, la burbuja flota y la estrella cambia suavemente de escala y ángulo; la escena usa el mismo observador de visibilidad que los retratos. La entrada del texto y la respuesta al pasar sobre las tarjetas completan el movimiento sin ocultar contenido ni agregar esperas.
+
+Se respeta automáticamente `prefers-reduced-motion` del dispositivo y se detiene el movimiento al imprimir. Las expresiones informativas permanecen visibles. No se agregan llamadas de IA, preferencias en el servidor ni escrituras en el almacenamiento del navegador.
 
 ## Recurso y reproducción
 
@@ -12,7 +16,7 @@ En el inicio y Mi cuenta, «Movimiento de Brisa» permite seguir el dispositivo,
 - Referencia: `wwwroot/brisa/brisa-cozy.png`.
 - Modo: edición mediante la herramienta integrada de generación de imágenes, conservando identidad y vestimenta. Sin claves del proyecto.
 - Orden: reposo, lectura, pensamiento; respuesta, medio parpadeo, parpadeo completo.
-- Componentes: `BrisaPortrait.razor`, `BrisaMotionControl.razor`, `brisa.css`, `brisa-motion.js`.
+- Componentes: `BrisaPortrait.razor`, `Home.razor.css`, `brisa.css`, `brisa-motion.js`.
 
 Prompt exacto:
 
@@ -41,5 +45,5 @@ El favicon es un SVG con sus lentes. La marca dice «tu espacio con Brisa». Esc
 
 ## Verificación
 
-`tests/brisa-motion.test.mjs` cubre visibilidad, fases, retorno a la calma, observadores y preferencias. Las comprobaciones .NET verifican fases sin llamadas extra, cancelación y tarjetas antiguas/nuevas. Capturas con contenido ficticio en `.artifacts/brisa-motion`, fuera de Git.
+`tests/brisa-motion.test.mjs` cubre visibilidad, fases, retorno a la calma, desmontaje de escenas con retratos y compatibilidad con preferencias antiguas sin aplicarlas. Las comprobaciones .NET verifican fases sin llamadas extra, cancelación y tarjetas antiguas/nuevas. Las capturas de verificación usan páginas públicas o contenido ficticio y quedan en `.artifacts`, fuera de Git.
 

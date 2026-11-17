@@ -205,33 +205,31 @@
 .brisa-portrait[data-brisa-activity="responding"] .brisa-face-responding { opacity: 1; }
 .brisa-animated * { --brisa-animation: none; animation: var(--brisa-animation) !important; }
 .brisa-animated .brisa-face { transition: opacity .32s ease !important; }
-.brisa-animated:is([data-brisa-activity="idle"], [data-brisa-settled="true"]) .brisa-face-half-blink { --brisa-animation: brisa-half-blink 8.6s linear infinite; }
-.brisa-animated:is([data-brisa-activity="idle"], [data-brisa-settled="true"]) .brisa-face-blink { --brisa-animation: brisa-blink 8.6s linear infinite; }
-.brisa-animated:is([data-brisa-activity="idle"], [data-brisa-settled="true"]) .brisa-face-stack { --brisa-animation: brisa-breathe 8s ease-in-out infinite; }
+.brisa-animated:is([data-brisa-activity="idle"], [data-brisa-settled="true"]) .brisa-face-half-blink { --brisa-animation: brisa-half-blink 6.8s linear infinite; }
+.brisa-animated:is([data-brisa-activity="idle"], [data-brisa-settled="true"]) .brisa-face-blink { --brisa-animation: brisa-blink 6.8s linear infinite; }
+.brisa-animated:is([data-brisa-activity="idle"], [data-brisa-settled="true"]) .brisa-face-stack { --brisa-animation: brisa-breathe 6s ease-in-out infinite; }
 .brisa-animated[data-brisa-activity="reading"] .brisa-face-stack { --brisa-animation: brisa-read 6.8s ease-in-out infinite; }
 .brisa-animated[data-brisa-activity="thinking"] .brisa-face-stack { --brisa-animation: brisa-ponder 7.2s ease-in-out infinite; }
 .brisa-animated[data-brisa-activity="responding"]:not([data-brisa-settled="true"]) .brisa-face-stack { --brisa-animation: brisa-answer 4.8s ease-in-out both; }
 .brisa-animated[data-brisa-activity="responding"] .brisa-face-responding { --brisa-animation: brisa-respond-face 4.8s ease-in-out both; }
-.brisa-illustration.brisa-animated img { transform-origin: 50% 90%; --brisa-animation: brisa-illustration-breathe 9s ease-in-out infinite; }
-@keyframes brisa-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(.6px); } }
-@keyframes brisa-read { 0%, 100% { transform: rotate(-.6deg) translateY(0); } 50% { transform: rotate(.4deg) translateY(.7px); } }
-@keyframes brisa-ponder { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(.4deg) translateY(-.4px); } }
+.brisa-illustration.brisa-animated img { transform-origin: 50% 90%; --brisa-animation: brisa-illustration-breathe 7.6s ease-in-out infinite; }
+/* Keep names used by custom properties beside their keyframes, outside CSS isolation. */
+.brisa-hero-scene .brisa-scene-sun { --brisa-animation: brisa-sun 6.2s ease-in-out infinite; }
+.brisa-hero-scene .brisa-hero-bubble { --brisa-animation: brisa-bubble-float 7s ease-in-out infinite; }
+@keyframes brisa-sun { 0%, 100% { transform: rotate(12deg) scale(1); opacity: .75; } 50% { transform: rotate(-8deg) scale(1.14); opacity: 1; } }
+@keyframes brisa-bubble-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(-1deg); } }
+@keyframes brisa-breathe { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(1.1px) rotate(.3deg); } }
+@keyframes brisa-read { 0%, 100% { transform: rotate(-1.3deg) translateY(0); } 50% { transform: rotate(.7deg) translateY(1.2px); } }
+@keyframes brisa-ponder { 0%, 100% { transform: rotate(-1.8deg); } 50% { transform: rotate(1.1deg) translateY(-.8px); } }
 @keyframes brisa-answer { 0% { transform: rotate(0); } 13% { transform: rotate(1.2deg) translateY(.6px); } 28% { transform: rotate(-.5deg); } 45%, 100% { transform: none; } }
 @keyframes brisa-respond-face { 0% { opacity: 0; } 8%, 80% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes brisa-illustration-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1px) scale(1.003); } }
+@keyframes brisa-illustration-breathe { 0%, 100% { transform: translateY(0) scale(1) rotate(0); } 50% { transform: translateY(-5px) scale(1.012) rotate(-.3deg); } }
 @keyframes brisa-half-blink { 0%, 44.9%, 46.1%, 47.1%, 48.2%, 100% { opacity: 0; } 45%, 46%, 47.2%, 48.1% { opacity: 1; } }
 @keyframes brisa-blink { 0%, 46%, 47.2%, 100% { opacity: 0; } 46.1%, 47.1% { opacity: 1; } }
 .brisa-animated:not([data-brisa-visible="true"]) *,
 html[data-brisa-page-hidden="true"] .brisa-animated * { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
-    html:not([data-brisa-motion="on"]) .brisa-animated * { animation: none !important; transition: none !important; transform: none !important; }
-    html:not([data-brisa-motion="on"]) .brisa-face-half-blink,
-    html:not([data-brisa-motion="on"]) .brisa-face-blink { opacity: 0 !important; }
+    .brisa-animated * { animation: none !important; transition: none !important; transform: none !important; }
+    .brisa-face-half-blink, .brisa-face-blink { opacity: 0 !important; }
 }
-html[data-brisa-motion="off"] .brisa-animated * { animation: none !important; transition: none !important; transform: none !important; }
-html[data-brisa-motion="off"] .brisa-face-half-blink, html[data-brisa-motion="off"] .brisa-face-blink { opacity: 0 !important; }
-.brisa-motion-control { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem 1.5rem; margin-block: 1.5rem; padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--paper); }
-.brisa-motion-control strong { color: var(--olive-dark); font-size: .85rem; }
-.brisa-motion-control p { max-width: 52ch; margin-top: .2rem; font-size: .76rem; color: var(--muted); line-height: 1.5; }
-.brisa-motion-control select { max-width: 100%; min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid #cdd3c1; border-radius: .65rem; background: #f2f3e8; color: var(--olive-dark); font-size: 1rem; }
 @media print { .brisa-animated * { animation: none !important; transform: none !important; } .brisa-face-half-blink, .brisa-face-blink { display: none; } }
