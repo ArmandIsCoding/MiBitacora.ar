@@ -1,6 +1,6 @@
 # Lanzar Profundo con Mercado Pago
 
-El código ofrece Profundo a **ARS 15.000 finales por mes**, con 200 créditos por período. No se realizaron cobros ni operaciones en tu cuenta Mercado Pago y el repositorio conserva los cobros deshabilitados. Hace falta completar esta configuración y validar el circuito externo antes de abrir las ventas.
+El código ofrece Profundo a **ARS 15.000 finales por mes**, con 200 créditos por período. No se realizaron cobros y el repositorio conserva los cobros deshabilitados por defecto. La configuración privada de cada instalación es independiente; el estado verificado del despliegue se registra al final de esta guía. Hace falta validar el circuito externo antes de abrir las ventas.
 
 ## Lo que debe hacer Armando en Mercado Pago
 
@@ -82,3 +82,15 @@ El primer comando no abre SQLite ni llama servicios externos. El segundo agrega 
 Revisar pagos, movimientos de caja reales de MP (comisiones incluidas), solicitudes pendientes, colas con varios intentos, conciliaciones demoradas, facturas C y notas de crédito. El panel informa movimientos según fecha de conciliación y MRR contratado, no reemplaza el extracto de MP ni la contabilidad. Un reintegro parcial o una disputa compleja iniciada fuera del sitio se revisa en MP y soporte; la conciliación conserva el importe reintegrado y los estados finales. Conservar evidencia comercial mínima separada del diario, y limitar acceso y retención de correos/tokens, soporte y respaldos. Verificar restauraciones periódicamente.
 
 La recepción sin registro, constancia y verificación razonable de identidad se implementó tomando como referencia la [Disposición 954/2025](https://www.argentina.gob.ar/normativa/nacional/norma-417152/texto), su [aclaración 3/2026](https://www.boletinoficial.gov.ar/detalleAviso/primera/338248/20260206) y la [Ley 24.240](https://www.argentina.gob.ar/normativa/nacional/638/actualizacion). La emisión fiscal se apoya en la [guía oficial de comprobantes para monotributistas de ARCA](https://www.arca.gob.ar/facturacion/monotributo/comprobantes.asp). La garantía comercial de diez días sobre el último cargo es voluntariamente favorable y no sustituye otros derechos aplicables. El titular debe revisar estos textos y la operación fiscal antes de abrir ventas.
+
+## Registro de puesta en marcha: 17/11/2026
+
+Se publicó y verificó el código `dd25d4c` en `https://mibitacora.ar`, con respaldo consistente de SQLite, adjuntos, configuración y código anterior. La verificación confirmó 425 archivos publicados, las migraciones comerciales aplicadas, las 21 tablas originales sin cambios en sus datos previos y los 297 adjuntos conservados. El cuaderno anónimo continúa redirigiendo al inicio de sesión. Las seis páginas públicas comerciales y de atención responden 200 y muestran `contacto@cognitiva.ar`.
+
+La aplicación **Mi Bitacora** de Suscripciones tiene credenciales productivas activadas y Webhooks de **Planes y suscripciones** y **Pagos (legacy)** guardados. Las claves se guardaron en la configuración privada, fuera de Git y del contenido público. `--check-merchant` confirmó que el token corresponde al vendedor argentino configurado. El servidor funciona con `Provider=MercadoPago`, `AllowLiveRequests=true` y **`AcceptNewSubscriptions=false`**. No se creó ninguna suscripción ni se realizó un cobro.
+
+El remitente y contacto comercial es `contacto@cognitiva.ar`, por SMTP con TLS implícito en puerto 465. `--check-mail` comprobó el certificado, la conexión cifrada y la autenticación sin enviar un mensaje. El DNS consultado publica SPF y DMARC; esto no demuestra entrega efectiva ni DKIM. La prueba de recepción en una casilla externa sigue pendiente.
+
+Una prueba propia sobre la URL pública recibió 200 con firma válida y su repetición dejó un solo registro durable. Solicitudes sin firma o con identificador distinto devolvieron 400 y no se agregaron a la bandeja. Esta comprobación prueba transporte, persistencia y rechazo de esas solicitudes, **no** la generación de firmas por Mercado Pago. El simulador del panel quedó pendiente de la nueva verificación por SMS que exigió Mercado Pago.
+
+Antes de abrir ventas quedan pendientes: identificar la cuenta del titular y configurar su acceso administrativo; recibir los correos transaccionales; completar la prueba del panel; probar checkout, primer pago, baja y reintegro con comprador autorizado; y acordar la emisión fiscal y atención de solicitudes. Una renovación real aún no fue observada. Las pruebas locales (462 comprobaciones .NET y 21 de JavaScript) no sustituyen estas verificaciones externas.
