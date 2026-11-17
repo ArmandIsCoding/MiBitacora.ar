@@ -1,27 +1,91 @@
 @page "/"
-<PageTitle>Mi Bitácora con Brisa · Un espacio para vos</PageTitle>
+@inject Microsoft.Extensions.Options.IOptions<SubscriptionOptions> Plans
+
+<PageTitle>Mi Bitácora con Brisa · Más claridad para tu terapia</PageTitle>
 <div class="landing brisa-landing">
-    <header class="site-header wrap"><Brand /><nav aria-label="Navegación principal" class="site-nav"><AuthorizeView><Authorized><a class="btn btn-primary" href="/bitacora">Volver con Brisa <Icon Name="arrow" Size="17" /></a></Authorized><NotAuthorized><a class="text-link" href="/Account/Login">Ya tengo cuenta</a><a class="btn btn-outline" href="/Account/Register">Empezar <Icon Name="arrow" Size="16" /></a></NotAuthorized></AuthorizeView></nav></header>
+    <header class="site-header landing-header wrap">
+        <Brand />
+        <nav aria-label="Navegación principal" class="site-nav">
+            <a class="text-link" href="#planes">Gratis y Profundo</a>
+            <a class="text-link" href="#terapia">Para tu terapia</a>
+            <AuthorizeView>
+                <Authorized><a class="btn btn-outline" href="/bitacora">Volver con Brisa <Icon Name="arrow" Size="17" /></a></Authorized>
+                <NotAuthorized><a class="btn btn-outline" href="/Account/Login">Ya tengo cuenta</a></NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </header>
     <main>
-        <div class="wrap"><CommerceLinks /></div>
-        <section class="hero brisa-hero wrap">
+        <section class="hero brisa-hero wrap" aria-labelledby="landing-title">
             <div class="hero-copy">
-                <p class="eyebrow brisa-welcome-label"><span class="status-dot"></span> UN RATITO PARA VOS</p>
-                <h1>Soy Brisa.<br /><em>¿Charlamos?</em></h1>
-                <p class="hero-description">A veces, poner en palabras lo que te pasa es un buen comienzo. Podés escribirme, dejarme un audio o traer algo que quieras mirar con más calma. Lo pensamos juntos, a tu ritmo. ¿Tu diario es en papel? ¡Seguí escribiendo allí y luego compartilo conmigo! Subí las fotos y te ayudo a organizar tus ideas.</p>
-                <div class="hero-actions"><AuthorizeView><Authorized><a class="btn btn-primary btn-large" href="/bitacora">Seguir nuestra conversación <Icon Name="arrow" Size="19" /></a></Authorized><NotAuthorized><a class="btn btn-primary btn-large" href="/Account/Register">Empezar a conversar <Icon Name="arrow" Size="19" /></a></NotAuthorized></AuthorizeView><a href="#como-funciona" class="text-link hero-secondary">Conocé este espacio <Icon Name="chevron" Size="14" /></a></div>
-                <p class="hero-foot"><Icon Name="leaf" Size="18" /> Sin apuro. Con tus propias palabras.</p>
-                <p class="brisa-identity">Brisa es tu compañera de IA para reflexionar. Puede equivocarse y no reemplaza una terapia.</p>
+                <p class="eyebrow brisa-welcome-label"><span class="status-dot"></span> BRISA, TU ASISTENTE ENTRE SESIONES</p>
+                <h1 id="landing-title">Más claridad<br /><em>para tu terapia.</em></h1>
+                <p class="hero-description">Poné en palabras lo que te pasa, ordená tus ideas y prepará lo que querés conversar en tu próxima sesión. Brisa es tu asistente de IA entre sesiones.</p>
+                <p class="therapy-first"><strong>Tu terapia es el centro.</strong> Brisa la complementa y te anima a darle lugar.</p>
+                <div class="hero-offers" aria-label="Los dos planes disponibles">
+                    <p><span>Gratuito</span><strong>$0</strong><small>Sin tarjeta</small></p>
+                    <p><span>Profundo</span><strong>$@MonthlyPrice <small>/ mes</small></strong><small>Pesos argentinos · Mercado Pago</small></p>
+                </div>
+                <div class="hero-actions">
+                    <a class="btn btn-primary btn-large" href="#planes">Conocé los dos planes <Icon Name="arrow" Size="19" /></a>
+                    <a class="text-link hero-secondary" href="#como-funciona">Cómo te acompaña <Icon Name="chevron" Size="14" /></a>
+                </div>
             </div>
-            <div class="brisa-hero-scene"><span class="brisa-scene-note">Hay lugar para lo que traigas.</span><div class="brisa-scene-sun" aria-hidden="true"><Icon Name="spark" Size="33" /></div><BrisaPortrait Illustration="true" Decorative="false" Priority="true" /><div class="brisa-hero-bubble"><span class="brisa-bubble-name">Brisa <Icon Name="leaf" Size="15" /></span><p>No hace falta tenerlo todo claro.<br />Podemos empezar por acá.</p></div></div>
+            <div class="brisa-hero-scene">
+                <span class="brisa-scene-note">De tu día a día, a tu próxima sesión.</span>
+                <div class="brisa-scene-sun" aria-hidden="true"><Icon Name="spark" Size="33" /></div>
+                <BrisaPortrait Illustration="true" Decorative="false" Priority="true" />
+                <div class="brisa-hero-bubble"><span class="brisa-bubble-name">Brisa <Icon Name="leaf" Size="15" /></span><p>¿Qué te gustaría llevar<br />a tu próxima sesión?</p></div>
+            </div>
         </section>
-        <section id="como-funciona" class="landing-method brisa-method"><div class="wrap"><div class="method-heading"><p class="eyebrow">UN CUADERNO. UNA CONVERSACIÓN. TU PROPIO RITMO.</p><h2>Un lugar para <em>encontrarte.</em></h2><p>Brisa te acompaña a mirar lo que vivís, una conversación a la vez.</p></div><div class="method-grid">
-            <article class="method-card"><span class="method-icon clay"><Icon Name="pen" Size="24" /></span><span class="method-number">01</span><h3>Contame como salga</h3><p>Una idea a medias, un audio, una foto o eso que te quedó dando vueltas. No necesitás preparar nada para empezar.</p></article>
-            <article class="method-card"><span class="method-icon sage"><Icon Name="spark" Size="24" /></span><span class="method-number">02</span><h3>Lo miramos juntos</h3><p>Te leo con atención, acerco otra perspectiva y te propongo preguntas para seguir pensando. Vos elegís qué te sirve.</p></article>
-            <article class="method-card"><span class="method-icon honey"><Icon Name="bookmark" Size="24" /></span><span class="method-number">03</span><h3>Llevate lo que importa</h3><p>Guardá una notita, volvé a una charla o armemos una hoja con lo que quieras llevar a terapia. Tu recorrido tiene su lugar.</p></article>
-        </div></div></section>
-        <section class="brisa-invitation wrap"><BrisaPortrait Size="large" /><div><p class="eyebrow">PODEMOS IR DE A POCO</p><h2>¿Qué te gustaría contarme hoy?</h2><p>No tiene que ser algo grande. Lo cotidiano también merece un espacio.</p></div><a class="btn btn-primary" href="/bitacora">Conversar con Brisa <Icon Name="arrow" Size="18" /></a></section>
+
+        <section id="planes" class="landing-plans wrap" aria-labelledby="landing-plans-title">
+            <div class="section-heading">
+                <p class="eyebrow">DOS OPCIONES CLARAS, A TU RITMO</p>
+                <h2 id="landing-plans-title">Gratis o Profundo.<br /><em>Vos elegís.</em></h2>
+                <p>Con ambos podés escribir, conversar con Brisa y preparar temas para tu terapia. Elegí el que te sirva hoy.</p>
+            </div>
+            <PlanComparison />
+            <p class="plans-detail-link"><a class="text-link" href="/planes">Ver qué incluye cada plan, los créditos y las condiciones <Icon Name="arrow" Size="17" /></a></p>
+        </section>
+
+        <section id="terapia" class="therapy-section" aria-labelledby="therapy-title">
+            <div class="wrap therapy-grid">
+                <div class="therapy-copy">
+                    <p class="eyebrow">LA TERAPIA ES EL CENTRO</p>
+                    <h2 id="therapy-title">Brisa te acompaña.<br /><em>Tu terapeuta te guía.</em></h2>
+                    <p>Queremos que llegues a sesión con más espacio para hablar de lo que importa. Brisa te ayuda a reunir lo que viviste, las preguntas que te quedaron y los temas que querés trabajar con tu terapeuta.</p>
+                    <p class="therapy-boundary">Brisa es una IA, no una terapeuta. Puede equivocarse, no diagnostica y no reemplaza la terapia ni el criterio de un profesional.</p>
+                </div>
+                <div class="therapy-situations">
+                    <article><span class="therapy-situation-icon"><Icon Name="calendar" Size="22" /></span><div><h3>Si ya vas a terapia</h3><p>Registrá lo que aparece entre sesiones y prepará una hoja para compartir. Vos elegís qué llevar y qué trabajar en ese espacio.</p></div></article>
+                    <article><span class="therapy-situation-icon"><Icon Name="leaf" Size="22" /></span><div><h3>Si estás pensando en empezar</h3><p>Te alentamos a buscar un profesional y darle lugar a la terapia. Brisa puede ayudarte a poner en palabras lo que te gustaría conversar en ese primer encuentro.</p></div></article>
+                    <p class="therapy-privacy"><Icon Name="lock" Size="18" /> Tu cuaderno es privado. Lo que compartís en sesión lo decidís vos.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="como-funciona" class="landing-method brisa-method">
+            <div class="wrap">
+                <div class="method-heading"><p class="eyebrow">DE LO COTIDIANO A LO QUE QUERÉS TRABAJAR</p><h2>Un puente hacia<br /><em>tu próxima sesión.</em></h2><p>Una idea, una conversación y un lugar para retomar lo importante.</p></div>
+                <div class="method-grid">
+                    <article class="method-card"><span class="method-icon clay"><Icon Name="pen" Size="24" /></span><span class="method-number">01</span><h3>Contalo como salga</h3><p>Escribí, dejá un audio o subí una foto de tu diario en papel. Dale un lugar a eso que te pasó antes de que se te vaya de la cabeza.</p></article>
+                    <article class="method-card"><span class="method-icon sage"><Icon Name="spark" Size="24" /></span><span class="method-number">02</span><h3>Ordená tus preguntas</h3><p>Conversá con Brisa, guardá una notita y retomá los temas que se repiten. Sus propuestas son un punto para pensar; vos elegís qué te sirve.</p></article>
+                    <article class="method-card"><span class="method-icon honey"><Icon Name="bookmark" Size="24" /></span><span class="method-number">03</span><h3>Llevalo a terapia</h3><p>Reuní lo que querés conversar en una hoja que podés imprimir o guardar. El trabajo terapéutico sigue en sesión, con tu profesional.</p></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="brisa-invitation wrap">
+            <BrisaPortrait Size="large" />
+            <div><p class="eyebrow">TU PROCESO MERECE UN ESPACIO</p><h2>Podés empezar por lo que te pasa hoy.</h2><p>Gratis o con Profundo, Brisa te acompaña a preparar tu próxima conversación en terapia.</p></div>
+            <a class="btn btn-primary" href="#planes">Elegí tu plan <Icon Name="arrow" Size="18" /></a>
+        </section>
     </main>
     <div class="wrap"><BrisaMotionControl /></div>
-    <footer class="site-footer wrap"><Brand /><p>Tu cuaderno, con Brisa · A tu ritmo</p><a href="/privacidad" class="text-link">Tu privacidad</a></footer>
+    <div class="wrap landing-commerce"><CommerceLinks /></div>
+    <footer class="site-footer wrap"><Brand /><p>Brisa acompaña tu terapia. Tu terapia tiene su propio lugar.</p><a href="/privacidad" class="text-link">Tu privacidad</a></footer>
 </div>
+
+@code {
+    private string MonthlyPrice => Plans.Value.MonthlyPriceArs.ToString(Plans.Value.MonthlyPriceArs == decimal.Truncate(Plans.Value.MonthlyPriceArs) ? "N0" : "N2", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+}

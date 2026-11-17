@@ -1,0 +1,69 @@
+.brisa-hero { min-height: 0; padding-block: 2.8rem 4rem; }
+.brisa-hero h1 { font-size: clamp(3.2rem, 5.7vw, 5.2rem); letter-spacing: -.055em; }
+.brisa-hero .hero-description { max-width: 45ch; line-height: 1.75; }
+.therapy-first { margin-top: 1rem; max-width: 43ch; font-size: .96rem; color: var(--olive-dark); }
+.hero-offers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: 1.5rem; }
+.hero-offers > p { display: flex; flex-direction: column; gap: .3rem; padding: .85rem 1rem; border: 1px solid var(--line); border-radius: .85rem; background: #fffdf8b3; }
+.hero-offers span { color: var(--olive-dark); font-size: .8rem; font-weight: 650; }
+.hero-offers strong { color: var(--ink); font-size: 1.35rem; font-weight: 650; }
+.hero-offers small { color: var(--muted); font-size: .72rem; line-height: 1.5; }
+.hero-offers strong small { font-size: .8rem; font-weight: 400; }
+.brisa-hero .hero-actions { gap: .5rem 1.2rem; }
+.brisa-hero .hero-secondary { font-size: .85rem; }
+.landing-plans { padding-block: 1.5rem 4rem; }
+.section-heading { max-width: 44rem; margin: 0 auto 2rem; text-align: center; }
+.section-heading h2, .therapy-copy h2 { margin: .7rem 0 1rem; font-size: clamp(2.25rem, 4vw, 3.65rem); line-height: 1.16; }
+.section-heading h2 em, .therapy-copy h2 em { color: var(--olive); }
+.section-heading > p:last-child { max-width: 57ch; margin-inline: auto; color: var(--muted); }
+.plans-detail-link { margin-top: 1.25rem; text-align: center; }
+.plans-detail-link a { line-height: 1.6; }
+.therapy-section { padding-block: 3.5rem; border-block: 1px solid var(--line); background: #f0eadc; }
+.therapy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(2rem, 6vw, 5rem); align-items: center; }
+.therapy-copy > p:not(.eyebrow) { color: var(--muted); line-height: 1.8; }
+.therapy-copy .therapy-boundary { margin-top: 1.15rem; padding-left: 1rem; border-left: 3px solid var(--olive); color: var(--olive-dark); font-size: .95rem; }
+.therapy-situations { display: grid; gap: 1rem; }
+.therapy-situations article { display: flex; align-items: flex-start; gap: .9rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: 1.1rem; background: var(--paper); }
+.therapy-situation-icon { display: grid; place-items: center; flex: none; width: 2.65rem; height: 2.65rem; color: var(--olive-dark); border-radius: .75rem; background: var(--sage); }
+.therapy-situations h3 { margin: .2rem 0 .65rem; font-size: 1.45rem; }
+.therapy-situations article p { color: var(--muted); font-size: .93rem; line-height: 1.75; }
+.therapy-privacy { display: flex; align-items: flex-start; gap: .55rem; margin-top: .3rem; color: var(--olive-dark); font-size: .85rem; }
+.therapy-privacy svg { flex: none; margin-top: .15rem; }
+.brisa-method { background: var(--canvas); border-top: 0; }
+.landing-commerce { margin-top: 1.5rem; }
+.site-footer > p { max-width: 38ch; text-align: center; }
+@media (max-width: 880px) {
+    .brisa-hero { padding-block: 2.3rem 3.2rem; gap: 1.5rem; }
+    .brisa-hero h1 { font-size: clamp(2.8rem, 5.8vw, 4.5rem); }
+    .hero-offers > p { padding: .75rem; }
+    .hero-offers strong { font-size: 1.15rem; }
+    .therapy-grid { gap: 2rem; }
+    .therapy-situations article { padding: 1rem; }
+}
+@media (max-width: 700px) {
+    .landing-header { flex-wrap: wrap; gap: .4rem; padding-block: .8rem; }
+    .landing-header .site-nav { width: 100%; justify-content: space-between; gap: .5rem; }
+    .landing-header .site-nav .text-link { font-size: .78rem; }
+    .landing-header .site-nav .btn { min-height: 2.5rem; font-size: .78rem; padding: .5rem .7rem; }
+    .therapy-grid { grid-template-columns: 1fr; }
+    .therapy-section { padding-block: 2.5rem; }
+}
+@media (max-width: 650px) {
+    .brisa-hero { padding-block: 1.5rem 2.8rem; }
+    .brisa-hero h1 { margin-block: 1rem; font-size: clamp(2.65rem, 10.5vw, 4rem); line-height: 1.12; }
+    .brisa-welcome-label { font-size: .58rem; letter-spacing: .08em; }
+    .brisa-hero .hero-description { font-size: 1rem; }
+    .therapy-first { font-size: .91rem; }
+    .hero-offers { margin-top: 1.15rem; gap: .6rem; }
+    .hero-offers small { font-size: .68rem; }
+    .hero-offers strong { font-size: 1.25rem; }
+    .landing-plans { padding-top: .8rem; padding-bottom: 2.5rem; }
+    .section-heading { margin-bottom: 1.4rem; }
+    .section-heading h2, .therapy-copy h2 { font-size: clamp(2rem, 8vw, 2.7rem); }
+    .plans-detail-link a { justify-content: center; font-size: .85rem; }
+    .site-footer > p { text-align: left; }
+}
+@media (max-width: 360px) {
+    .landing-header .site-nav .text-link, .landing-header .site-nav .btn { font-size: .72rem; }
+    .hero-offers > p { padding: .7rem .6rem; }
+    .hero-offers strong { font-size: 1.1rem; }
+}

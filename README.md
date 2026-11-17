@@ -2,9 +2,9 @@
 
 Tu espacio para conversar con **Brisa**, una compañera de IA amable, ilustrada y con lentes grandes. [Identidad, voz y assets](docs/brisa.md), [gestos y expresiones](docs/gestos-brisa.md).
 
-Cuaderno conversacional para escribir, ordenar ideas y preparar una hoja para retomar temas. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. El plan gratuito usa IA local; Profundo ofrece OpenAI con cupo y suscripción mensual mediante Mercado Pago.
+Cuaderno conversacional para escribir, ordenar ideas y preparar temas para llevar a terapia. Brisa acompaña entre sesiones y promueve el trabajo con un profesional. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. El plan gratuito usa IA local; Profundo ofrece OpenAI con cupo y suscripción mensual en pesos argentinos mediante Mercado Pago. Ver [presentación del inicio y los planes](docs/inicio-y-planes.md).
 
-![Inicio de Mi Bitácora, con un cuaderno ilustrado y una vista de cómo funciona el piloto](docs/inicio-mi-bitacora.png)
+![Inicio de Mi Bitácora: Brisa acompaña entre sesiones y presenta las opciones Gratuito y Profundo](docs/inicio-brisa-planes.jpg)
 
 ## Desarrollo local
 
@@ -15,7 +15,7 @@ Set-Location 'C:\Dev\MiBitacora'
 dotnet run --launch-profile http
 ```
 
-Abrí [localhost:5234](http://localhost:5234), elegí **Crear mi bitácora** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
+Abrí [localhost:5234](http://localhost:5234), elegí **Empezar gratis** y registrá una cuenta. La base se crea en `App_Data/mi-bitacora.db` en el primer arranque. Podés abrir [la solución](MiBitacora.sln) en Visual Studio y ejecutar el perfil **http**.
 
 Para una primera vuelta, en **Conversación** tocá **Probar con un ejemplo** y después **Enviar**. La cuenta gratuita usa IA local. Una cuenta con acceso a Profundo puede elegir OpenAI o IA local en **Mi cuenta → Mi plan**. **Solo guardar** permite escribir sin pedir una respuesta ni transcribir audio; los textos disponibles se organizan localmente en segundo plano. Si falla el proveedor elegido, la entrada queda guardada y se puede reintentar. Ver [conversación](docs/conversacion.md).
 

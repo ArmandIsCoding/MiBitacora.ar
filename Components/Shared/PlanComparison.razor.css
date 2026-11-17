@@ -1,0 +1,26 @@
+.plan-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.plan-card { display: flex; flex-direction: column; min-width: 0; padding: clamp(1.4rem, 3.2vw, 2.25rem); border: 1px solid var(--line); border-radius: 1.3rem; background: var(--paper); box-shadow: 0 4px 18px #5a493b07; }
+.plan-kicker { min-height: 1.25rem; color: var(--muted); font-size: .65rem; font-weight: 650; letter-spacing: .1em; line-height: 1.65; }
+.plan-name { margin: .55rem 0 1.1rem; font-size: clamp(1.9rem, 3.2vw, 2.5rem); }
+.plan-price { display: flex; flex-direction: column; gap: .35rem; margin: 0; color: var(--ink); }
+.plan-price strong { font-size: clamp(2.35rem, 4.5vw, 3rem); font-weight: 600; line-height: 1.15; letter-spacing: -.035em; }
+.plan-price span { min-height: 2.8em; color: var(--muted); font-size: .85rem; line-height: 1.4; }
+.plan-description { min-height: 3.4em; margin: .75rem 0 1rem; color: var(--muted); font-size: .97rem; line-height: 1.7; }
+.plan-features { display: grid; gap: .8rem; padding: 0; margin: .25rem 0 1.5rem; list-style: none; }
+.plan-features li { display: flex; gap: .6rem; align-items: flex-start; color: var(--muted); font-size: .93rem; line-height: 1.65; }
+.plan-features ::deep svg { flex: none; color: var(--olive); margin-top: .18rem; }
+.plan-actions { margin-top: auto; }
+.plan-payment { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .1rem; min-height: 6rem; margin: 0 0 1rem; padding: .35rem .7rem; border-radius: .65rem; background: #fff; color: var(--olive-dark); text-align: center; font-size: .8rem; }
+.plan-payment ::deep svg { margin-bottom: .45rem; }
+.plan-payment img { width: 164px; height: auto; }
+.plan-action { width: 100%; min-height: 3.2rem; padding-inline: .8rem; }
+.plan-commitment { min-height: 3.2em; margin: .85rem 0 0; color: var(--muted); font-size: .79rem; line-height: 1.6; }
+@media (max-width: 650px) {
+    .plan-comparison { grid-template-columns: 1fr; gap: 1rem; }
+    .plan-card { padding: 1.4rem; }
+    .plan-name { font-size: 2.1rem; }
+    .plan-price strong { font-size: 2.6rem; }
+    .plan-price span, .plan-description, .plan-commitment { min-height: 0; }
+    .plan-description { margin-top: 1rem; }
+    .plan-kicker { min-height: 0; }
+}
