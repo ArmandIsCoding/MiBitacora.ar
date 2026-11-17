@@ -63,7 +63,6 @@ public sealed class MercadoPagoGateway(HttpClient client, IOptions<SubscriptionO
             payer_email = payerEmail,
             auto_recurring = new { frequency = 1, frequency_type = "months", transaction_amount = amountCents / 100m, currency_id = "ARS" },
             back_url = options.Value.PublicBaseUrl.TrimEnd('/') + "/Account/Manage/Subscription?returned=1",
-            notification_url = options.Value.PublicBaseUrl.TrimEnd('/') + "/api/mercadopago/webhook",
             status = "pending"
         }, ct, reference));
 

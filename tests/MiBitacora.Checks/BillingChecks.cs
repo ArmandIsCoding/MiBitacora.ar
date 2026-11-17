@@ -384,6 +384,7 @@ internal static class BillingChecks
                     body.GetProperty("status").GetString() == "pending" && body.GetProperty("payer_email").GetString() == "payer@example.test" &&
                     body.GetProperty("auto_recurring").GetProperty("transaction_amount").GetDecimal() == 8000 &&
                     body.GetProperty("back_url").GetString() == "https://example.test/Account/Manage/Subscription?returned=1" &&
+                    !body.TryGetProperty("notification_url", out _) &&
                     request.Headers.GetValues("X-Idempotency-Key").Single() == "opaque-ref";
                 if (errorStatus != HttpStatusCode.OK) return new HttpResponseMessage(errorStatus);
             }
