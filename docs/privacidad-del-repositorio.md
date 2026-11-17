@@ -12,7 +12,7 @@ Se consultaron las tres ramas públicas remotas y su historial completo disponib
 
 Además se contrastaron las credenciales reales de la instalación y la contraseña de ingreso proporcionada para la comprobación, sin imprimir sus valores: seis valores privados o sus huellas, en 1.425 objetos de Git y 996 versiones de archivos. Se buscaron también representaciones codificadas. No hubo coincidencias ni archivos de bases, adjuntos o configuración privada versionados. Se revisaron las capturas de documentación; las de conversaciones corresponden a una cuenta y textos de prueba, y la firma de Mercado Pago aparece oculta. Los informes completos de la revisión quedan en `.artifacts/security-audit`, fuera de Git.
 
-El retiro de la calle y altura de la versión actual no las elimina de los commits anteriores. Una limpieza histórica requiere reescribir las referencias afectadas y verificar nuevamente el remoto; no debe confundirse con un commit que modifica el archivo actual. Los escáneres de credenciales tampoco certifican la ausencia de todo dato personal o de copias externas del repositorio.
+Los escáneres de credenciales no certifican la ausencia de todo dato personal ni de copias externas del repositorio. El retiro de un dato de la versión actual tampoco lo elimina de los commits anteriores.
 
 Para repetir el examen de credenciales con Gitleaks instalado:
 
@@ -21,3 +21,11 @@ gitleaks git --log-opts="--all --full-history" --ignore-gitleaks-allow --redact=
 ```
 
 Revisar por separado capturas, datos personales y el conjunto exacto de archivos que se agregará al commit. No copiar credenciales reales a pruebas o documentación para demostrar una configuración.
+
+## Limpieza histórica autorizada del 17/11/2026
+
+Con autorización explícita del titular, se reescribieron diez commits de `feature/mercadopago-subscriptions` para retirar la dirección particular de las versiones anteriores de `BusinessIdentity`. Se preservaron los autores, fechas, mensajes y el contenido actual del proyecto. `main` y `brisa` conservaron sus referencias. La actualización remota se hizo con `force-with-lease` contra el identificador previamente verificado; la copia de trabajo local se alineó al historial nuevo sin reemplazar archivos locales.
+
+Los identificadores de versiones citados en la guía de lanzamiento se actualizaron a los equivalentes del historial limpio. El mapa de recuperación y el respaldo original se conservan privados, fuera de Git. Otras copias de desarrollo deben partir del historial remoto nuevo para evitar republicar los datos retirados.
+
+La comprobación posterior confirmó que GitHub todavía devolvía una versión antigua por su identificador directo. Por eso la limpieza de las ramas no equivale a la purga de las copias cacheadas: esta última debe solicitarse a [Soporte de GitHub, según su procedimiento de eliminación de datos sensibles](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository#fully-removing-the-data-from-github). Se preparó un borrador privado para esa solicitud, sin incluir contraseñas ni claves; no se envió un mensaje a terceros durante la limpieza del historial.
