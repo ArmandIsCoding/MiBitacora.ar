@@ -4,6 +4,12 @@
 
 Se abre desde el menú del cuaderno o desde **Explorar esta conversación en mi mapa**, junto a los antecedentes de cada devolución. El enlace contextual centra la exploración en esa entrada, incluso si es antigua. Cada punto muestra su texto, sus relaciones dirigidas y un enlace para volver al original. La vista admite búsqueda sin distinción de acentos, zoom, desplazamiento, exploración de una rama a dos saltos y filtros de diario/fechas.
 
+## Mapas grandes y pantalla completa
+
+La vista general conserva todos los puntos y conexiones, con rótulos progresivos: prioriza los temas y revela entradas y preguntas al acercarse, buscarlas, enfocarlas con teclado o elegirlas. Los textos se distribuyen según el espacio real en pantalla, con detección de superposiciones; los rótulos que no entran se pueden leer completos en el panel de selección. Los puntos y sus textos mantienen tamaños acotados al usar zoom, y **Ver todo** encuadra el recorrido con las dimensiones reales de la vista.
+
+**Pantalla completa** abre el mapa en todo el espacio disponible. Usa la API nativa cuando está disponible y una vista expandida cuando el navegador no la admite. Sin una selección, aprovecha también el espacio del panel lateral; al elegir un punto, muestra su detalle. **Salir** o **Escape** regresan al cuaderno, conservando el estado de búsqueda/rama y restaurando el foco y el desplazamiento de la página. El foco de teclado queda dentro de la vista expandida. En celular el detalle ocupa una franja inferior acotada.
+
 ## Qué significan las flechas
 
 | Dirección | Relación guardada |
@@ -33,7 +39,9 @@ El landing incluye una muestra interactiva con **contenido completamente fictici
 ```powershell
 dotnet build tests/MiBitacora.Checks -c Release -p:UseAppHost=false
 dotnet tests/MiBitacora.Checks/bin/Release/net10.0/MiBitacora.Checks.dll
-node --test tests/thought-map.test.mjs tests/brisa-motion.test.mjs tests/journal-scroll.test.mjs tests/voice-recorder.test.mjs
+node --test tests/thought-map.test.mjs tests/thought-map-fullscreen.test.mjs tests/brisa-motion.test.mjs tests/journal-scroll.test.mjs tests/voice-recorder.test.mjs
 ```
 
 Las comprobaciones cubren aislamiento entre cuentas, referencias eliminadas, títulos equivalentes, preguntas regeneradas, filtros, límites, fechas locales, entradas antiguas, integridad del ejemplo público, búsqueda/ramas, geometría de 1.000 puntos y rechazo de enlaces externos o ejecutables. La revisión visual usa exclusivamente una base y cuentas sintéticas.
+
+También se comprueban un recorrido sintético de 221 puntos y 141 conexiones, la ausencia de rótulos superpuestos con distintos zooms y desplazamientos, y la entrada/salida de pantalla completa nativa o alternativa, incluyendo permisos rechazados, Escape, navegación durante una apertura pendiente y liberación de foco/fondo al cerrar.

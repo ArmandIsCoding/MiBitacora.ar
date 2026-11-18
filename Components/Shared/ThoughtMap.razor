@@ -8,6 +8,7 @@
             <button type="button" data-map-action="out" aria-label="Alejar mapa">−</button>
             <button type="button" data-map-action="in" aria-label="Acercar mapa">+</button>
             <button type="button" data-map-action="fit" title="Ver todo el mapa"><Icon Name="expand" Size="18" /><span>Ver todo</span></button>
+            <button type="button" data-map-action="fullscreen" aria-label="Abrir mapa a pantalla completa" aria-pressed="false" title="Pantalla completa"><span data-fullscreen-open><Icon Name="expand" Size="18" /></span><span data-fullscreen-close hidden><Icon Name="shrink" Size="18" /></span><span data-fullscreen-label>Pantalla completa</span></button>
         </div>
     </div>
     <div class="thought-explorer">
@@ -39,7 +40,7 @@
     </div>
     <div class="thought-map-footer">
         <div class="thought-legend" aria-label="Qué representa cada punto"><span class="is-entry">Tus entradas</span><span class="is-theme">Temas de Brisa</span><span class="is-question">Preguntas</span><span class="is-note">Notitas y contexto</span></div>
-        <span class="thought-visible" data-map-count role="status" aria-live="polite">Preparando conexiones…</span>
+        <div class="thought-map-status"><span class="thought-level" data-map-level></span><span class="thought-visible" data-map-count role="status" aria-live="polite">Preparando conexiones…</span></div>
     </div>
     @if (_failed) { <p class="thought-runtime-error" role="status">No pudimos abrir la vista interactiva. @if (Demo) { <span>Podés seguir conociendo los planes y empezar tu propio recorrido.</span> } else { <span>Podés recorrer las entradas en la lista de abajo.</span> }</p> }
 </section>

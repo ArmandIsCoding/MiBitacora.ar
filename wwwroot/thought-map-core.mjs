@@ -119,10 +119,69 @@ export function bounds(nodes) {
         height: Math.max(...values.map(n => n.y)) + 90 - minY };
 }
 
-export function curve(source, target) {
+export function fitCamera(nodes, width, height) {
+    const box = bounds(nodes);
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2,
+        scale: Math.max(.001, Math.min(1.6, Math.max(1, width - 36) / box.width, Math.max(1, height - 90) / box.height)) };
+}
+
+// Screen-space glyphs and labels remain readable without growing into neighboring ideas.
+export function nodeRadius(node, scale) {
+    const base = node.kind === 'theme' ? 23 : node.kind === 'entry' ? 8 + Math.min(node.degree, 5) : 8;
+    return Math.max(node.kind === 'theme' ? 7 : 3, Math.min(node.kind === 'theme' ? 27 : 14, base * Math.sqrt(scale)));
+}
+
+export function labelPlacements(graph, visible, camera, width, height, metrics, priorityIds = [], search = '') {
+    const projected = [...visible].map(id => graph.nodes.get(id)).filter(Boolean).map(node => ({
+        node, x: width / 2 + (node.x - camera.x) * camera.scale,
+        y: height / 2 + (node.y - camera.y) * camera.scale,
+        radius: nodeRadius(node, camera.scale)
+    })).filter(p => p.x > -40 && p.x < width + 40 && p.y > -40 && p.y < height + 40);
+    const priorities = new Map(priorityIds.filter(Boolean).map((id, i) => [id, 100000 - i * 1000]));
+    const term = normalize(search.trim());
+    const areaBudget = Math.max(3, Math.floor(width * height / 11000));
+    const crowded = projected.length > areaBudget * 1.5;
+    const grid = new Map(), cell = 80;
+    const cells = rect => {
+        const keys = [];
+        for (let x = Math.floor(rect.x / cell); x <= Math.floor((rect.x + rect.width) / cell); x++)
+            for (let y = Math.floor(rect.y / cell); y <= Math.floor((rect.y + rect.height) / cell); y++) keys.push(`${x},${y}`);
+        return keys;
+    };
+    const occupy = rect => { for (const key of cells(rect)) { if (!grid.has(key)) grid.set(key, []); grid.get(key).push(rect); } };
+    const intersects = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+    const collides = rect => cells(rect).some(key => (grid.get(key) ?? []).some(other => intersects(rect, other)));
+    // Tiny distant points must not crowd every label out of the overview.
+    for (const p of projected) if (p.node.kind === 'theme' || priorities.has(p.node.id) || p.radius >= 12)
+        occupy({ x: p.x - p.radius - 3, y: p.y - p.radius - 3, width: p.radius * 2 + 6, height: p.radius * 2 + 6 });
+    const score = p => priorities.get(p.node.id) ?? ((term && normalize(`${p.node.label} ${p.node.detail} ${p.node.notebook ?? ''}`).includes(term) ? 50000 : 0)
+        + (p.node.kind === 'theme' ? 20000 : p.node.kind === 'entry' ? 3000 : 1000) + p.node.degree * 10);
+    projected.sort((a, b) => score(b) - score(a) || a.node.id.localeCompare(b.node.id));
+    const placed = new Map();
+    for (const p of projected) {
+        const important = priorities.has(p.node.id) || (term && score(p) >= 50000);
+        if (crowded && !important && camera.scale < .7 && p.node.kind !== 'theme') continue;
+        const size = metrics.get(p.node.id);
+        if (!size) continue;
+        const gap = p.radius + 9, w = size.width + 12, h = size.height + 8;
+        const candidates = [
+            { x: p.x - w / 2, y: p.y + gap, width: w, height: h },
+            { x: p.x + gap, y: p.y - h / 2, width: w, height: h },
+            { x: p.x - w / 2, y: p.y - gap - h, width: w, height: h },
+            { x: p.x - gap - w, y: p.y - h / 2, width: w, height: h }
+        ];
+        const within = rect => rect.x >= 12 && rect.y >= 36 && rect.x + rect.width <= width - 12 && rect.y + rect.height <= height - 32;
+        const chosen = candidates.find(rect => within(rect) && !collides(rect));
+        // Selection is always readable in the detail panel if no label fits safely here.
+        if (chosen) { placed.set(p.node.id, chosen); occupy(chosen); }
+    }
+    return placed;
+}
+
+export function curve(source, target, targetInset = null) {
     const dx = target.x - source.x, dy = target.y - source.y;
     const distance = Math.hypot(dx, dy) || 1;
-    const inset = target.kind === 'theme' ? 30 : 17;
+    const inset = Math.min(targetInset ?? (target.kind === 'theme' ? 30 : 17), distance * .8);
     const endX = target.x - dx / distance * inset, endY = target.y - dy / distance * inset;
     const bend = Math.min(35, distance * .1);
     return `M${source.x},${source.y} Q${(source.x + endX) / 2 - dy / distance * bend},${(source.y + endY) / 2 + dx / distance * bend} ${endX},${endY}`;

@@ -1,4 +1,5 @@
-import { buildGraph, layout, kinds, visibleNodes, neighborhood, bounds, curve, safeUrl } from './thought-map-core.mjs';
+import { buildGraph, layout, kinds, visibleNodes, neighborhood, fitCamera, nodeRadius, labelPlacements, curve, safeUrl } from './thought-map-core.mjs';
+import { createFullscreen } from './thought-map-fullscreen.mjs';
 
 const ns = 'http://www.w3.org/2000/svg';
 let instance = 0;
@@ -26,10 +27,12 @@ export function create(host, data, demo = false) {
     const stage = get('[data-map-stage]'), svg = get('[data-map-svg]');
     const graph = layout(buildGraph(data));
     const prefix = `thought-${++instance}`;
-    let disposed = false, selected = null, branch = null, search = '', width = 800, height = 560;
+    let disposed = false, selected = null, hovered = null, focused = null, branch = null, search = '', width = 800, height = 560, measured = false, overview = true;
     let camera = { x: 0, y: 0, scale: 1 }, pointers = new Map(), gesture = null, moved = false;
-    let visible = new Set(graph.nodes.keys()), frame = 0, roving = graph.nodes.keys().next().value, labelScale = 0;
-    const nodeElements = new Map(), edgeElements = [];
+    let visible = new Set(graph.nodes.keys()), frame = 0, roving = graph.nodes.keys().next().value;
+    const nodeElements = new Map(), labelElements = new Map(), glyphElements = new Map(), metrics = new Map(), edgeElements = [];
+    const measure = document.createElement('canvas').getContext('2d');
+    const fontFamilies = new Map();
     svg.replaceChildren();
     const defs = svgElement('defs');
     for (const [kind, value] of Object.entries(kinds)) {
@@ -53,25 +56,36 @@ export function create(host, data, demo = false) {
     for (const link of graph.links) {
         const a = graph.nodes.get(link.source), b = graph.nodes.get(link.target);
         const colorKind = link.kind === 'context' ? 'entry' : link.kind === 'reply' ? 'note' : b.kind;
-        const path = svgElement('path', { d: curve(a, b), class: `thought-edge is-${link.kind}`,
+        const path = svgElement('path', { d: curve(a, b), class: `thought-edge is-${link.kind}`, 'vector-effect': 'non-scaling-stroke',
             stroke: kinds[colorKind].color, 'marker-end': `url(#${prefix}-arrow-${colorKind})` });
         edges.append(path); edgeElements.push({ path, link });
     }
     for (const n of graph.nodes.values()) {
         const theme = n.kind === 'theme', radius = theme ? 23 : n.kind === 'entry' ? 8 + Math.min(n.degree, 5) : 8;
         const group = svgElement('g', { class: `thought-node is-${n.kind}`, transform: `translate(${n.x} ${n.y})`,
-            role: 'button', tabindex: n.id === roving ? '0' : '-1', 'aria-label': `${kinds[n.kind].label}: ${n.label}. ${n.degree} conexiones.`,
+            role: 'button', tabindex: n.id === roving ? '0' : '-1', 'aria-label': `${kinds[n.kind].label}: ${n.label}. ${n.degree} ${n.degree === 1 ? 'conexión' : 'conexiones'}.`,
             'aria-pressed': 'false', 'data-node-id': n.id, style: `--node-color:${kinds[n.kind].color}` });
         group.append(svgElement('title', {}, n.label));
-        group.append(svgElement('circle', { r: radius + 13, class: 'thought-node-halo' }));
-        group.append(svgElement('circle', { r: radius + 6, class: 'thought-node-ring' }));
-        if (n.kind === 'question') group.append(svgElement('path', { d: 'M0 -8L8 0L0 8L-8 0Z', class: 'thought-node-core' }));
-        else group.append(svgElement('circle', { r: radius, class: 'thought-node-core' }));
-        if (theme) group.append(svgElement('path', { d: 'M-7 0H7M0 -7V7M-4 -4L4 4M4 -4L-4 4', class: 'thought-node-spark' }));
-        else if (n.kind === 'entry') group.append(svgElement('circle', { r: 2.4, class: 'thought-node-center' }));
+        const glyph = svgElement('g');
+        glyph.append(svgElement('circle', { r: radius + 13, class: 'thought-node-halo' }));
+        glyph.append(svgElement('circle', { r: radius + 6, class: 'thought-node-ring' }));
+        if (n.kind === 'question') glyph.append(svgElement('path', { d: 'M0 -8L8 0L0 8L-8 0Z', class: 'thought-node-core' }));
+        else glyph.append(svgElement('circle', { r: radius, class: 'thought-node-core' }));
+        if (theme) glyph.append(svgElement('path', { d: 'M-7 0H7M0 -7V7M-4 -4L4 4M4 -4L-4 4', class: 'thought-node-spark' }));
+        else if (n.kind === 'entry') glyph.append(svgElement('circle', { r: 2.4, class: 'thought-node-center' }));
+        group.append(glyph); glyphElements.set(n.id, { glyph, radius });
         const text = svgElement('text', { y: radius + 23, 'text-anchor': 'middle', class: 'thought-node-label' });
-        words(n.label, theme ? 23 : 25).forEach((line, i) => text.append(svgElement('tspan', { x: 0, dy: i ? '1.3em' : 0 }, line)));
-        group.append(text); points.append(group); nodeElements.set(n.id, group);
+        const lines = words(n.label, theme ? 23 : 25), fontSize = theme ? 16 : 11;
+        lines.forEach((line, i) => text.append(svgElement('tspan', { x: 0, dy: i ? '1.3em' : 0 }, line)));
+        group.append(text); points.append(group); nodeElements.set(n.id, group); labelElements.set(n.id, text);
+        if (!fontFamilies.has(n.kind)) fontFamilies.set(n.kind, getComputedStyle(text).fontFamily);
+        if (measure) measure.font = `500 ${fontSize}px ${fontFamilies.get(n.kind)}`;
+        metrics.set(n.id, { width: Math.max(...lines.map(line => measure ? measure.measureText(line).width : line.length * fontSize * .65)),
+            height: fontSize * 1.3 * lines.length, fontSize });
+        group.addEventListener('pointerenter', () => { if (text.style.visibility !== 'visible') { hovered = n.id; schedule(); } }, { signal });
+        group.addEventListener('pointerleave', () => { if (hovered === n.id) { hovered = null; schedule(); } }, { signal });
+        group.addEventListener('focus', () => { focused = n.id; schedule(); }, { signal });
+        group.addEventListener('blur', () => { if (focused === n.id) { focused = null; schedule(); } }, { signal });
         group.addEventListener('click', event => { event.stopPropagation(); if (event.detail === 0 && !moved) select(n.id); }, { signal });
         group.addEventListener('keydown', event => {
             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); select(n.id); }
@@ -93,32 +107,44 @@ export function create(host, data, demo = false) {
     }
     function draw() {
         frame = 0;
-        if (disposed) return;
+        if (disposed || !measured) return;
         world.setAttribute('transform', `translate(${width / 2 - camera.x * camera.scale} ${height / 2 - camera.y * camera.scale}) scale(${camera.scale})`);
-        host.classList.toggle('is-distant', camera.scale < .48);
-        if (labelScale !== camera.scale) {
-            labelScale = camera.scale;
-            for (const [id, el] of nodeElements) {
-                const isTheme = graph.nodes.get(id).kind === 'theme';
-                el.querySelector('text').style.fontSize = Math.max(isTheme ? 18 : 11, (isTheme ? 15 : 10.5) / camera.scale) + 'px';
-            }
+        host.classList.toggle('is-overview', camera.scale < .65);
+        for (const marker of defs.querySelectorAll('marker')) { marker.setAttribute('markerWidth', 6 / camera.scale); marker.setAttribute('markerHeight', 6 / camera.scale); }
+        for (const { path, link } of edgeElements) path.setAttribute('d', curve(graph.nodes.get(link.source), graph.nodes.get(link.target), (nodeRadius(graph.nodes.get(link.target), camera.scale) + 5) / camera.scale));
+        const labels = labelPlacements(graph, visible, camera, width, height, metrics, [selected, hovered, focused], search);
+        for (const [id, text] of labelElements) {
+            const n = graph.nodes.get(id), metric = metrics.get(id), placement = labels.get(id);
+            const { glyph, radius } = glyphElements.get(id);
+            glyph.setAttribute('transform', `scale(${nodeRadius(n, camera.scale) / radius / camera.scale})`);
+            text.style.visibility = placement ? 'visible' : 'hidden';
+            if (!placement) continue;
+            const screenX = width / 2 + (n.x - camera.x) * camera.scale, screenY = height / 2 + (n.y - camera.y) * camera.scale;
+            const labelX = (placement.x + placement.width / 2 - screenX) / camera.scale;
+            text.style.fontSize = metric.fontSize / camera.scale + 'px';
+            text.style.strokeWidth = 2 / camera.scale + 'px';
+            text.setAttribute('x', labelX);
+            text.setAttribute('y', (placement.y + 4 + metric.fontSize - screenY) / camera.scale);
+            for (const span of text.children) span.setAttribute('x', labelX);
         }
+        get('[data-map-level]').textContent = labels.size < visible.size / 2 ? 'Acercate o elegí un punto para descubrir más' : 'Seguí una conexión para explorar';
     }
     function schedule() { if (!frame && !disposed) frame = requestAnimationFrame(draw); }
     function fit() {
-        const box = bounds([...visible].map(id => graph.nodes.get(id)));
-        camera = { x: box.x + box.width / 2, y: box.y + box.height / 2,
-            scale: Math.max(.08, Math.min(1.6, (width - 30) / box.width, (height - 70) / box.height)) };
+        overview = true;
+        camera = fitCamera([...visible].map(id => graph.nodes.get(id)), width, height);
         schedule();
     }
-    function center(n) { camera.x = n.x; camera.y = n.y; schedule(); }
+    function center(n) { overview = false; camera.x = n.x; camera.y = n.y; schedule(); }
     function zoom(factor, clientX = width / 2, clientY = height / 2) {
-        const old = camera.scale, next = Math.min(3.8, Math.max(.08, old * factor));
+        overview = false;
+        const old = camera.scale, next = Math.min(3.8, Math.max(.005, old * factor));
         camera.x += (clientX - width / 2) * (1 / old - 1 / next);
         camera.y += (clientY - height / 2) * (1 / old - 1 / next);
         camera.scale = next; schedule();
     }
     function paint() {
+        host.classList.toggle('has-selection', !!selected);
         visible = visibleNodes(graph, search, branch);
         const related = selected ? neighborhood(graph, selected) : null;
         for (const [id, el] of nodeElements) {
@@ -138,8 +164,9 @@ export function create(host, data, demo = false) {
         }
         if (!visible.has(roving)) setRoving(visible.values().next().value);
         get('[data-map-empty]').hidden = visible.size > 0;
-        get('[data-map-count]').textContent = `${visible.size} ideas · ${connections} conexiones`;
+        get('[data-map-count]').textContent = `${visible.size} ${visible.size === 1 ? 'idea' : 'ideas'} · ${connections} ${connections === 1 ? 'conexión' : 'conexiones'}`;
         get('[data-map-hint]').textContent = branch ? 'Explorando una rama · «Ver todo» vuelve al recorrido completo' : 'Arrastrá para explorar · elegí un punto para seguir su historia';
+        schedule();
     }
     function select(id) {
         if (!graph.nodes.has(id)) return;
@@ -170,6 +197,7 @@ export function create(host, data, demo = false) {
         if (!list.children.length) { const li = document.createElement('li'); li.textContent = 'Este es un punto de partida. Las conexiones aparecen al conversar con Brisa.'; list.append(li); }
         get('[data-map-action="branch"]').setAttribute('aria-pressed', String(!!branch));
         paint();
+        if (host.classList.contains('is-expanded')) center(n);
     }
     function clear() {
         selected = null; branch = null;
@@ -203,6 +231,7 @@ export function create(host, data, demo = false) {
         else if (event.key === 'ArrowUp') camera.y -= step;
         else if (event.key === 'ArrowDown') camera.y += step;
         else return;
+        if (event.key.startsWith('Arrow')) overview = false;
         event.preventDefault(); schedule();
     }, { signal });
     stage.addEventListener('wheel', event => {
@@ -226,10 +255,10 @@ export function create(host, data, demo = false) {
         if (!pointers.has(event.pointerId) || !gesture) return;
         pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         const p = [...pointers.values()], x = p.reduce((s, n) => s + n.x, 0) / p.length, y = p.reduce((s, n) => s + n.y, 0) / p.length;
-        if (Math.hypot(x - gesture.x, y - gesture.y) > 4 || (p.length > 1 && Math.abs(distance() - gesture.distance) > 4)) moved = true;
+        if (Math.hypot(x - gesture.x, y - gesture.y) > 4 || (p.length > 1 && Math.abs(distance() - gesture.distance) > 4)) { moved = true; overview = false; }
         camera.x = gesture.camera.x - (x - gesture.x) / gesture.camera.scale;
         camera.y = gesture.camera.y - (y - gesture.y) / gesture.camera.scale;
-        if (p.length > 1 && gesture.distance > 0) camera.scale = Math.max(.08, Math.min(3.8, gesture.camera.scale * distance() / gesture.distance));
+        if (p.length > 1 && gesture.distance > 0) camera.scale = Math.max(.005, Math.min(3.8, gesture.camera.scale * distance() / gesture.distance));
         stage.classList.toggle('is-dragging', moved); schedule();
     }, { signal });
     function endPointer(event) {
@@ -248,14 +277,17 @@ export function create(host, data, demo = false) {
     stage.addEventListener('lostpointercapture', event => { pointers.delete(event.pointerId); if (!pointers.size) gesture = null; }, { signal });
     const observer = new ResizeObserver(entries => {
         const rect = entries[0].contentRect; width = Math.max(1, rect.width); height = Math.max(1, rect.height);
-        svg.setAttribute('viewBox', `0 0 ${width} ${height}`); fit();
+        const firstMeasurement = !measured; measured = true;
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        if (firstMeasurement || overview) fit(); else schedule();
     });
+    const fullscreen = createFullscreen(host, get('[data-map-action="fullscreen"]'), () => schedule());
     observer.observe(stage); paint();
     if (data.focus && graph.nodes.has(data.focus)) { branch = data.focus; select(data.focus); }
     host.classList.add('is-ready');
     return { dispose() {
         if (disposed) return;
-        disposed = true; controller.abort(); observer.disconnect();
+        disposed = true; controller.abort(); observer.disconnect(); fullscreen.dispose();
         if (frame) cancelAnimationFrame(frame);
         pointers.clear(); svg.replaceChildren(); host.classList.remove('is-ready');
     } };
