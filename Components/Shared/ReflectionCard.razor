@@ -75,6 +75,10 @@
     {
         <p class="reflection-next"><Icon Name="leaf" Size="19" /> <span>@Reflection.NextStep</span></p>
     }
+    @if (EntryId is { } mapEntryId)
+    {
+        <a class="reflection-map-link" href="@($"/mapa?entrada={mapEntryId:D}")"><Icon Name="graph" Size="19" /><span>Explorar esta conversación en mi mapa <Icon Name="arrow" Size="15" /></span></a>
+    }
     @if (Reflection.ContextSources is { Count: > 0 } memories)
     {
         <details class="reflection-details conversation-sources">
@@ -109,6 +113,7 @@
 </article>
 
 @code {
+    [Parameter] public Guid? EntryId { get; set; }
     [Parameter] public bool JustResponded { get; set; }
     [Inject] private TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
     private bool IsConversation => Reflection.ConversationVersion >= 1 && !Reflection.IsDemo;

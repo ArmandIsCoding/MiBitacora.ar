@@ -1,0 +1,76 @@
+@page "/mapa"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject AuthenticationStateProvider Auth
+@inject ThoughtMapService Maps
+@inject IJournalStore Store
+@inject ILogger<Mapa> Logger
+
+<PageTitle>Mapa de ideas · Mi Bitácora</PageTitle>
+<header class="site-header wrap"><Brand Href="/bitacora" /><a class="btn btn-outline" href="/bitacora"><Icon Name="book" Size="18" /> Volver a mi cuaderno</a></header>
+<main class="thought-page wrap">
+    <header class="thought-page-heading">
+        <div><p class="eyebrow"><Icon Name="graph" Size="17" /> TU RECORRIDO, CONECTADO</p><h1>Mapa de <em>ideas.</em></h1><p>Hay cosas que se entienden mejor cuando las ves juntas.<br />Recorré tus entradas, seguí una pregunta y descubrí cómo fue creciendo una idea.</p></div>
+        <span class="thought-plan-label"><Icon Name="leaf" Size="17" /> Incluido en Gratuito y Profundo</span>
+    </header>
+    <form class="thought-filters" @onsubmit="ApplyAsync" @onsubmit:preventDefault>
+        <label>Diario<select @bind="_notebook"><option value="">Todos mis diarios</option>@foreach (var notebook in _notebooks) { <option value="@(notebook.Id?.ToString("D") ?? "default")">@notebook.Name</option> }</select></label>
+        <label>Desde<input type="date" @bind="_from" /></label><label>Hasta<input type="date" @bind="_until" /></label>
+        <button type="submit" class="btn btn-outline" disabled="@(_loading || !RendererInfo.IsInteractive)"><Icon Name="refresh" Size="17" /> Explorar</button>
+        @if (_from is not null || _until is not null || !string.IsNullOrEmpty(_notebook)) { <button class="quiet-action" type="button" @onclick="ResetAsync" disabled="@_loading">Quitar filtros</button> }
+    </form>
+    @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
+    @if (_loading) { <p class="thought-loading" role="status">Reuniendo tus ideas y sus conexiones…</p> }
+    @if (_data is { Nodes.Count: > 0 } map)
+    {
+        <div aria-busy="@_loading"><ThoughtMap Data="map" /></div>
+        <p class="thought-scope">@map.ShownEntries de @map.TotalEntries entradas en este período, junto con sus antecedentes disponibles.
+            @if (map.Limited) { <span>Para recorrer otras etapas, elegí un diario o un rango de fechas. Se muestran hasta @ThoughtMapService.EntryLimit entradas del período y @ThoughtMapService.ReferenceLimit antecedentes.</span> }
+        </p>
+        <details class="thought-reading"><summary>Cómo leer tu mapa y recorrerlo con teclado</summary><p>Las flechas van del antecedente hacia la entrada donde Brisa lo consultó, de una entrada hacia un tema o una pregunta, y de la pregunta hacia tu respuesta. Un tema compartido une devoluciones con el mismo título; no significa que una experiencia haya causado otra.</p><p>Los temas son propuestas de Brisa y pueden equivocarse. Elegí un punto para revisar sus originales y decidir qué te representa. Las conexiones aparecen con las devoluciones que ya tenés guardadas; abrir el mapa no usa IA ni consume créditos.</p><p>Arrastrá para moverte. Usá + y − para acercar, o Ctrl + rueda del mouse. En el mapa, las flechas del teclado recorren el espacio; sobre un punto, pasan al siguiente en esa dirección. Enter abre sus detalles, Inicio encuadra todo y Escape cierra la rama. En el celular podés arrastrar y usar dos dedos para acercar.</p></details>
+        <details class="thought-reading"><summary>Recorrer las entradas en una lista</summary><ul class="thought-entry-list">@foreach (var entry in map.Nodes.Where(n => n.Kind == "entry")) { <li><a href="@entry.Url">@entry.Label</a><span>@entry.Notebook</span></li> }</ul></details>
+    }
+    else if (!_loading && _error is null)
+    {
+        <section class="thought-empty"><Icon Name="graph" Size="48" /><h2>@(_data?.TotalEntries == 0 && (_from is not null || _until is not null || _notebook.Length > 0) ? "Todavía no hay entradas en este recorrido." : "Tu primera idea abre el camino.")</h2><p>Escribí una entrada y conversá con Brisa. Acá vas a poder recorrer los temas, las preguntas y las conexiones que vayan apareciendo.</p><a class="btn btn-primary" href="/bitacora">Ir a escribir <Icon Name="arrow" Size="18" /></a></section>
+    }
+    <p class="thought-private"><Icon Name="lock" Size="16" /> Este mapa es privado, como tu cuaderno. Podés llevar las ideas que elijas a tu próxima sesión de terapia.</p>
+</main>
+
+@code {
+    [SupplyParameterFromQuery(Name = "entrada")] public Guid? Focus { get; set; }
+    private IReadOnlyList<JournalNotebook> _notebooks = [];
+    private ThoughtMapData? _data;
+    private string _notebook = "";
+    private DateOnly? _from, _until;
+    private string? _error, _userId;
+    private bool _loading;
+    private readonly CancellationTokenSource _lifetime = new();
+    protected override async Task OnParametersSetAsync()
+    {
+        _userId = (await Auth.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (_userId is null) return;
+        await LoadAsync(Focus);
+    }
+    private Task ApplyAsync() => LoadAsync(null);
+    private Task ResetAsync() { _notebook = ""; _from = _until = null; return LoadAsync(null); }
+    private async Task LoadAsync(Guid? focus)
+    {
+        if (_loading || _userId is null) return;
+        _error = null;
+        if (_from > _until) { _error = "La fecha de inicio debe ser anterior o igual a la fecha final."; return; }
+        _loading = true;
+        try
+        {
+            _notebooks = await Store.GetNotebooksAsync(_userId, _lifetime.Token);
+            _data = await Maps.GetAsync(_userId, focus, _notebook, _from, _until, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex) { Logger.LogWarning(ex, "No se pudo abrir el mapa de ideas."); _error = "No pudimos reunir tu mapa. Volvé a intentar en un momento."; }
+        finally { _loading = false; }
+    }
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

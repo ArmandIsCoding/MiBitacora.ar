@@ -6,7 +6,7 @@
 @if (_current.Reflection is { } reflection)
 {
     <div class="reply-ready" @key="reflection.GeneratedUtc">
-    <ReflectionCard Reflection="reflection" Selected="_current.ForSession" Busy="@(Busy || _generating)"
+    <ReflectionCard EntryId="Entry.Id" Reflection="reflection" Selected="_current.ForSession" Busy="@(Busy || _generating)"
                     SaveAsNote="SaveAsNote" ToggleSession="ToggleSession" Regenerating="_generating"
                     Respond="@(Respond.HasDelegate ? EventCallback.Factory.Create(this, () => Respond.InvokeAsync(_current)) : default)"
                     Regenerate="@(CanRegenerate ? EventCallback.Factory.Create(this, RegenerateAsync) : default)" JustResponded="FreshResponse" />

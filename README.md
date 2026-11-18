@@ -2,6 +2,8 @@
 
 Tu espacio para conversar con **Brisa**, una compañera de IA amable, ilustrada y con lentes grandes. [Identidad, voz y assets](docs/brisa.md), [gestos y expresiones](docs/gestos-brisa.md).
 
+Explorá tus entradas, preguntas y antecedentes en el [Mapa de ideas](docs/mapa-de-ideas.md): una constelación interactiva incluida en los planes Gratuito y Profundo, con una muestra ficticia para probar en el inicio.
+
 Cuaderno conversacional para escribir, ordenar ideas y preparar temas para llevar a terapia. Brisa acompaña entre sesiones y promueve el trabajo con un profesional. Usa Blazor Web App con interactividad en el servidor, ASP.NET Core Identity, .NET 10 y SQLite. El plan gratuito usa IA local; Profundo ofrece OpenAI con cupo y suscripción mensual en pesos argentinos mediante Mercado Pago. Ver [presentación del inicio y los planes](docs/inicio-y-planes.md).
 
 ![Inicio de Mi Bitácora: Brisa acompaña entre sesiones y presenta las opciones Gratuito y Profundo](docs/inicio-brisa-planes.jpg)

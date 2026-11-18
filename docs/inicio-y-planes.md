@@ -2,6 +2,8 @@
 
 La portada presenta a Brisa como una asistente de IA para registrar experiencias, ordenar preguntas y preparar temas para conversar en terapia. Invita expresamente a buscar un profesional si todavía no se comenzó un proceso y aclara que la IA puede equivocarse, no diagnostica ni reemplaza a un terapeuta.
 
+También permite probar un [Mapa de ideas](mapa-de-ideas.md) interactivo con datos ficticios y presenta esta función como parte de ambos planes. La muestra nunca recibe datos de cuentas reales.
+
 ## Dos opciones con la misma jerarquía
 
 El inicio muestra desde el primer bloque que existe un plan Gratuito de $0, gratis por siempre, sin tarjeta ni período de prueba, y un plan Profundo en pesos argentinos. Profundo se puede cancelar en cualquier momento: se conserva el período ya abonado y después se sigue usando la plataforma gratis por siempre, con los diarios y conversaciones. El mensaje también aparece en `/planes`, las condiciones y Mi plan.

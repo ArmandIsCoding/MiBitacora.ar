@@ -1,0 +1,26 @@
+.thought-page { padding-bottom:3rem; }
+.thought-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding-block:1.7rem 1.8rem; }
+.thought-page-heading .eyebrow { display:flex; align-items:center; gap:.5rem; }
+.thought-page-heading h1 { margin:.65rem 0 1rem; font-size:clamp(2.7rem,5vw,4.2rem); line-height:1.1; }
+.thought-page-heading h1 em { color:var(--olive); }
+.thought-page-heading p:last-child { color:var(--muted); line-height:1.8; font-size:.95rem; }
+.thought-plan-label { display:flex; align-items:center; gap:.4rem; flex-shrink:0; margin-top:1rem; padding:.55rem .7rem; border:1px solid var(--line); border-radius:2rem; color:var(--olive-dark); font-size:.67rem; }
+.thought-filters { display:flex; gap:.8rem; flex-wrap:wrap; align-items:flex-end; padding-bottom:1.5rem; }
+.thought-filters label { display:flex; flex-direction:column; gap:.35rem; font-size:.7rem; color:var(--muted); }
+.thought-filters select, .thought-filters input { background:var(--paper); border:1px solid var(--line); border-radius:.6rem; color:var(--ink); font:inherit; font-size:.8rem; padding:.65rem; min-height:2.6rem; }
+.thought-filters .btn { min-height:2.6rem; padding:.6rem .85rem; font-size:.8rem; }
+.thought-scope { margin:1rem .2rem; color:var(--muted); font-size:.73rem; line-height:1.8; }
+.thought-reading { border-top:1px solid var(--line); padding:1rem .2rem; font-size:.82rem; color:var(--muted); }
+.thought-reading summary { cursor:pointer; color:var(--olive-dark); font-weight:500; }
+.thought-reading p { margin-top:.85rem; max-width:95ch; line-height:1.8; }
+.thought-entry-list { list-style:none; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:.6rem 1.5rem; margin-top:1rem; }
+.thought-entry-list li { display:flex; flex-direction:column; gap:.25rem; }
+.thought-entry-list a { color:var(--olive-dark); }
+.thought-entry-list span { font-size:.7rem; }
+.thought-private { display:flex; align-items:flex-start; gap:.5rem; color:var(--olive-dark); font-size:.75rem; margin-top:1.5rem; line-height:1.8; }
+.thought-private svg { flex:none; margin-top:.2rem; }
+.thought-empty { text-align:center; padding:4rem 1rem; border:1px dashed var(--line); border-radius:1.3rem; background:var(--paper); }
+.thought-empty h2 { font-size:2rem; margin:1rem 0; }
+.thought-empty p { max-width:55ch; margin:0 auto 1.5rem; color:var(--muted); }
+.thought-loading { padding:1rem; color:var(--olive-dark); }
+@media(max-width:700px) { .thought-page-heading { flex-direction:column; gap:.5rem; padding-block:1rem 1.4rem; } .thought-plan-label { margin-top:0; } .thought-filters { gap:.6rem; } .thought-filters label:first-child { width:100%; } .thought-filters label:not(:first-child) { flex:1; min-width:8rem; } .thought-entry-list { grid-template-columns:1fr; } }

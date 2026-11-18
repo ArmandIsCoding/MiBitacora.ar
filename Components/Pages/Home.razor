@@ -7,6 +7,7 @@
         <Brand />
         <nav aria-label="Navegación principal" class="site-nav">
             <a class="text-link" href="#planes">Gratis y Profundo</a>
+            <a class="text-link" href="#mapa-de-ideas">Mapa de ideas</a>
             <a class="text-link" href="#terapia">Para tu terapia</a>
             <AuthorizeView>
                 <Authorized><a class="btn btn-outline" href="/bitacora">Volver con Brisa <Icon Name="arrow" Size="17" /></a></Authorized>
@@ -37,6 +38,15 @@
                 <BrisaPortrait Illustration="true" Decorative="false" Priority="true" />
                 <div class="brisa-hero-bubble"><span class="brisa-bubble-name">Brisa <Icon Name="leaf" Size="15" /></span><p>¿Qué te gustaría llevar<br />a tu próxima sesión?</p></div>
             </div>
+        </section>
+
+        <section id="mapa-de-ideas" class="landing-thoughts wrap" aria-labelledby="thoughts-title">
+            <div class="thoughts-intro">
+                <div><p class="eyebrow"><Icon Name="graph" Size="17" /> UN MAPA QUE CRECE CON VOS</p><h2 id="thoughts-title">Tu cabeza tiene mil caminos.<br /><em>Ahora podés verlos.</em></h2></div>
+                <div><p>Una entrada lleva a una pregunta. Una respuesta abre otra idea. Explorá ese recorrido en un mapa vivo: acercate, seguí las flechas y volvé a las palabras que lo empezaron todo.</p><span class="thoughts-included"><Icon Name="check" Size="16" /> Incluido en Gratuito y Profundo</span></div>
+            </div>
+            <ThoughtMap Data="ThoughtMapDemo.Create()" Demo="true" @rendermode="InteractiveServer" />
+            <div class="thoughts-caption"><p><strong>Probalo: elegí un punto y seguí sus conexiones.</strong> Este recorrido es ficticio; tu mapa se construye con tus propias entradas y las devoluciones guardadas de Brisa. Los temas que propone son posibilidades para explorar, también en terapia.</p><AuthorizeView><Authorized><a class="text-link" href="/mapa">Explorar mi mapa <Icon Name="arrow" Size="17" /></a></Authorized><NotAuthorized><a class="text-link" href="/Account/Register">Empezar mi mapa gratis <Icon Name="arrow" Size="17" /></a></NotAuthorized></AuthorizeView></div>
         </section>
 
         <section id="planes" class="landing-plans wrap" aria-labelledby="landing-plans-title">

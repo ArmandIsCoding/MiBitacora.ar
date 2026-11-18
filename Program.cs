@@ -83,6 +83,7 @@ builder.Services.AddSingleton(provider => new UploadFileStore(
     Path.Combine(builder.Environment.ContentRootPath, "uploads"),
     provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddScoped<ThoughtMapService>();
 builder.Services.AddSingleton<HeicImageService>();
 builder.Services.AddSingleton(new AttachmentPreparationService(
     Path.Combine(dataDirectory, "media-staging"), Path.Combine(builder.Environment.ContentRootPath, "media-tools")));
