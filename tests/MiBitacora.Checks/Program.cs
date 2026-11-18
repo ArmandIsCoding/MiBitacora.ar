@@ -23,6 +23,15 @@ void Check(bool success, string message)
     Console.WriteLine("OK: " + message);
 }
 
+if (args.Contains("--local-attachments-only") || args.Contains("--local-attachments-live"))
+{
+    var endpoint = args.FirstOrDefault(a => a.StartsWith("--ollama-url=", StringComparison.Ordinal))?.Split('=', 2)[1]
+        ?? "http://127.0.0.1:11434";
+    var onlyCase = args.FirstOrDefault(a => a.StartsWith("--case=", StringComparison.Ordinal))?.Split('=', 2)[1];
+    await LocalAttachmentChecks.RunAsync(Check, args.Contains("--media-codecs"), args.Contains("--local-attachments-live"), endpoint, onlyCase);
+    return;
+}
+
 OllamaJournalService Service(HttpClient client, LocalInferenceGate gate, OllamaOptions? config = null) =>
     new(client, Options.Create(config ?? new()), gate, NullLogger<OllamaJournalService>.Instance);
 
@@ -142,6 +151,7 @@ await BillingHttpChecks.RunAsync(Check);
 await LaunchBillingChecks.RunAsync(Check);
 await SmtpChecks.RunAsync(Check);
 await AttachmentPreparationChecks.RunAsync(Check, args.Contains("--media-codecs"));
+await LocalAttachmentChecks.RunAsync(Check, args.Contains("--media-codecs"));
 await InferenceBridgeChecks.RunAsync(Check);
 var heicContext = await StorageChecks.RunAsync(image, Check);
 await service.ReflectAsync(heicContext, true);

@@ -51,10 +51,13 @@ public abstract partial class JournalAiService
                 priorResponse: entry.Reflection is { } previous
                     ? Excerpt(previous.Overview, UsesExternalProvider ? (i < 2 ? 4200 : 1800) : 550) + "\n" + string.Join("\n", previous.OpenQuestions) : null);
         }
+        // Current document content must not disappear behind retrieved history.
+        var attachmentReserve = !UsesExternalProvider && context.Current.Attachments.Any(a => !string.IsNullOrWhiteSpace(a.ExtractedText))
+            ? Math.Min(3000, remainingText) : 0;
         foreach (var source in context.MemorySources ?? [])
         {
-            if (remainingText <= 0) break;
-            var text = Excerpt(source.Text, UsesExternalProvider ? 2400 : 450);
+            if (remainingText <= attachmentReserve) break;
+            var text = Excerpt(source.Text, Math.Min(UsesExternalProvider ? 2400 : 450, remainingText - attachmentReserve));
             var id = $"memoria{promptSources.Count}";
             AddSource(id, "antecedente recuperado · " + source.Kind, source.Label +
                 (source.CreatedUtc is { } date ? $" · {date:yyyy-MM-dd}" : " · contexto actual sin fecha de episodio"), text);
@@ -81,32 +84,40 @@ public abstract partial class JournalAiService
         var binaryBytes = 0;
         var binaryFiles = 0;
         var unreadCurrentAttachments = 0;
-        var media = context.Media.DistinctBy(file => file.AttachmentId).ToDictionary(file => file.AttachmentId);
+        var media = context.Media.GroupBy(file => file.AttachmentId).ToDictionary(group => group.Key, group => group.ToArray());
         var includedAudioIds = context.Current.Attachments.Concat(recent.SelectMany(e => e.Attachments))
             .Where(JournalAudio.HasTranscript).Select(a => a.Id).ToHashSet();
         foreach (var file in selectedAttachments.Where(a => !includedAudioIds.Contains(a.Id)))
         {
             var isCurrent = currentIds.Contains(file.Id);
             var id = $"archivo{promptSources.Count}";
-            var text = Excerpt(file.ExtractedText, isCurrent ? 1000 : 400);
-            var hasInlineContent = false;
-            if (text.Length == 0 &&
-                binaryFiles < InlineFileLimit &&
-                media.TryGetValue(file.Id, out var binary) &&
-                binary.Content.Length > 0 &&
-                binary.Content.Length <= InlineByteBudget - binaryBytes &&
-                InlineTypes.Contains(binary.ContentType) &&
-                (string.Equals(HeicImageService.AnalysisContentType(file.ContentType), binary.ContentType, StringComparison.OrdinalIgnoreCase)
-                    || (AttachmentExtractor.CanAnalyzeLocally(file.ContentType) && binary.ContentType == "image/jpeg")))
+            var text = Excerpt(file.ExtractedText, isCurrent ? UsesExternalProvider ? 1000 : 3000 : 400);
+            var inline = new List<(JournalMediaFile File, int Number)>();
+            if ((text.Length == 0 || !UsesExternalProvider) && media.TryGetValue(file.Id, out var candidates))
             {
-                images.Add(new(Convert.ToBase64String(binary.Content), binary.ContentType));
-                binaryBytes += binary.Content.Length;
-                binaryFiles++;
-                hasInlineContent = true;
+                foreach (var binary in candidates)
+                {
+                    var derivative = !UsesExternalProvider && binary.SourcePart is not null
+                        && AttachmentPresentation.Kind(file) is AttachmentViewKind.Pdf or AttachmentViewKind.Video;
+                    if (binaryFiles >= (UsesExternalProvider ? InlineFileLimit : 4) || binary.Content.Length == 0
+                        || binary.Content.Length > InlineByteBudget - binaryBytes || !InlineTypes.Contains(binary.ContentType)
+                        || !(derivative || string.Equals(HeicImageService.AnalysisContentType(file.ContentType), binary.ContentType, StringComparison.OrdinalIgnoreCase)
+                            || (AttachmentExtractor.CanAnalyzeLocally(file.ContentType) && binary.ContentType == "image/jpeg"))) continue;
+                    images.Add(new(Convert.ToBase64String(binary.Content), binary.ContentType));
+                    binaryBytes += binary.Content.Length;
+                    inline.Add((binary, ++binaryFiles));
+                }
             }
 
             var label = $"Archivo «{Excerpt(file.FileName, 150)}»";
-            AddSource(id, isCurrent ? "adjunto actual" : "adjunto previo", label, text, hasInlineContent, imageNumber: hasInlineContent ? binaryFiles : null);
+            if (!UsesExternalProvider && AttachmentPresentation.Kind(file) is AttachmentViewKind.Pdf or AttachmentViewKind.Video)
+                label += " · " + Excerpt(file.ExtractionStatus, 500);
+            if (inline.FirstOrDefault().File?.SourcePart is { } firstPart) label += " · " + firstPart;
+            AddSource(id, isCurrent ? "adjunto actual" : "adjunto previo", label, text, inline.Count > 0,
+                imageNumber: inline.Count > 0 ? inline[0].Number : null);
+            foreach (var extra in inline.Skip(1))
+                AddSource($"archivo{promptSources.Count}", "muestra visual del adjunto", $"Archivo «{Excerpt(file.FileName, 150)}» · {extra.File.SourcePart}",
+                    "", inline: true, imageNumber: extra.Number);
             if (isCurrent && !sources[id].HasContent) unreadCurrentAttachments++;
         }
 
@@ -133,7 +144,9 @@ public abstract partial class JournalAiService
             "Los antecedentes recuperados son fragmentos ORIGINALES de distintas épocas; nombrá su fecha cuando conectes el pasado con hoy. " +
             "No supongas que algo antiguo sigue pasando: conservá cambios y contradicciones, y preguntá si sigue vigente cuando haga falta. " +
             "El perfil describe el contexto actual, no necesariamente el de esta fecha. Los turnos recientes preservan el hilo; las memorias amplían los antecedentes. " +
-            "Las imágenes adjuntas corresponden en orden al campo numeroImagen (1, 2). " +
+            "Las imágenes adjuntas corresponden en orden al campo numeroImagen, empezando en 1. " +
+            "Las páginas de PDF y los fotogramas son muestras cuyo alcance figura en la etiqueta: no afirmes haber leído páginas ni momentos que no recibiste. " +
+            "El audio de un video puede contener otras voces; su transcripción no confirma quién habla ni que sea autobiográfico. " +
             "Si un texto está cortado, no inventes la continuación.\n" + prompt;
         return new(promptText, images, sources, unreadCurrentAttachments, memories);
 

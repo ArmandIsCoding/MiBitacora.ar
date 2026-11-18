@@ -5,12 +5,19 @@ using Microsoft.Extensions.Options;
 namespace MiBitacora.Services;
 
 public sealed class OllamaAudioTranscriber(HttpClient client, IOptions<OllamaOptions> options,
-    LocalInferenceGate gate) : IAudioTranscriber
+    LocalInferenceGate gate, LocalAttachmentProcessor? processor = null) : IAudioTranscriber
 {
     public bool IsConfigured => options.Value.Enabled && options.Value.Model == "gemma4:12b" && options.Value.IsValid();
     public async Task<string> TranscribeAsync(AttachmentContent file, CancellationToken ct = default)
     {
         if (!IsConfigured) throw new JournalReflectionException("La transcripción local requiere Gemma 4 12B. Tu audio sigue guardado.");
+        if (file.ContentType != "audio/wav" && AttachmentPresentation.IsInlineAudio(file.ContentType) && processor?.Enabled == true)
+        {
+            var prepared = await processor.PrepareAsync(file, ct: ct);
+            if (prepared.Audio is not { } wave) throw new JournalReflectionException("No encontramos audio para transcribir. El original se conserva.");
+            await using var stream = new MemoryStream(wave, writable: false);
+            return await TranscribeAsync(new("audio.wav", "audio/wav", stream), ct);
+        }
         // Ollama currently accepts WAV at this endpoint; free audio must never fall back to OpenAI.
         if (file.ContentType != "audio/wav")
             throw new JournalReflectionException("La transcripción local necesita audio WAV. El original sigue guardado: podés adjuntar un WAV o escribir lo que querés contar.");

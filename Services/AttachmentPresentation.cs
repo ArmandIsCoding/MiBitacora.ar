@@ -19,14 +19,15 @@ public static class AttachmentPresentation
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (extension is ".mp3" or ".m4a" or ".aac" or ".wav" or ".ogg" or ".oga" or ".opus" or ".flac" or ".weba")
                 return AttachmentViewKind.Audio;
-            if (extension is ".mp4" or ".m4v" or ".mov" or ".webm" or ".ogv" or ".3gp") return AttachmentViewKind.Video;
+            if (extension is ".mp4" or ".m4v" or ".mov" or ".webm" or ".ogv" or ".3gp" or ".mkv" or ".avi" or ".wmv") return AttachmentViewKind.Video;
         }
         return string.IsNullOrWhiteSpace(file.ExtractedText) ? AttachmentViewKind.File : AttachmentViewKind.Text;
     }
 
     public static bool IsInlineAudio(string type) => type is "audio/mpeg" or "audio/mp4" or "audio/aac"
         or "audio/wav" or "audio/ogg" or "audio/flac" or "audio/webm";
-    public static bool IsInlineVideo(string type) => type is "video/mp4" or "video/quicktime" or "video/webm" or "video/ogg" or "video/3gpp";
+    public static bool IsInlineVideo(string type) => type is "video/mp4" or "video/quicktime" or "video/webm" or "video/ogg" or "video/3gpp"
+        or "video/x-matroska" or "video/x-msvideo" or "video/x-ms-wmv";
     public static bool IsInlineType(string type) => type is "image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/avif" or "application/pdf"
         || IsInlineAudio(type) || IsInlineVideo(type);
     public static string Icon(JournalAttachment file) => Kind(file) switch

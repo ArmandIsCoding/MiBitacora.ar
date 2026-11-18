@@ -31,6 +31,8 @@ Abrí [Mi plan local](http://127.0.0.1:5264/Account/Manage/Subscription), regist
 
 ## IA local en Windows
 
+La [lectura local ampliada de adjuntos](docs/analisis-local-adjuntos.md) agrega PDF con texto o escaneados y videos con fotogramas y voz, con pruebas reales de Gemma. Está preparada y desactivada por defecto; OpenAI se conserva hasta decidir el cambio de infraestructura. Los modelos se descargan en `D:\OllamaModels`.
+
 `AI:OpenAiForAllAccounts=false` es el valor predeterminado. La excepción global solo funciona en Development y se ignora en producción. La interfaz muestra el proveedor efectivo y no cambia automáticamente cuando falla. Ver [configuración de OpenAI](docs/openai.md) y [acceso y planes](docs/suscripciones.md).
 
 1. Instalá una versión de [Ollama para Windows](https://ollama.com/download/windows) compatible con Gemma 4 12B si todavía no lo tenés.

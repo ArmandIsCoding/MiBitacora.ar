@@ -10,6 +10,12 @@ using MiBitacora.Data;
 using MiBitacora.Services;
 using System.Threading.RateLimiting;
 
+if (args.FirstOrDefault() == "--local-pdf-worker")
+{
+    Environment.ExitCode = await LocalPdfWorker.RunAsync(args);
+    return;
+}
+
 var prepareImages = args.Contains("--prepare-local-images", StringComparer.Ordinal);
 var checkBilling = args.Any(arg => arg is "--check-billing" or "--check-merchant" or "--check-mail");
 var appArgs = args.Where(arg => arg is not ("--prepare-local-images" or "--check-billing" or "--check-merchant" or "--check-mail")).ToArray();
@@ -80,6 +86,11 @@ builder.Services.AddScoped<IJournalStore, JournalStore>();
 builder.Services.AddSingleton<HeicImageService>();
 builder.Services.AddSingleton(new AttachmentPreparationService(
     Path.Combine(dataDirectory, "media-staging"), Path.Combine(builder.Environment.ContentRootPath, "media-tools")));
+builder.Services.AddOptions<LocalAttachmentOptions>().Bind(builder.Configuration.GetSection("LocalAttachments"))
+    .Validate(options => options.IsValid(), "Los límites de lectura local no son válidos.").ValidateOnStart();
+builder.Services.AddSingleton(sp => new LocalAttachmentProcessor(Path.Combine(dataDirectory, "local-analysis"),
+    Path.Combine(builder.Environment.ContentRootPath, "media-tools"), sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LocalAttachmentOptions>>()));
+builder.Services.AddScoped<LocalAttachmentAnalysis>();
 builder.Services.AddOptions<JournalStorageOptions>()
     .Bind(builder.Configuration.GetSection("Journal"))
     .Validate(options => options.MaxAccountAttachmentBytes > 0 && options.MaxAccountFiles > 0,

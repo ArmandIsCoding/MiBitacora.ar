@@ -18,7 +18,7 @@ Con `AI:Provider=OpenAI`, el servidor usa `POST https://api.openai.com/v1/audio/
 
 `AudioTranscription:Model` tiene como valor predeterminado `gpt-transcribe`; `AudioTranscription:TimeoutSeconds` es 180 (admite 30–600). No hace falta agregar configuración para activar estos valores. No se cambian el modelo de conversación, sus límites ni el esfuerzo de razonamiento.
 
-Se transcriben MP3, M4A, WAV, OGG/Opus, FLAC y WebM de audio. El grabador selecciona un formato compatible con el navegador (M4A o WebM/Opus, con OGG como alternativa). AAC suelto se puede guardar y reproducir, pero requiere convertirlo a un formato admitido para transcribirlo. Los videos no se transcriben. El detector de WebM revisa sus pistas en el encabezado; un archivo de video no se toma como un mensaje de voz por usar la misma extensión.
+Se transcriben MP3, M4A, WAV, OGG/Opus, FLAC y WebM de audio. El grabador selecciona un formato compatible con el navegador (M4A o WebM/Opus, con OGG como alternativa). La [lectura local ampliada](analisis-local-adjuntos.md) permite convertir estos formatos y AAC a WAV para Gemma y transcribir la pista de audio de videos; está desactivada por defecto y solo actúa con IA local. El flujo de OpenAI se conserva. El detector de WebM revisa sus pistas en el encabezado; un archivo de video no se toma como un mensaje de voz por usar la misma extensión.
 
 Con Ollama no se envían audios a OpenAI: se conserva el archivo y se informa que la transcripción necesita el proveedor configurado. No hay cambio automático de proveedor.
 

@@ -44,7 +44,7 @@ internal static class AttachmentExtractor
     }
 
     public static bool CanAnalyzeLocally(string type) =>
-        type is "image/jpeg" or "image/png" or "image/webp" or "image/heic" or "image/heif";
+        HeicImageService.HasPreview(type);
 
     public static AttachmentAnalysis Analyze(string name, byte[] content, CancellationToken cancellationToken)
     {
@@ -100,6 +100,8 @@ internal static class AttachmentExtractor
         }
 
         if (bytes.Length >= 12 && bytes.StartsWith("RIFF"u8) && bytes[8..12].SequenceEqual("WAVE"u8)) return "audio/wav";
+        if (bytes.Length >= 12 && bytes.StartsWith("RIFF"u8) && bytes[8..12].SequenceEqual("AVI "u8)) return "video/x-msvideo";
+        if (bytes.StartsWith(new byte[] { 0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce, 0x6c })) return "video/x-ms-wmv";
         if (bytes.StartsWith("fLaC"u8)) return "audio/flac";
         if (bytes.StartsWith("ID3"u8) || (bytes.Length >= 3 && bytes[0] == 0xff && (bytes[1] & 0xe6) == 0xe2)) return "audio/mpeg";
         var extension = Path.GetExtension(name).ToLowerInvariant();
@@ -107,6 +109,7 @@ internal static class AttachmentExtractor
         if (bytes.StartsWith("OggS"u8)) return extension == ".ogv" ? "video/ogg" : "audio/ogg";
         if (bytes.StartsWith(new byte[] { 0x1a, 0x45, 0xdf, 0xa3 }) && bytes.IndexOf("webm"u8) >= 0)
             return extension == ".weba" || WebmAudio.HasOnlyAudioTracks(bytes) ? "audio/webm" : "video/webm";
+        if (bytes.StartsWith(new byte[] { 0x1a, 0x45, 0xdf, 0xa3 }) && bytes.IndexOf("matroska"u8) >= 0) return "video/x-matroska";
 
         if (bytes.Length >= 16 && bytes[4..8].SequenceEqual("ftyp"u8))
         {

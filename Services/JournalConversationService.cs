@@ -11,7 +11,7 @@ public sealed class JournalConversationJobs
 
 public sealed class JournalConversationService(IJournalStore store, IAudioTranscriber transcriber,
     JournalMemoryService memory, IJournalReflector reflector, JournalConversationJobs jobs, AccountAiRouter? routing = null,
-    AiUsageService? usage = null)
+    AiUsageService? usage = null, LocalAttachmentAnalysis? localAttachments = null)
 {
     public bool IsConfigured => reflector.IsConfigured;
     public async Task<JournalEntry> GenerateAsync(string userId, Guid entryId, bool useAi = true,
@@ -26,6 +26,7 @@ public sealed class JournalConversationService(IJournalStore store, IAudioTransc
             activity?.Report(BrisaActivity.Reading);
             progress?.Report("Brisa está leyendo lo que le contaste…");
             var entry = await store.GetEntryAsync(userId, entryId, ct) ?? throw new JournalInputException("La entrada ya no está disponible.");
+            IReadOnlyList<JournalMediaFile> localMedia = [];
             if (useAi)
             {
                 var audios = entry.Attachments.Where(a => JournalAudio.IsAudio(a) && !JournalAudio.HasTranscript(a)).ToArray();
@@ -40,8 +41,25 @@ public sealed class JournalConversationService(IJournalStore store, IAudioTransc
                         await store.SaveAudioTranscriptAsync(userId, audios[i].Id, transcript, ct);
                     }
                 }
+                if (!reflector.UsesExternalProvider && localAttachments?.Enabled == true)
+                    localMedia = await localAttachments.PrepareAsync(userId, entry, progress, ct);
             }
             var context = await store.GetContextAsync(userId, entryId, useAi, ct);
+            if (useAi && !reflector.UsesExternalProvider && localAttachments?.Enabled == true)
+            {
+                // Follow-up questions can revisit a prepared PDF/video without uploading it again.
+                var currentIds = entry.Attachments.Select(a => a.Id).ToHashSet();
+                var priorFiles = context.Attachments.Where(a => !currentIds.Contains(a.Id) && LocalAttachmentAnalysis.WasPrepared(a)).Take(2).ToArray();
+                var restored = new List<JournalMediaFile>(localMedia);
+                foreach (var prior in priorFiles)
+                {
+                    try { restored.AddRange(await localAttachments.PrepareAsync(userId, entry with { Attachments = [prior] }, progress, ct)); }
+                    catch (JournalInputException) { /* A missing historical file must not block the new message. */ }
+                }
+                if (priorFiles.Length > 0) context = await store.GetContextAsync(userId, entryId, useAi, ct);
+                localMedia = restored;
+            }
+            if (localMedia.Count > 0) context = context with { Media = context.Media.Concat(localMedia).ToArray() };
             if (useAi) context = await memory.EnrichAsync(userId, context, progress, ct);
             activity?.Report(BrisaActivity.Thinking);
             progress?.Report("Brisa está pensando en lo que le contaste…");

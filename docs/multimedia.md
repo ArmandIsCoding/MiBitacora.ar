@@ -28,7 +28,7 @@ FFmpeg se ejecuta sin shell ni ventanas, con argumentos separados, protocolos de
 
 ## Contexto de la IA y costos
 
-Ambos proveedores reciben hasta dos imágenes seleccionadas y acotadas. También se normalizan las copias de análisis de fotos históricas sin reescribir sus originales. El video completo no se envía a la IA. Reducir bytes baja transferencia y almacenamiento; el costo visual de OpenAI depende también de resolución, modelo y `detail`, según su [documentación de visión](https://developers.openai.com/api/docs/guides/images-vision). Se mantiene el modelo configurado y `detail=auto` para no degradar por defecto la lectura de hojas de diarios fotografiadas.
+OpenAI recibe hasta dos imágenes seleccionadas y acotadas; la respuesta local admite hasta cuatro, con el mismo límite combinado de 12 MiB. También se normalizan las copias de análisis de fotos históricas sin reescribir sus originales. El video completo no se envía a la IA: la [lectura local ampliada](analisis-local-adjuntos.md), desactivada por defecto, utiliza muestras de fotogramas y la transcripción de su pista de audio. Reducir bytes baja transferencia y almacenamiento; el costo visual de OpenAI depende también de resolución, modelo y `detail`, según su [documentación de visión](https://developers.openai.com/api/docs/guides/images-vision). Se mantiene el modelo configurado y `detail=auto` para no degradar por defecto la lectura de hojas de diarios fotografiadas.
 
 ## Verificación
 

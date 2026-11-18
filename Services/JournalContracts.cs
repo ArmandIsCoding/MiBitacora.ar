@@ -37,7 +37,7 @@ public sealed record JournalAttachment(
 
 public sealed record AttachmentContent(string FileName, string ContentType, Stream Content);
 
-public sealed record JournalMediaFile(Guid AttachmentId, string FileName, string ContentType, byte[] Content);
+public sealed record JournalMediaFile(Guid AttachmentId, string FileName, string ContentType, byte[] Content, string? SourcePart = null);
 
 public sealed record JournalContext(
     JournalProfile Profile,
@@ -111,6 +111,7 @@ public interface IJournalStore
     Task SaveReflectionAsync(string userId, Guid entryId, JournalReflection reflection, CancellationToken cancellationToken = default,
         long? expectedMemoryRevision = null);
     Task SaveAudioTranscriptAsync(string userId, Guid attachmentId, string transcript, CancellationToken cancellationToken = default);
+    Task SaveLocalExtractionAsync(string userId, Guid attachmentId, string? text, string coverage, CancellationToken cancellationToken = default);
     Task SetEntryForSessionAsync(string userId, Guid entryId, bool selected, CancellationToken cancellationToken = default);
     Task DeleteEntryAsync(string userId, Guid entryId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JournalNote>> GetNotesAsync(string userId, CancellationToken cancellationToken = default);

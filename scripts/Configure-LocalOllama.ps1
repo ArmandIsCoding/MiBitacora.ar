@@ -1,6 +1,6 @@
 param(
     [switch]$DownloadModel,
-    [string]$ModelsPath = [Environment]::GetEnvironmentVariable('OLLAMA_MODELS', 'User')
+    [string]$ModelsPath = 'D:\OllamaModels'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,7 +19,7 @@ $settings = [ordered]@{
 }
 if (-not [string]::IsNullOrWhiteSpace($ModelsPath)) {
     $modelDirectory = [IO.Path]::GetFullPath($ModelsPath)
-    if (-not (Test-Path -LiteralPath $modelDirectory -PathType Container)) { throw 'No existe la carpeta indicada para los modelos.' }
+    if (-not (Test-Path -LiteralPath $modelDirectory -PathType Container)) { New-Item -ItemType Directory -Path $modelDirectory -Force | Out-Null }
     $settings.OLLAMA_MODELS = $modelDirectory
 }
 
