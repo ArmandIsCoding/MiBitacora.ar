@@ -146,6 +146,7 @@ export function create(host, data, demo = false) {
         selected = id; setRoving(id);
         const n = graph.nodes.get(id);
         get('[data-map-welcome]').hidden = true; get('[data-map-detail]').hidden = false;
+        get('.thought-detail').scrollTop = 0;
         get('[data-map-kind]').textContent = kinds[n.kind].label;
         get('[data-map-title]').textContent = n.label;
         get('[data-map-text]').textContent = n.detail;
