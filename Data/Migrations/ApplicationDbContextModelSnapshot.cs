@@ -795,6 +795,58 @@ namespace MiBitacora.Migrations
                     b.ToTable("JournalVectorStates");
                 });
 
+            modelBuilder.Entity("MiBitacora.Data.TherapyShareRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpiresUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedSnapshot")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedToken")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Revoked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "CreatedUtc");
+
+                    b.ToTable("TherapyShares");
+                });
+
             modelBuilder.Entity("MiBitacora.Data.TransactionalEmailRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1149,6 +1201,15 @@ namespace MiBitacora.Migrations
                     b.HasOne("MiBitacora.Data.ApplicationUser", null)
                         .WithOne()
                         .HasForeignKey("MiBitacora.Data.JournalVectorStateRow", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MiBitacora.Data.TherapyShareRow", b =>
+                {
+                    b.HasOne("MiBitacora.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

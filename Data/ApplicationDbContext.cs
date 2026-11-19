@@ -8,6 +8,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     internal DbSet<JournalProfileRow> JournalProfiles => Set<JournalProfileRow>();
     internal DbSet<JournalMemoryRow> JournalMemories => Set<JournalMemoryRow>();
     internal DbSet<JournalTopicOverviewRow> JournalTopicOverviews => Set<JournalTopicOverviewRow>();
+    internal DbSet<TherapyShareRow> TherapyShares => Set<TherapyShareRow>();
     internal DbSet<JournalEntryRow> JournalEntries => Set<JournalEntryRow>();
     internal DbSet<JournalNotebookRow> JournalNotebooks => Set<JournalNotebookRow>();
     internal DbSet<JournalNoteRow> JournalNotes => Set<JournalNoteRow>();
@@ -28,6 +29,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<TherapyShareRow>(entity =>
+        {
+            entity.HasIndex(row => row.TokenHash).IsUnique();
+            entity.HasIndex(row => new { row.UserId, row.CreatedUtc });
+            entity.Property(row => row.Revision).IsConcurrencyToken();
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         builder.Entity<AiUsageReservationRow>(entity =>
         {
             entity.HasIndex(row => new { row.UserId, row.PeriodStartUtc });

@@ -1,0 +1,35 @@
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject TimeZoneInfo TimeZone
+
+<article class="therapy-share-card">
+    <header><div><h3>@Link.Title</h3><p>Versión @Link.Revision · actualizada el @Date(Link.UpdatedUtc)</p></div><span class="share-state">@(Link.Revoked ? "Revocado" : Link.Token is null ? "Vencido o no disponible" : "Activo")</span></header>
+    <p class="share-link-expiry">@(Link.ExpiresUtc is { } date ? $"Vence el {Date(date)}" : "Sin vencimiento · podés revocarlo cuando quieras")</p>
+    @if (Link.Token is not null)
+    {
+        @foreach (var tab in new[] { "mapa", "informe" })
+        {
+            var url = Url(tab); ElementReference input = default;
+            <div class="share-copy-row"><label>@(tab == "mapa" ? "Enlace al mapa" : "Enlace al informe")<input readonly value="@url" @ref="input" aria-label="@(tab == "mapa" ? "Enlace al mapa" : "Enlace al informe")" /></label><button type="button" class="btn btn-outline" @onclick="() => CopyAsync(input)" disabled="@Busy">Copiar</button><a href="@url" target="_blank" rel="noopener noreferrer" class="text-link">Abrir <Icon Name="arrow" Size="15" /></a></div>
+        }
+        <footer><button type="button" class="quiet-action" @onclick="() => Update.InvokeAsync(Link)" disabled="@Busy"><Icon Name="refresh" Size="16" /> Preparar actualización manual</button><button type="button" class="quiet-action" @onclick="() => _confirm = true" disabled="@Busy"><Icon Name="lock" Size="16" /> Revocar enlace</button></footer>
+    }
+    @if (_confirm)
+    {
+        <div class="share-revoke-confirm"><p>Este enlace dejará de abrirse. Las copias ya descargadas podrán seguir existiendo.</p><button type="button" class="btn btn-outline" @onclick="() => Revoke.InvokeAsync(Link)" disabled="@Busy">Sí, revocar este enlace</button><button type="button" class="quiet-action" @onclick="() => _confirm = false">Conservarlo</button></div>
+    }
+    @if (Link.Token is null && !Link.Revoked) { <footer><button type="button" class="quiet-action" disabled="@Busy" @onclick="() => _confirm = true">Revocar y retirar la copia de este enlace</button></footer> }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public TherapyShareInfo Link { get; set; } = default!;
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<TherapyShareInfo> Update { get; set; }
+    [Parameter] public EventCallback<TherapyShareInfo> Revoke { get; set; }
+    [Parameter] public EventCallback<string> Notice { get; set; }
+    private bool _confirm;
+    protected override void OnParametersSet() { if (Link.Revoked) _confirm = false; }
+    private string Url(string tab) => new Uri(new Uri(Navigation.BaseUri), "compartido" + (tab == "informe" ? "?vista=informe" : "") + "#" + Link.Token).AbsoluteUri;
+    private string Date(DateTime d) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(d, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+    private async Task CopyAsync(ElementReference input) { var module = await JS.InvokeAsync<IJSObjectReference>("import", "./therapy-share.js"); try { var copied = await module.InvokeAsync<bool>("copyLink", input); await Notice.InvokeAsync(copied ? "Enlace copiado. Podés enviárselo a tu psicóloga." : "Seleccionamos el enlace: copialo manualmente para enviarlo."); } finally { await module.DisposeAsync(); } }
+}

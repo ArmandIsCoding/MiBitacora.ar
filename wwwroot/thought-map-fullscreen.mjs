@@ -76,6 +76,7 @@ export function createFullscreen(host, button, onChange, doc = document) {
         else if (!event.shiftKey && (doc.activeElement === last || !host.contains(doc.activeElement))) { event.preventDefault(); first?.focus(); }
     }, { signal, capture: true });
     return {
+        close,
         dispose() {
             if (disposed) return;
             disposed = true; controller.abort(); leaveView(false);

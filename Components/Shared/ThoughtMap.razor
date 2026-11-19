@@ -1,7 +1,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<section class="thought-map @(Demo ? "is-demo" : "")" @ref="_host" aria-label="Mapa interactivo de ideas">
+<section class="thought-map @(Demo ? "is-demo" : "") @(FillSpace ? "fills-space" : "")" @ref="_host" aria-label="Mapa interactivo de ideas">
     <div class="thought-toolbar">
         <label class="thought-search"><Icon Name="zoom" Size="17" /><span class="visually-hidden">Buscar en el mapa</span><input type="search" placeholder="Buscá una idea…" data-map-search maxlength="100" autocomplete="off" /></label>
         <div class="thought-view-actions" role="group" aria-label="Vista del mapa">
@@ -32,6 +32,7 @@
                 <p class="thought-detail-meta" data-map-meta></p>
                 <p class="thought-detail-text" data-map-text></p>
                 <a class="thought-source" data-map-source hidden>Abrir original <Icon Name="arrow" Size="16" /></a>
+                <button class="thought-source thought-source-button" type="button" data-map-open-entry hidden>Ver entrada y devolución <Icon Name="arrow" Size="16" /></button>
                 <button type="button" class="thought-branch" data-map-action="branch" aria-pressed="false"><Icon Name="graph" Size="17" /> Explorar esta rama</button>
                 <h4>Conexiones <span data-map-degree></span></h4>
                 <ul class="thought-connections" data-map-connections></ul>
@@ -48,6 +49,9 @@
 @code {
     [Parameter, EditorRequired] public ThoughtMapData Data { get; set; } = default!;
     [Parameter] public bool Demo { get; set; }
+    [Parameter] public bool FillSpace { get; set; }
+    [Parameter] public EventCallback<string> OpenEntry { get; set; }
+    private DotNetObjectReference<ThoughtMap>? _bridge;
     private ElementReference _host;
     private IJSObjectReference? _module, _map;
     private ThoughtMapData? _rendered;
@@ -61,7 +65,8 @@
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./thought-map.js");
             if (_disposed) return;
             if (_map is not null) { await _map.InvokeVoidAsync("dispose"); await _map.DisposeAsync(); }
-            _map = await _module.InvokeAsync<IJSObjectReference>("create", _host, Data, Demo);
+            if (OpenEntry.HasDelegate) _bridge ??= DotNetObjectReference.Create(this);
+            _map = await _module.InvokeAsync<IJSObjectReference>("create", _host, Data, Demo, _bridge);
             _rendered = Data;
         }
         catch (JSDisconnectedException) { }
@@ -78,5 +83,7 @@
         }
         catch (JSDisconnectedException) { }
         catch (TaskCanceledException) { }
+        _bridge?.Dispose();
     }
+    [JSInvokable] public Task OpenSharedEntry(string id) => OpenEntry.HasDelegate && Data.Nodes.Any(n => n.SharedEntryId == id) ? OpenEntry.InvokeAsync(id) : Task.CompletedTask;
 }

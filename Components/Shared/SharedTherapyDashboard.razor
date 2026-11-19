@@ -1,0 +1,94 @@
+@inject TimeZoneInfo TimeZone
+@inject IJSRuntime JS
+
+<article class="shared-dashboard" data-shared-dashboard>
+    <header class="shared-report-cover">
+        <div><p class="eyebrow">UN RECORRIDO PARA CONVERSAR</p><h1>@Snapshot.Title</h1><p>Lo que fui registrando, las lecturas de Brisa y las preguntas que quiero llevar a sesión.</p>
+        <div class="shared-report-dates"><span>Versión del @Date(Snapshot.PreparedUtc)</span><span>Registros: @Range</span></div></div><BrisaPortrait Size="large" />
+    </header>
+    <p class="shared-report-boundary"><Icon Name="leaf" Size="21" /><span><strong>Material para leer con mi terapeuta.</strong> Reúne registros personales y lecturas de una IA. Las hipótesis pueden no representarme y conviene revisarlas conmigo; este documento no es una evaluación clínica ni demuestra mi estado actual.</span></p>
+    <section class="shared-facts" aria-label="Contenido de esta versión">
+        <div><strong>@Snapshot.Entries.Count</strong><span>entradas compartidas</span></div><div><strong>@RecentEntries</strong><span>en los 30 días previos a esta versión</span></div><div><strong>@Readings</strong><span>devoluciones guardadas de Brisa</span></div><div><strong>@Snapshot.Notes.Count</strong><span>notitas compartidas</span></div>
+    </section>
+    <p class="shared-coverage">La copia incluye los textos disponibles de @TextDocuments de @Documents adjuntos. Las fotos, audios, videos y documentos originales no están publicados en este enlace; las devoluciones guardadas pueden comentar su contenido.</p>
+    <div class="shared-dashboard-grid">
+        <section class="shared-panel shared-activity"><div class="shared-panel-heading"><div><p class="eyebrow">EL RECORRIDO EN EL TIEMPO</p><h2>Momentos de escritura</h2></div><label class="visually-hidden" for="shared-activity-year">Año de actividad</label><select id="shared-activity-year" @bind="_activityYear"><option value="">Todo el período</option>@foreach (var year in Snapshot.Activity.Select(a => a.Month[..4]).Distinct().Reverse()) { <option value="@year">@year</option> }</select></div>
+            <p>La altura representa cantidad de entradas, no intensidad de emociones ni bienestar.</p>
+            <div class="shared-activity-chart" role="img" aria-label="Cantidad de entradas por mes">
+                @foreach (var month in Activity) { <div class="shared-activity-column" title="@($"{Month(month.Month)}: {month.Entries} entradas")"><span>@month.Entries</span><i style="@($"--bar-height:{Math.Max(3, month.Entries * 100 / MaxActivity)}%")"></i><small>@Month(month.Month)</small></div> }
+            </div><details><summary>Ver los valores en una tabla</summary><table><thead><tr><th>Mes</th><th>Entradas</th></tr></thead><tbody>@foreach (var month in Activity) { <tr><td>@Month(month.Month)</td><td>@month.Entries</td></tr> }</tbody></table></details>
+        </section>
+        <section class="shared-panel"><p class="eyebrow">CONEXIONES PARA EXPLORAR</p><h2>Temas de las devoluciones</h2><p>Propuestas de Brisa, agrupadas por su título. La cantidad indica en cuántas entradas aparece ese tema.</p>
+            @if (Snapshot.Themes.Count == 0) { <p class="shared-muted">Todavía no hay temas guardados en esta versión.</p> }
+            <div class="shared-theme-list">@foreach (var theme in Snapshot.Themes.Take(_allThemes ? int.MaxValue : 8)) { <button type="button" @onclick="() => ShowMap.InvokeAsync(theme.NodeId)"><span>@theme.Title</span><strong>@theme.Entries</strong><Icon Name="arrow" Size="15" /></button> }</div>
+            @if (Snapshot.Themes.Count > 8) { <button class="quiet-action" type="button" @onclick="() => _allThemes = !_allThemes">@(_allThemes ? "Ver menos" : $"Ver los {Snapshot.Themes.Count} temas")</button> }
+        </section>
+    </div>
+    @if (Snapshot.Report is { } report)
+    {
+        <section class="shared-reading-intro"><p class="eyebrow">INFORME INTEGRAL DE BRISA</p><h2>Una mirada de conjunto</h2><p>Preparado el @Date(report.GeneratedUtc), a partir del recorrido disponible. Cada apartado distingue registros, hipótesis y propuestas, con los fragmentos que lo respaldan.</p></section>
+        <nav class="shared-report-index" aria-label="Apartados del informe">@foreach (var section in report.Sections) { <button type="button" @onclick="() => ScrollAsync(section.Id)">@section.Title <Icon Name="arrow" Size="14" /></button> }</nav>
+        @foreach (var section in report.Sections)
+        {
+            <section id="@($"shared-{section.Id}")" class="shared-report-section"><header><p class="eyebrow">PARA REVISAR EN SESIÓN</p><h2>@section.Title</h2><p>@section.Introduction</p></header>
+                <div class="shared-report-points">@foreach (var point in section.Points) {
+                    <article class="shared-report-point"><span class="shared-kind @KindClass(point.Kind)">@Kind(point.Kind)</span><h3>@point.Title</h3><p class="preserved-text">@point.Text</p>
+                        @if (!string.IsNullOrWhiteSpace(point.Question)) { <blockquote>@point.Question</blockquote> }
+                        @if (point.Evidence.Count > 0) { <details class="shared-evidence" data-print-expand><summary>Fragmentos de apoyo (@point.Evidence.Count)</summary>@foreach (var evidence in point.Evidence) { <figure><figcaption>@evidence.Label · @Date(evidence.Date)</figcaption><blockquote>@evidence.Text</blockquote>@if (evidence.SourceId is { } id) { <button type="button" class="quiet-action" @onclick="() => EvidenceAsync(id)">Explorar este registro <Icon Name="arrow" Size="14" /></button> }</figure> }</details> }
+                    </article>
+                }</div>
+            </section>
+        }
+    }
+    else
+    {
+        <section class="shared-panel shared-reading-intro"><p class="eyebrow">LECTURAS YA GUARDADAS</p><h2>Lo que Brisa fue proponiendo</h2><p>Esta versión reúne las devoluciones de las entradas. No incluye un informe integral actualizado. Las lecturas siguientes conservan su fecha y su contexto.</p>
+            <div class="shared-observations">@foreach (var entry in Snapshot.Entries.Where(e => e.Reflection is not null).Reverse().Take(6)) { <article><small>@Date(entry.Date) · @entry.Notebook</small><p>@entry.Reflection!.Text</p><button type="button" class="quiet-action" @onclick="() => OpenEntry.InvokeAsync(entry.Id)">Leer en su contexto <Icon Name="arrow" Size="14" /></button></article> }</div>
+            @if (Readings == 0) { <p class="shared-muted">Esta copia no contiene devoluciones de Brisa. Los registros originales se pueden consultar más abajo.</p> }
+        </section>
+    }
+    <div class="shared-dashboard-grid">
+        <section class="shared-panel"><p class="eyebrow">ALGO PARA SEGUIR PENSANDO</p><h2>Preguntas que quedaron abiertas</h2><p>Preguntas guardadas de Brisa; pueden haberse retomado o cambiado después.</p><div class="shared-question-list">@foreach (var node in Snapshot.Map.Nodes.Where(n => n.Kind == "question").OrderByDescending(n => n.Date).Take(_allQuestions ? int.MaxValue : 8)) { <button type="button" @onclick="() => ShowMap.InvokeAsync(node.Id)">@node.Detail <Icon Name="arrow" Size="15" /></button> }</div><button type="button" class="quiet-action" @onclick="() => _allQuestions = !_allQuestions">@(_allQuestions ? "Mostrar menos preguntas" : "Ver todas las preguntas")</button></section>
+        <section class="shared-panel"><p class="eyebrow">ELEGIDO POR MÍ</p><h2>Para retomar en sesión</h2>
+            @if (!Snapshot.Entries.Any(e => e.ForSession) && !Snapshot.Notes.Any(n => n.ForSession)) { <p class="shared-muted">No marqué registros para retomar antes de preparar esta versión.</p> }
+            @foreach (var entry in Snapshot.Entries.Where(e => e.ForSession)) { <button type="button" class="shared-session-item" @onclick="() => OpenEntry.InvokeAsync(entry.Id)"><small>@Date(entry.Date)</small><span>@Excerpt(entry.Text)</span><Icon Name="arrow" Size="16" /></button> }
+            @foreach (var note in Snapshot.Notes.Where(n => n.ForSession)) { <blockquote>@note.Text</blockquote> }
+        </section>
+    </div>
+    <section class="shared-panel shared-originals"><p class="eyebrow">LAS PALABRAS ORIGINALES</p><h2>Registros incluidos en esta versión</h2><p>Todos los registros compartidos están disponibles para contrastar las lecturas de Brisa. Los textos de archivos se muestran cuando ya estaban disponibles; los archivos originales permanecen privados.</p>
+        <label class="shared-original-search">Buscar un registro<input type="search" @bind="_entrySearch" @bind:event="oninput" maxlength="100" placeholder="Una palabra, un diario…" /></label>
+        <div class="shared-entry-list">@foreach (var entry in FilteredEntries.Take(_allEntries ? int.MaxValue : 12)) { <button type="button" @onclick="() => OpenEntry.InvokeAsync(entry.Id)"><small>@Date(entry.Date) · @entry.Notebook</small><span>@(string.IsNullOrWhiteSpace(entry.Text) ? "Entrada con archivos" : Excerpt(entry.Text))</span><Icon Name="arrow" Size="16" /></button> }</div>
+        @if (!_allEntries && FilteredEntries.Count() > 12) { <button type="button" class="btn btn-outline" @onclick="() => _allEntries = true">Ver todos los registros</button> }
+    </section>
+    @if (Snapshot.Notes.Count > 0 || Snapshot.PersonalContext.Length > 0)
+    {
+        <details class="shared-panel shared-additional" data-print-expand><summary>Notitas y contexto personal compartidos</summary>
+            @if (Snapshot.PersonalContext.Length > 0) { <h3>Mi contexto personal</h3><p class="preserved-text">@Snapshot.PersonalContext</p> }
+            @foreach (var note in Snapshot.Notes) { <article><small>@Date(note.Date)</small><p class="preserved-text">@note.Text</p></article> }
+        </details>
+    }
+    <footer class="shared-report-footer"><Icon Name="book" Size="25" /><p>Esta versión abre una conversación. Lo más importante es lo que puedo agregar, matizar o cuestionar al leerla con mi terapeuta. Una fecha sin registros no permite inferir qué estaba pasando.</p></footer>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public SharedTherapySnapshot Snapshot { get; set; } = default!;
+    [Parameter] public EventCallback<string> ShowMap { get; set; }
+    [Parameter] public EventCallback<string> OpenEntry { get; set; }
+    private string _activityYear = "", _entrySearch = "";
+    private bool _allThemes, _allQuestions, _allEntries;
+    private int Readings => Snapshot.Entries.Count(e => e.Reflection is not null);
+    private int Documents => Snapshot.Entries.Sum(e => e.Documents.Count);
+    private int TextDocuments => Snapshot.Entries.SelectMany(e => e.Documents).Count(d => !string.IsNullOrWhiteSpace(d.Text));
+    private int RecentEntries => Snapshot.Entries.Count(e => e.Date >= Snapshot.PreparedUtc.AddDays(-30) && e.Date <= Snapshot.PreparedUtc);
+    private IEnumerable<SharedActivity> Activity => Snapshot.Activity.Where(a => _activityYear.Length == 0 || a.Month.StartsWith(_activityYear, StringComparison.Ordinal));
+    private int MaxActivity => Math.Max(1, Activity.Select(a => a.Entries).DefaultIfEmpty().Max());
+    private IEnumerable<SharedEntry> FilteredEntries => Snapshot.Entries.Reverse().Where(e => string.IsNullOrWhiteSpace(_entrySearch) || (e.Text + " " + e.Notebook).Contains(_entrySearch.Trim(), StringComparison.OrdinalIgnoreCase));
+    private string Range => Snapshot.Entries.Count == 0 ? "sin entradas" : $"{Date(Snapshot.Entries[0].Date)} — {Date(Snapshot.Entries[^1].Date)}";
+    private string Date(DateTime? value) => value is { } d ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(d, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR")) : "sin fecha";
+    private static string Month(string value) => DateTime.ParseExact(value, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture).ToString("MMM yy", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+    private static string Excerpt(string text) => text.Length > 160 ? text[..160] + "…" : text;
+    private Task EvidenceAsync(string id) => Snapshot.Entries.Any(e => e.Id == id) ? OpenEntry.InvokeAsync(id) : ShowMap.InvokeAsync(id);
+    private async Task ScrollAsync(string id) { var module = await JS.InvokeAsync<IJSObjectReference>("import", "./therapy-share.js"); try { await module.InvokeVoidAsync("scrollToSection", "shared-" + id); } finally { await module.DisposeAsync(); } }
+    private static string KindClass(string kind) => kind is "registro" or "hipotesis" or "propuesta" ? kind : "limite";
+    private static string Kind(string kind) => kind switch { "registro" => "Lo que registré", "hipotesis" => "Hipótesis para explorar", "propuesta" => "Propuesta para terapia", _ => "Información pendiente" };
+}

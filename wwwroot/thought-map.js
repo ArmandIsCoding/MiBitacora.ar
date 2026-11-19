@@ -21,7 +21,7 @@ const words = (label, max) => {
     return lines;
 };
 
-export function create(host, data, demo = false) {
+export function create(host, data, demo = false, bridge = null) {
     const controller = new AbortController(), signal = controller.signal;
     const get = selector => host.querySelector(selector);
     const stage = get('[data-map-stage]'), svg = get('[data-map-svg]');
@@ -181,7 +181,8 @@ export function create(host, data, demo = false) {
         if (n.date) { const parsed = new Date(n.date.endsWith('Z') ? n.date : n.date + 'Z'); if (!isNaN(parsed)) date = parsed.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' }); }
         get('[data-map-meta]').textContent = [n.notebook, date].filter(Boolean).join(' · ');
         const url = safeUrl(n.url), source = get('[data-map-source]');
-        source.hidden = !url || demo; if (url) source.setAttribute('href', url); else source.removeAttribute('href');
+        source.hidden = !url || demo || !!n.sharedEntryId; if (url) source.setAttribute('href', url); else source.removeAttribute('href');
+        get('[data-map-open-entry]').hidden = !bridge || !n.sharedEntryId;
         source.firstChild.textContent = n.kind === 'question' ? 'Ver conversación original ' : n.kind === 'note' ? 'Abrir en mi cuaderno ' : 'Abrir entrada original ';
         get('[data-map-degree]').textContent = `(${n.degree})`;
         const list = get('[data-map-connections]'); list.replaceChildren();
@@ -211,6 +212,12 @@ export function create(host, data, demo = false) {
         select(id); center(graph.nodes.get(id)); get('[data-map-title]').focus({ preventScroll: true });
     }, { signal });
     get('[data-map-search]').addEventListener('input', event => { search = event.target.value; paint(); fit(); }, { signal });
+    get('[data-map-open-entry]').addEventListener('click', async () => {
+        const id = graph.nodes.get(selected)?.sharedEntryId;
+        if (!id || !bridge) return;
+        await fullscreen.close();
+        if (!disposed) await bridge.invokeMethodAsync('OpenSharedEntry', id);
+    }, { signal });
     for (const button of host.querySelectorAll('[data-map-action]')) button.addEventListener('click', () => {
         const action = button.dataset.mapAction;
         if (action === 'in') zoom(1.3);

@@ -1,0 +1,80 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject TimeZoneInfo TimeZone
+
+<div class="shared-space @(Preview ? "is-preview" : "")" @ref="_host">
+    <header class="shared-space-header"><Brand Href="/" /><div class="shared-space-heading"><span>@(Preview ? "VISTA PREVIA · TODAVÍA NO PUBLICADA" : "VERSIÓN COMPARTIDA PARA TERAPIA")</span><small>Versión @Revision · @Date(Snapshot.PreparedUtc) @if (ExpiresUtc is { } expiry) { <span>· disponible hasta @Date(expiry)</span> }</small></div>
+        <div class="shared-space-tabs" role="tablist" aria-label="Contenido compartido"><button type="button" role="tab" aria-selected='@(_tab == "mapa" ? "true" : "false")' @onclick='() => _tab = "mapa"' aria-controls="shared-map-panel">Mapa de ideas</button><button type="button" role="tab" aria-selected='@(_tab == "informe" ? "true" : "false")' @onclick='() => _tab = "informe"' aria-controls="shared-report-panel">Informe</button></div>
+        <button type="button" class="shared-print-button" @onclick="PrintAsync"><Icon Name="print" Size="18" /><span>Guardar / imprimir PDF</span></button>
+    </header>
+    @if (_tab == "mapa")
+    {
+        <div class="shared-map-panel" id="shared-map-panel" role="tabpanel" aria-label="Mapa de ideas compartido"><ThoughtMap Data="_map" FillSpace="true" OpenEntry="OpenEntryAsync" /></div>
+    }
+    else
+    {
+        <main class="shared-report-panel" id="shared-report-panel" role="tabpanel" aria-label="Informe compartido"><SharedTherapyDashboard Snapshot="Snapshot" ShowMap="ShowMapAsync" OpenEntry="OpenEntryAsync" /></main>
+    }
+    @if (_entry is { } entry)
+    {
+        <dialog class="shared-entry-dialog" @ref="_dialog" aria-labelledby="shared-entry-title"><header><div><p class="eyebrow">REGISTRO DE ESTA VERSIÓN</p><h2 id="shared-entry-title">@Date(entry.Date) · @entry.Notebook</h2></div><button class="icon-button" type="button" aria-label="Cerrar registro" @onclick="CloseEntryAsync"><Icon Name="x" Size="22" /></button></header>
+            <article class="shared-entry-original"><span class="shared-kind registro">Mis palabras</span><p class="preserved-text">@(entry.Text.Length == 0 ? "Entrada con archivos adjuntos." : entry.Text)</p>
+                @foreach (var document in entry.Documents) { <details class="shared-document"><summary>@document.Name</summary>@if (!string.IsNullOrWhiteSpace(document.Text)) { <p class="preserved-text">@document.Text</p> } else { <p>No había texto disponible de este archivo al preparar la copia.</p> }<small>El archivo original no está publicado en este enlace.</small></details> }
+            </article>
+            @if (entry.Reflection is { } reading)
+            {
+                <section class="shared-entry-reading"><p class="eyebrow">DEVOLUCIÓN GUARDADA DE BRISA</p><p class="preserved-text">@reading.Text</p><small>@Date(reading.GeneratedUtc) · Una lectura de IA para revisar.</small>
+                    @foreach (var theme in reading.Themes) { <details><summary>@theme.Title</summary><p>@theme.Detail</p>@if (theme.Quote is { Length: > 0 }) { <blockquote>@theme.Quote</blockquote> }</details> }
+                    @if (reading.LimitedMemory) { <p class="shared-muted">Parte de la memoria de antecedentes no estuvo disponible cuando se preparó esta devolución.</p> }
+                    @foreach (var question in reading.Questions) { <blockquote>@question</blockquote> }
+                    @if (reading.SessionTopics.Count > 0) { <h3>Propuestas de Brisa para sesión</h3><ul>@foreach (var topic in reading.SessionTopics) { <li>@topic</li> }</ul> }
+                    @if (!string.IsNullOrWhiteSpace(reading.NextStep)) { <p>@reading.NextStep</p> }
+                </section>
+            }
+            <footer><p>Brisa acompaña la escritura y puede equivocarse. El trabajo terapéutico corresponde a mi espacio con un profesional.</p><button type="button" class="btn btn-outline" @onclick="CloseEntryAsync">Volver al recorrido</button></footer>
+        </dialog>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public SharedTherapySnapshot Snapshot { get; set; } = default!;
+    [Parameter] public bool Preview { get; set; }
+    [Parameter] public string InitialTab { get; set; } = "mapa";
+    [Parameter] public DateTime? ExpiresUtc { get; set; }
+    [Parameter] public int Revision { get; set; } = 1;
+    [Parameter] public Func<Task<bool>>? ValidateAccess { get; set; }
+    private SharedTherapySnapshot? _previous;
+    private ThoughtMapData _map = default!;
+    private SharedEntry? _entry;
+    private string _tab = "mapa";
+    private ElementReference _dialog, _host;
+    private IJSObjectReference? _module;
+    private bool _dialogPending, _printPending;
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_previous, Snapshot)) { _previous = Snapshot; _map = Snapshot.Map; _entry = null; _tab = InitialTab == "informe" ? "informe" : "mapa"; }
+    }
+    private async Task<bool> CanReadAsync() => ValidateAccess is null || await ValidateAccess();
+    private async Task OpenEntryAsync(string id)
+    {
+        if (!await CanReadAsync()) return;
+        _entry = Snapshot.Entries.FirstOrDefault(e => e.Id == id);
+        _dialogPending = _entry is not null;
+    }
+    private async Task ShowMapAsync(string id)
+    {
+        if (!await CanReadAsync() || !Snapshot.Map.Nodes.Any(n => n.Id == id)) return;
+        _map = Snapshot.Map with { Focus = id }; _tab = "mapa";
+    }
+    private async Task PrintAsync() { if (await CanReadAsync()) { _tab = "informe"; _printPending = true; } }
+    private async Task CloseEntryAsync() { if (_module is not null) await _module.InvokeVoidAsync("closeDialog", _dialog); _entry = null; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_dialogPending && !_printPending) return;
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./therapy-share.js");
+        if (_dialogPending) { _dialogPending = false; await _module.InvokeVoidAsync("openDialog", _dialog); }
+        if (_printPending) { _printPending = false; await _module.InvokeVoidAsync("printReport", _host); }
+    }
+    private string Date(DateTime? d) => d is { } date ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(date, DateTimeKind.Utc), TimeZone).ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("es-AR")) : "sin fecha";
+    public async ValueTask DisposeAsync() { try { if (_module is not null) { if (_entry is not null) await _module.InvokeVoidAsync("closeDialog", _dialog); await _module.DisposeAsync(); } } catch (JSDisconnectedException) { } catch (TaskCanceledException) { } }
+}

@@ -8,7 +8,7 @@ using MiBitacora.Data;
 namespace MiBitacora.Services;
 
 public sealed record ThoughtNode(string Id, string Kind, string Label, string Detail,
-    DateTime? Date = null, string? Notebook = null, string? Url = null);
+    DateTime? Date = null, string? Notebook = null, string? Url = null, string? SharedEntryId = null);
 public sealed record ThoughtLink(string Source, string Target, string Kind, string Label);
 public sealed record ThoughtMapData(IReadOnlyList<ThoughtNode> Nodes, IReadOnlyList<ThoughtLink> Links,
     int TotalEntries, int ShownEntries, bool Limited, string? Focus = null);
@@ -23,9 +23,15 @@ public sealed class ThoughtMapService(IDbContextFactory<ApplicationDbContext> fa
     public async Task<ThoughtMapData> GetAsync(string userId, Guid? focus = null,
         string? notebook = null, DateOnly? from = null, DateOnly? until = null, CancellationToken ct = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        return await ReadAsync(db, userId, focus, notebook, from, until, false, ct);
+    }
+
+    internal async Task<ThoughtMapData> ReadAsync(ApplicationDbContext db, string userId, Guid? focus = null,
+        string? notebook = null, DateOnly? from = null, DateOnly? until = null, bool complete = false, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         // Every query, including references from stored AI output, is scoped to the account.
         var owned = db.JournalEntries.AsNoTracking().Where(e => e.UserId == userId);
         var query = owned;
@@ -34,8 +40,8 @@ public sealed class ThoughtMapService(IDbContextFactory<ApplicationDbContext> fa
         if (from is { } start) { var date = TimeZoneInfo.ConvertTimeToUtc(start.ToDateTime(TimeOnly.MinValue), timeZone); query = query.Where(e => e.CreatedUtc >= date); }
         if (until is { } end) { var date = TimeZoneInfo.ConvertTimeToUtc(end.ToDateTime(TimeOnly.MaxValue), timeZone); query = query.Where(e => e.CreatedUtc <= date); }
         var total = await query.CountAsync(ct);
-        var rows = await query.OrderByDescending(e => e.CreatedUtc).ThenBy(e => e.Id).Take(EntryLimit)
-            .Include(e => e.Notebook).ToListAsync(ct);
+        var ordered = query.OrderByDescending(e => e.CreatedUtc).ThenBy(e => e.Id).AsQueryable();
+        var rows = await (complete ? ordered : ordered.Take(EntryLimit)).Include(e => e.Notebook).ToListAsync(ct);
         // A link from an old reflection must still open that entry's part of the map.
         if (focus is { } focusId && rows.All(e => e.Id != focusId))
         {
@@ -76,14 +82,14 @@ public sealed class ThoughtMapService(IDbContextFactory<ApplicationDbContext> fa
                 row.Notebook?.Name ?? "Mi diario", $"/entrada/{row.Id:D}?origen=mapa");
             // Demo reflections aren't a personal analysis and must not become inferred themes.
             if (reflection is null || reflection.IsDemo) continue;
-            foreach (var theme in reflection.Themes.Take(8).Where(t => !string.IsNullOrWhiteSpace(t.Title)))
+            foreach (var theme in (complete ? reflection.Themes : reflection.Themes.Take(8)).Where(t => !string.IsNullOrWhiteSpace(t.Title)))
             {
                 var themeId = "theme-" + Key(theme.Title);
                 nodes.TryAdd(themeId, new(themeId, "theme", Clip(theme.Title, 100),
                     "Un tema propuesto por Brisa en tus devoluciones. Explorá las entradas conectadas para ver qué significa en cada momento."));
                 Link(id, themeId, "theme", "Brisa propuso este tema");
             }
-            foreach (var question in reflection.OpenQuestions.Take(4).Where(q => !string.IsNullOrWhiteSpace(q)))
+            foreach (var question in (complete ? reflection.OpenQuestions : reflection.OpenQuestions.Take(4)).Where(q => !string.IsNullOrWhiteSpace(q)))
             {
                 var qid = QuestionId(row.Id, question);
                 nodes[qid] = new(qid, "question", Clip(question, 120), Clip(question, 1200), row.CreatedUtc,
