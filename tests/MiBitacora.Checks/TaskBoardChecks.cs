@@ -33,6 +33,8 @@ internal static class TaskBoardChecks
         await using var provider = services.BuildServiceProvider(); await using var scope = provider.CreateAsyncScope();
         var factory = provider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
         var tasks = scope.ServiceProvider.GetRequiredService<TaskBoardService>(); var store = scope.ServiceProvider.GetRequiredService<IJournalStore>();
+        var cancelledContext = TaskContext.Text("Proyecto ficticio", "Descartado", true, "Una idea", "", null);
+        check(cancelledContext.Contains("estado de cierre") && !cancelledContext.Contains("hecha"), "Pendientes: un estado de cierre como Descartado no se transforma en una tarea realizada");
         var a = Guid.NewGuid().ToString(); var b = Guid.NewGuid().ToString(); var legacy = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
