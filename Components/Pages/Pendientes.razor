@@ -1,0 +1,114 @@
+@page "/pendientes"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+
+<PageTitle>Pendientes · Mi Bitácora</PageTitle>
+<div class="tasks-app" @ref="_host" data-task-workspace data-revision="@(_board?.Summary.Revision ?? 0)" data-readonly="@(ReadOnly ? "true" : "false")">
+    <header class="tasks-top"><Brand Href="/bitacora" /><div><a href="/bitacora" class="quiet-action"><Icon Name="book" Size="17" /> Volver a Brisa</a><a class="account-link" href="/Account/Manage"><Icon Name="settings" Size="19" /><span>Mi cuenta</span></a></div></header>
+    <div class="tasks-layout">
+        <aside class="tasks-sidebar" aria-label="Tus tableros">
+            <a class="tasks-home" href="/pendientes"><Icon Name="board" Size="22" /><span>Mis pendientes<small>Un paso a la vez.</small></span></a>
+            <div class="tasks-sidebar-heading"><span>TUS TABLEROS</span><button class="icon-button" type="button" aria-label="Crear tablero" @onclick="() => EditBoard()" disabled="@ControlsBusy"><Icon Name="plus" Size="18" /></button></div>
+            <nav class="tasks-board-nav" aria-label="Elegir tablero">
+                @foreach (var board in VisibleBoards)
+                {
+                    <button type="button" class="task-board-choice @(board.Id == _board?.Summary.Id ? "selected" : "")" aria-current="@(board.Id == _board?.Summary.Id ? "page" : null)" @onclick="() => SelectBoard(board.Id)" disabled="@ControlsBusy"><i class="task-board-dot @board.Color" aria-hidden="true"></i><span>@board.Name</span><small>@board.Cards</small>@if (board.Archived) { <Icon Name="archive" Size="15" /> }</button>
+                }
+            </nav>
+            <button type="button" class="tasks-new-board" @onclick="() => EditBoard()" disabled="@ControlsBusy"><Icon Name="plus" Size="17" /> Nuevo tablero</button>
+            <button class="quiet-action tasks-archive-switch" type="button" @onclick="() => _archivedBoards = !_archivedBoards"> <Icon Name="archive" Size="16" /> @(_archivedBoards ? "Ver tableros activos" : $"Tableros archivados ({_boards.Count(b => b.Archived)})")</button>
+            <div class="tasks-sidebar-note"><BrisaPortrait /><p>Podés organizar lo cotidiano sin tener que resolverlo todo hoy.</p><small>Disponible en ambos planes.<br />Organizar no consume créditos.</small></div>
+        </aside>
+        <main class="tasks-main" id="contenido">
+            @if (_error is not null) { <div class="tasks-alert" role="alert"><p>@_error</p><button type="button" class="quiet-action" @onclick="ReloadAsync" disabled="@_busy">Recargar tablero</button></div> }
+            <p class="tasks-live" role="status" aria-live="polite">@_notice</p>
+            @if (_loading) { <div class="tasks-loading"><span class="spinner"></span><p>Abriendo tus tableros…</p></div> }
+            else if (_board is { } current)
+            {
+                <header class="tasks-board-header"><div><p class="eyebrow">COSAS QUE VAN TOMANDO FORMA</p><h1>@current.Summary.Name<span class="brand-period">.</span></h1>@if (current.Summary.Description.Length > 0) { <p class="tasks-board-description">@current.Summary.Description</p> }</div><div class="tasks-board-actions"><button type="button" class="btn btn-primary" @onclick="() => EditCard(current.Columns[0].Id)" disabled="@ReadOnly"><Icon Name="plus" Size="18" /> Nueva tarjeta</button><button type="button" class="btn btn-outline" @onclick="() => EditBoard(current.Summary)" disabled="@ControlsBusy"><Icon Name="settings" Size="18" /><span>Tablero</span></button></div></header>
+                <div class="tasks-board-meta"><span><strong>@current.Summary.Cards</strong> tarjetas</span><span><strong>@current.Summary.Done</strong> en estados de cierre</span><button class="task-context-badge @(current.Summary.IncludeInContext && !current.Summary.Archived ? "included" : "")" type="button" aria-label="@(current.Summary.IncludeInContext && !current.Summary.Archived ? "Este tablero está incluido en el contexto de Brisa" : "Este tablero no se usa como contexto de Brisa")" @onclick="() => EditBoard(current.Summary)" disabled="@ControlsBusy"><Icon Name="@(current.Summary.IncludeInContext && !current.Summary.Archived ? "spark" : "lock")" Size="16" /> <span class="task-context-full">@(current.Summary.IncludeInContext && !current.Summary.Archived ? "Brisa puede tenerlo en cuenta" : "Fuera del contexto de Brisa")</span><span class="task-context-short" aria-hidden="true">@(current.Summary.IncludeInContext && !current.Summary.Archived ? "Con Brisa" : "Sin contexto")</span></button></div>
+                @if (current.Summary.Archived) { <div class="tasks-archive-banner"><Icon Name="archive" Size="22" /><p>Este tablero está archivado. Conserva sus tarjetas y no se usa como contexto.</p><button class="btn btn-outline" type="button" @onclick="() => ArchiveBoardAsync(false)" disabled="@ControlsBusy">Restaurar tablero</button></div> }
+                <div class="tasks-toolbar"><label class="tasks-search"><Icon Name="zoom" Size="18" /><span class="visually-hidden">Buscar tarjetas</span><input type="search" placeholder="Encontrá una tarjeta…" @bind="_search" @bind:event="oninput" maxlength="100" /></label><label class="tasks-archived-toggle"><input type="checkbox" @bind="_showArchivedCards" /> Ver tarjetas archivadas (@current.Cards.Count(c => c.Archived))</label><span class="tasks-drag-hint"><Icon Name="grip" Size="17" /> Arrastrá para mover</span></div>
+                @if (_showArchivedCards)
+                {
+                    <section class="tasks-archive-list" aria-label="Tarjetas archivadas"><header><h2>Lo que guardaste aparte</h2><p>Las tarjetas archivadas no se usan como contexto. Podés restaurarlas en su estado anterior.</p></header>
+                        @foreach (var card in MatchingCards.Where(c => c.Archived)) { <article class="task-archived-card"><div><small>@current.Columns.First(c => c.Id == card.ColumnId).Name</small><h3>@card.Title</h3><p>@Clip(card.Description, 180)</p></div><button type="button" class="btn btn-outline" @onclick="() => ArchiveCardAsync(card, false)" disabled="@BoardLocked">Restaurar tarjeta</button></article> }
+                        @if (!MatchingCards.Any(c => c.Archived)) { <p class="tasks-empty-filter">No hay tarjetas archivadas que coincidan.</p> }
+                    </section>
+                }
+                else
+                {
+                    <div class="task-columns" data-task-columns aria-label="Estados del tablero">
+                        @foreach (var column in current.Columns)
+                        {
+                            var cards = MatchingCards.Where(c => !c.Archived && c.ColumnId == column.Id).ToArray();
+                            <section @key="column.Id" class="task-column @(column.IsDone ? "is-done" : "")" data-task-column="@column.Id" aria-label="@column.Name">
+                                <header class="task-column-header"><div><i aria-hidden="true"></i><h2>@column.Name</h2><span>@cards.Length</span></div><button type="button" class="icon-button" aria-label="@($"Editar estado {column.Name}")" @onclick="() => EditColumn(column)" disabled="@ReadOnly"><Icon Name="more" Size="20" /></button></header>
+                                <div class="task-column-list" data-task-list="@column.Id">
+                                    @for (var i = 0; i < cards.Length; i++)
+                                    {
+                                        var card = cards[i]; var index = i;
+                                        <article @key="card.Id" class="task-card @card.Color @(column.IsDone ? "is-done" : "")" data-task-card="@card.Id" data-task-column-id="@column.Id" draggable="@(!ReadOnly && _search.Length == 0 ? "true" : "false")">
+                                            <header><button type="button" class="task-card-grip" data-task-grip aria-label="@($"Arrastrar {card.Title}; también podés usar el selector de estado y las flechas")" disabled="@ReadOnly" tabindex="-1"><Icon Name="grip" Size="17" /></button><span class="task-card-state">@(column.IsDone ? "UN PASO CERRADO" : "A TU RITMO")</span><button type="button" class="icon-button" aria-label="@($"Editar tarjeta {card.Title}")" @onclick="() => EditCard(column.Id, card)" disabled="@ReadOnly"><Icon Name="pen" Size="15" /></button></header>
+                                            <button type="button" class="task-card-open" @onclick="() => EditCard(column.Id, card)" disabled="@ControlsBusy"><h3>@card.Title</h3>@if (card.Description.Length > 0) { <p>@Clip(card.Description, 150)</p> }</button>
+                                            @if (card.DueDate is { } date) { <time class="task-due @(date < Today && !column.IsDone ? "to-review" : "")" datetime="@date.ToString("yyyy-MM-dd")"><Icon Name="calendar" Size="14" /> @date.ToString("d MMM", Culture) · fecha objetivo</time> }
+                                            <footer><label class="task-card-move"><span class="visually-hidden">@($"Mover {card.Title} a otro estado")</span><select value="@card.ColumnId" @onchange="e => ChangeStateAsync(card, e.Value?.ToString())" disabled="@ReadOnly">@foreach (var state in current.Columns) { <option value="@state.Id">@state.Name</option> }</select></label><div class="task-card-order"><button type="button" class="icon-button" aria-label="@($"Subir tarjeta {card.Title}")" @onclick="() => ShiftCardAsync(card, -1)" disabled="@(ReadOnly || _search.Length > 0 || index == 0)"><Icon Name="up" Size="15" /></button><button type="button" class="icon-button task-down" aria-label="@($"Bajar tarjeta {card.Title}")" @onclick="() => ShiftCardAsync(card, 1)" disabled="@(ReadOnly || _search.Length > 0 || index == cards.Length - 1)"><Icon Name="up" Size="15" /></button></div></footer>
+                                        </article>
+                                    }
+                                    @if (cards.Length == 0) { <div class="task-column-empty">@(_search.Length > 0 ? "Sin coincidencias en este estado." : column.IsDone ? "Acá también van a llegar pequeños pasos." : "Un lugar para el próximo paso.")</div> }
+                                </div>
+                                <button type="button" class="task-add-card" @onclick="() => EditCard(column.Id)" disabled="@ReadOnly"><Icon Name="plus" Size="17" /> Agregar tarjeta</button>
+                            </section>
+                        }
+                        <button type="button" class="task-add-column" @onclick="() => EditColumn()" disabled="@(ReadOnly || current.Columns.Count >= TaskBoardService.MaxColumns)"><Icon Name="plus" Size="21" /><span>Agregar estado</span><small>Hacé que el tablero se adapte a vos.</small></button>
+                    </div>
+                }
+                <p class="tasks-context-footnote"><Icon Name="leaf" Size="16" /> Tus estados ordenan tus planes. No miden cómo estás ni cuánto valés. Brisa usa sólo las tarjetas pertinentes de los tableros que incluyas.</p>
+            }
+            else
+            {
+                <section class="tasks-welcome"><p class="eyebrow">UN LUGAR PARA LOS PRÓXIMOS PASOS</p><h1>Que no quede todo<br /><em>en tu cabeza.</em></h1><p>Armá tableros para tu semana, tus proyectos o esas cosas que querés ir haciendo. Un papelito, un paso, un poco de espacio.</p><button type="button" class="btn btn-primary" @onclick="() => EditBoard()" disabled="@ControlsBusy"><Icon Name="plus" Size="19" /> Crear mi primer tablero</button>
+                    <div class="tasks-starter-grid"><button type="button" class="tasks-starter sage" @onclick='() => EditBoard(suggested: "Mi semana")' disabled="@ControlsBusy"><Icon Name="calendar" Size="27" /><h2>Mi semana</h2><p>Lo cotidiano, con espacio para cambiar de planes.</p><span>Usar este nombre <Icon Name="arrow" Size="16" /></span></button><button type="button" class="tasks-starter clay" @onclick='() => EditBoard(suggested: "Proyectos DIY")' disabled="@ControlsBusy"><Icon Name="spark" Size="27" /><h2>Proyectos DIY</h2><p>Ideas que van tomando forma con tus manos.</p><span>Usar este nombre <Icon Name="arrow" Size="16" /></span></button><div class="tasks-starter-demo" aria-hidden="true"><span>POR HACER</span><i>Una cosa a la vez.</i><span>EN MARCHA</span><i>Hacerle un lugar.</i><small>Mové las tarjetas a tu ritmo.</small></div></div>
+                    <div class="tasks-welcome-brisa"><BrisaPortrait /><p>Si vos elegís incluirlos, Brisa puede tener en cuenta tus pendientes cuando ayuden a entender lo que le contás. Cada tablero tiene su propio control de contexto.</p></div>
+                </section>
+            }
+        </main>
+    </div>
+</div>
+@if (_editor is not null)
+{
+    <dialog class="task-editor" @ref="_dialog" aria-labelledby="task-editor-title" @oncancel="CloseEditorAsync" @oncancel:preventDefault="true">
+        <header><p class="eyebrow">@(_editor == "card" ? "UN PRÓXIMO PASO" : _editor == "column" ? "TU FORMA DE ORGANIZARTE" : "UN LUGAR PARA TUS IDEAS")</p><button type="button" class="icon-button" aria-label="Cerrar editor" @onclick="CloseEditorAsync" disabled="@_busy"><Icon Name="x" Size="21" /></button></header>
+        <h2 id="task-editor-title">@EditorTitle</h2>
+        @if (_dialogError is not null) { <p class="tasks-alert" role="alert">@_dialogError</p> }
+        <form @onsubmit="SaveEditorAsync" @onsubmit:preventDefault="true">
+            <label>@(_editor == "card" ? "Título" : "Nombre")<input @bind="_draftTitle" @bind:event="oninput" maxlength="@(_editor == "card" ? TaskBoardService.MaxTitle : TaskBoardService.MaxName)" required autofocus disabled="@EditorLocked" /></label>
+            @if (_editor != "column")
+            {
+                <label>Descripción <small>opcional</small><textarea @bind="_draftDescription" @bind:event="oninput" rows="4" maxlength="@(_editor == "card" ? TaskBoardService.MaxDescription : 500)" placeholder="Lo que querés tener a mano…" disabled="@EditorLocked"></textarea></label>
+                <fieldset class="task-color-picker"><legend>Color</legend>@foreach (var color in _editor == "card" ? TaskBoardService.CardColors : TaskBoardService.BoardColors) { <label class="task-color-choice @color"><input type="radio" name="task-color" value="@color" checked="@(_draftColor == color)" @onchange="() => _draftColor = color" disabled="@EditorLocked" /><span class="visually-hidden">@ColorName(color)</span></label> }</fieldset>
+            }
+            @if (_editor == "card")
+            {
+                <div class="task-editor-pair"><label>Estado<select @bind="_draftColumn" disabled="@EditorLocked">@foreach (var col in _board!.Columns) { <option value="@col.Id">@col.Name</option> }</select></label><label>Fecha objetivo <small>opcional</small><input type="date" @bind="_draftDue" min="1900-01-01" max="2200-12-31" disabled="@EditorLocked" /></label></div>
+                <p class="task-editor-hint">La fecha es una referencia para vos. Podés cambiarla o dejarla vacía.</p>
+            }
+            else if (_editor == "board")
+            {
+                <label class="task-context-control"><input type="checkbox" @bind="_draftContext" disabled="@EditorLocked" /><span><strong>Incluir este tablero en el contexto de Brisa</strong><small>Podrá recuperar títulos, descripciones, estados y fechas de sus tarjetas activas cuando aporten a una devolución. Archivar el tablero o una tarjeta los deja fuera de nuevas consultas. Las respuestas ya guardadas conservan lo que se leyó entonces.</small></span></label>
+            }
+            else
+            {
+                <label class="task-context-control"><input type="checkbox" @bind="_draftDone" disabled="@EditorLocked" /><span><strong>Este estado representa un cierre</strong><small>Por ejemplo, «Hecho». Sólo cambia el resumen del tablero; no verifica que la tarea se haya realizado.</small></span></label>
+                @if (_editingId is { } columnId) { <div class="task-column-edit-actions"><button type="button" class="btn btn-outline" @onclick="() => ShiftColumnAsync(columnId, -1)" disabled="@(_busy || _board!.Columns[0].Id == columnId)">← Mover a la izquierda</button><button type="button" class="btn btn-outline" @onclick="() => ShiftColumnAsync(columnId, 1)" disabled="@(_busy || _board!.Columns[^1].Id == columnId)">Mover a la derecha →</button><button type="button" class="quiet-action" @onclick="() => RemoveColumnAsync(columnId)" disabled="@(_busy || _board!.Columns.Count <= 1 || _board.Cards.Any(c => c.ColumnId == columnId))">Quitar estado vacío</button></div> }
+            }
+            <footer><button type="button" class="btn btn-outline" @onclick="CloseEditorAsync" disabled="@_busy">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(EditorLocked || string.IsNullOrWhiteSpace(_draftTitle))">@(_busy ? "Guardando…" : "Guardar") <Icon Name="check" Size="17" /></button></footer>
+        </form>
+        @if (_editingId is not null && _editor != "column")
+        {
+            <div class="task-editor-archive"><button type="button" class="quiet-action" @onclick="ArchiveFromEditorAsync" disabled="@EditorLocked"><Icon Name="archive" Size="17" /> @(_editor == "board" && _board?.Summary.Archived == true ? "Restaurar tablero" : _editor == "board" ? "Archivar tablero" : _board!.Cards.Any(c => c.Id == _editingId && c.Archived) ? "Restaurar tarjeta" : "Archivar tarjeta")</button><small>Se conserva su contenido y podés restaurarlo después.</small></div>
+        }
+    </dialog>
+}

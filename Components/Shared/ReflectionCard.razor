@@ -89,6 +89,7 @@
                 <figure><figcaption>@memory.Label @if (memory.CreatedUtc is { } date) { <span>· @date.ToString("d/M/yyyy")</span> }</figcaption>
                 <blockquote>@memory.Excerpt</blockquote>
                 @if (memory.EntryId is { } id) { <a href="@($"/entrada/{id}?origen=chat")" target="_blank" rel="noopener">Abrir entrada completa</a> }
+                else if (memory.TaskId is { } taskId) { <a href="@TaskContext.Url(taskId)" target="_blank" rel="noopener">Abrir tarjeta actual</a><small>Su estado puede haber cambiado desde esta devolución.</small> }
                 </figure>
             }
         </details>

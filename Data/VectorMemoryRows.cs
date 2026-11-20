@@ -15,6 +15,7 @@ internal sealed class JournalVectorStateRow
 
 internal sealed class JournalVectorChunkRow
 {
+    public Guid? TaskId { get; set; }
     public long Id { get; set; }
     public string UserId { get; set; } = "";
     public string SourceId { get; set; } = "";
@@ -27,7 +28,7 @@ internal sealed class JournalVectorChunkRow
     public string Text { get; set; } = "";
     public string ModelKey { get; set; } = "";
     public byte[]? Embedding { get; set; }
-    public TopicSource ToSource() => new(SourceId, EntryId, CreatedUtc, Label, Text, (TopicSourceKind)Kind, NoteId);
+    public TopicSource ToSource() => new(SourceId, EntryId, CreatedUtc, Label, Text, (TopicSourceKind)Kind, NoteId, TaskId);
 }
 
 internal sealed class JournalVectorQueryRow

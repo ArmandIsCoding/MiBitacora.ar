@@ -85,6 +85,7 @@ builder.Services.AddSingleton(provider => new UploadFileStore(
     provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
 builder.Services.AddScoped<ThoughtMapService>();
+builder.Services.AddScoped<TaskBoardService>();
 builder.Services.AddScoped<TherapyShareBuilder>();
 builder.Services.AddScoped<TherapyShareService>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -247,6 +248,7 @@ app.Use(async (context, next) =>
         || context.Request.Path.StartsWithSegments("/entrada")
         || context.Request.Path.StartsWithSegments("/informe")
         || context.Request.Path.StartsWithSegments("/mapa")
+        || context.Request.Path.StartsWithSegments("/pendientes")
         || context.Request.Path.StartsWithSegments("/compartir-terapia")
         || context.Request.Path.StartsWithSegments("/compartido")
         || context.Request.Path.StartsWithSegments("/adjuntos"))

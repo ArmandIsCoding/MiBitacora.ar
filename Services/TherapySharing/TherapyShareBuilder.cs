@@ -26,14 +26,16 @@ public sealed class TherapyShareBuilder(ThoughtMapService maps, TimeZoneInfo tim
         var context = await db.JournalProfiles.AsNoTracking().Where(p => p.UserId == userId).Select(p => p.PersonalContext).SingleOrDefaultAsync(ct) ?? "";
         if (rows.Length == 0 && notes.Length == 0 && context.Length == 0) throw new JournalInputException("Todavía no hay registros para compartir.");
         var saved = await db.JournalTopicOverviews.AsNoTracking().SingleOrDefaultAsync(t => t.UserId == userId, ct);
+        var corpus = await JournalCorpusReader.ReadAsync(db, userId, ct: ct);
         var sourceJson = JsonSerializer.Serialize(new {
             title, entries = rows.Select(e => new { e.Id, e.Text, e.CreatedUtc, e.ForSession, e.ReflectionJson, e.ReplyToEntryId, e.ReplyToQuestion,
                 Notebook = e.Notebook?.Name, Files = e.Attachments.OrderBy(a => a.Position).Select(a => new { a.Id, a.FileName, a.ExtractedText, a.ExtractionStatus }) }),
-            notes = notes.Select(n => new { n.Id, n.Text, n.CreatedUtc, n.ForSession }), context, report = saved?.SnapshotJson, fingerprint = saved?.Fingerprint
+            notes = notes.Select(n => new { n.Id, n.Text, n.CreatedUtc, n.ForSession }), context, report = saved?.SnapshotJson, fingerprint = saved?.Fingerprint,
+            contextFingerprint = corpus.Fingerprint
         }, Json);
         if (Encoding.UTF8.GetByteCount(sourceJson) > MaxSnapshotBytes) throw new JournalInputException("El recorrido supera el tamaño disponible para una versión compartida. Contactanos desde Ayuda para preparar una copia completa.");
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceJson)));
-        var map = await maps.ReadAsync(db, userId, complete: true, ct: ct);
+        var map = await maps.ReadAsync(db, userId, complete: true, includeTasks: false, ct: ct);
         var originals = map.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
         foreach (var note in notes) originals.TryAdd(NoteKey(note.Id), new(NoteKey(note.Id), "note", Short(note.Text), note.Text, note.CreatedUtc));
         if (!string.IsNullOrWhiteSpace(context)) originals.TryAdd("profile", new("profile", "note", "Mi contexto personal", context));
@@ -58,7 +60,6 @@ public sealed class TherapyShareBuilder(ThoughtMapService maps, TimeZoneInfo tim
         var outdated = false;
         if (stored?.Report is { } reading)
         {
-            var corpus = await JournalCorpusReader.ReadAsync(db, userId, ct: ct);
             outdated = saved!.Fingerprint != JournalReportService.Fingerprint(corpus);
             if (!outdated)
             {

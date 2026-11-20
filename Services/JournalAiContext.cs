@@ -62,7 +62,7 @@ public abstract partial class JournalAiService
             AddSource(id, "antecedente recuperado · " + source.Kind, source.Label +
                 (source.CreatedUtc is { } date ? $" · {date:yyyy-MM-dd}" : " · contexto actual sin fecha de episodio"), text);
             if (sources[id].Text.Length > 0)
-                memories.Add(new(source.EntryId, source.CreatedUtc, source.Label, Excerpt(sources[id].Text, 220), source.Kind, source.NoteId));
+                memories.Add(new(source.EntryId, source.CreatedUtc, source.Label, Excerpt(sources[id].Text, 220), source.Kind, source.NoteId, source.TaskId));
         }
 
         var searchTerms = Terms(currentText);

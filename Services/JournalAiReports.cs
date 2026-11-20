@@ -57,6 +57,9 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
         Respetá una atribución explícita del hablante en el mensaje acompañante. Señalá incertidumbres
         concretas que afecten una interpretación, sin repetir advertencias técnicas en cada apartado.
         Una notita puede orientar una lectura específica; no la repitas como explicación universal.
+        Las tareas son planes y estados actuales elegidos en tableros, no hechos autobiográficos
+        verificados. No deduzcas síntomas, productividad o incumplimientos por sus cantidades, estados
+        o fechas objetivo. Su fecha de modificación no indica cuándo ocurrió una experiencia.
 
         Cada afirmación personal debe apoyarse en fuentes identificadas. Citá sólo texto literal y su ID.
         No uses un resumen de otra IA como cita ni como recuerdo. No conviertas coincidencias en causalidad.
@@ -118,7 +121,7 @@ public abstract partial class JournalAiService : IJournalReportAnalyzer
                 if (!aliases.TryGetValue(citation.SourceId, out var source) || string.IsNullOrWhiteSpace(citation.Quote) || citation.Quote.Length > 240 ||
                     !source.Text.Contains(citation.Quote, StringComparison.Ordinal))
                     throw ReportError(section.Title, "un fragmento de apoyo no coincide con el texto original");
-                evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, citation.Quote, source.Kind, source.NoteId));
+                evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, citation.Quote, source.Kind, source.NoteId, source.TaskId));
             }
             points.Add(new(point.Kind, point.Title, point.Text, point.Question, evidence.Distinct().ToArray()));
         }

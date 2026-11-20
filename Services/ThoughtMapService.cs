@@ -25,11 +25,11 @@ public sealed class ThoughtMapService(IDbContextFactory<ApplicationDbContext> fa
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        return await ReadAsync(db, userId, focus, notebook, from, until, false, ct);
+        return await ReadAsync(db, userId, focus, notebook, from, until, false, ct: ct);
     }
 
     internal async Task<ThoughtMapData> ReadAsync(ApplicationDbContext db, string userId, Guid? focus = null,
-        string? notebook = null, DateOnly? from = null, DateOnly? until = null, bool complete = false, CancellationToken ct = default)
+        string? notebook = null, DateOnly? from = null, DateOnly? until = null, bool complete = false, bool includeTasks = true, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         // Every query, including references from stored AI output, is scoped to the account.
@@ -65,6 +65,10 @@ public sealed class ThoughtMapService(IDbContextFactory<ApplicationDbContext> fa
             .Where(s => s.NoteId.HasValue).Select(s => s.NoteId!.Value).Distinct().ToArray();
         var notes = await db.JournalNotes.AsNoTracking().Where(n => n.UserId == userId && noteIds.Contains(n.Id))
             .ToDictionaryAsync(n => n.Id, ct);
+        var taskIds = reflections.Values.SelectMany(r => r?.ContextSources ?? []).Where(s => s.TaskId.HasValue).Select(s => s.TaskId!.Value).Distinct().ToArray();
+        var tasks = await db.TaskCards.AsNoTracking().Where(c => includeTasks && c.Board.UserId == userId && !c.Archived && !c.Board.Archived
+                && c.Board.IncludeInContext && taskIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.Title, c.Description, c.DueDate, c.UpdatedUtc, Board = c.Board.Name, State = c.Column.Name, c.Column.IsDone }).ToDictionaryAsync(c => c.Id, ct);
         var profile = await db.JournalProfiles.AsNoTracking().Where(p => p.UserId == userId)
             .Select(p => p.PersonalContext).SingleOrDefaultAsync(ct);
         var nodes = new Dictionary<string, ThoughtNode>(StringComparer.Ordinal);
@@ -127,6 +131,14 @@ public sealed class ThoughtMapService(IDbContextFactory<ApplicationDbContext> fa
                     var source = "note-" + nid.ToString("N");
                     nodes.TryAdd(source, new(source, "note", Clip(note.Text, 66), note.Text, note.CreatedUtc, Url: "/bitacora?seccion=notas"));
                     Link(source, id, "context", "Brisa consultó esta notita");
+                }
+                else if (evidence.TaskId is { } tid && tasks.TryGetValue(tid, out var task))
+                {
+                    var source = "task-" + tid.ToString("N");
+                    nodes.TryAdd(source, new(source, "note", task.Title,
+                        TaskContext.Text(task.Board, task.State, task.IsDone, task.Title, task.Description, task.DueDate) + "\nEstado actual: puede haber cambiado desde la devolución.",
+                        task.UpdatedUtc, task.Board, TaskContext.Url(tid)));
+                    Link(source, id, "context", "Brisa consultó esta tarjeta");
                 }
                 else if (evidence.EntryId is { } eid && allIds.Contains(eid))
                     Link(EntryId(eid), id, "context", evidence.Kind is TopicSourceKind.Document or TopicSourceKind.Voice

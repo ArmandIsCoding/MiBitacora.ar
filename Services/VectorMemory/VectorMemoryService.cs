@@ -46,7 +46,7 @@ public sealed class VectorMemoryService(IDbContextFactory<ApplicationDbContext> 
                 var row = new JournalVectorChunkRow { UserId = userId, SourceId = source.Id };
                 if (existing is null) db.JournalVectorChunks.Add(row);
                 else { row.Id = existing.Id; db.Entry(row).State = EntityState.Modified; }
-                row.SourceHash = hash; row.EntryId = source.EntryId; row.NoteId = source.NoteId;
+                row.SourceHash = hash; row.EntryId = source.EntryId; row.NoteId = source.NoteId; row.TaskId = source.TaskId;
                 row.CreatedUtc = source.CreatedUtc; row.Kind = (int)source.Kind;
                 row.Label = source.Label; row.Text = source.Text; row.ModelKey = ""; row.Embedding = null;
             }
@@ -130,6 +130,7 @@ public sealed class VectorMemoryService(IDbContextFactory<ApplicationDbContext> 
             var cutoff = context.Current.CreatedUtc;
             var allowProfile = cutoff.Date >= DateTime.UtcNow.Date;
             var eligible = db.JournalVectorChunks.AsNoTracking().Where(c => c.UserId == userId
+                && (c.Kind != (int)TopicSourceKind.Task || allowProfile)
                 && ((!c.CreatedUtc.HasValue && allowProfile && c.Kind == (int)TopicSourceKind.Profile)
                     || (c.CreatedUtc.HasValue && (c.EntryId != null ? c.CreatedUtc < cutoff : c.CreatedUtc <= cutoff)))
                 && (!c.EntryId.HasValue || !recentIds.Contains(c.EntryId.Value)));
@@ -171,7 +172,7 @@ public sealed class VectorMemoryService(IDbContextFactory<ApplicationDbContext> 
             foreach (var id in ids)
             {
                 if (!originals.TryGetValue(id, out var row)) continue;
-                var group = row.EntryId?.ToString() ?? row.NoteId?.ToString() ?? "profile";
+                var group = row.EntryId?.ToString() ?? row.NoteId?.ToString() ?? row.TaskId?.ToString() ?? "profile";
                 if (diversity.GetValueOrDefault(group) >= (row.Kind == (int)TopicSourceKind.Profile ? 1 : 2)) continue;
                 diversity[group] = diversity.GetValueOrDefault(group) + 1;
                 selected.Add(row.ToSource());
@@ -245,6 +246,7 @@ public sealed class VectorMemoryService(IDbContextFactory<ApplicationDbContext> 
         command.CommandText = """
             SELECT c.Id FROM JournalVectorText JOIN JournalVectorChunks c ON c.Id = JournalVectorText.rowid
             WHERE JournalVectorText MATCH $query AND c.UserId = $user
+                AND (c.Kind != 5 OR $profile = 1)
                 AND ((c.CreatedUtc IS NULL AND $profile = 1 AND c.Kind = 3)
                     OR (c.CreatedUtc IS NOT NULL AND ((c.EntryId IS NOT NULL AND c.CreatedUtc < $cutoff)
                         OR (c.EntryId IS NULL AND c.CreatedUtc <= $cutoff))))

@@ -9,6 +9,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     internal DbSet<JournalMemoryRow> JournalMemories => Set<JournalMemoryRow>();
     internal DbSet<JournalTopicOverviewRow> JournalTopicOverviews => Set<JournalTopicOverviewRow>();
     internal DbSet<TherapyShareRow> TherapyShares => Set<TherapyShareRow>();
+    internal DbSet<TaskBoardRow> TaskBoards => Set<TaskBoardRow>();
+    internal DbSet<TaskColumnRow> TaskColumns => Set<TaskColumnRow>();
+    internal DbSet<TaskCardRow> TaskCards => Set<TaskCardRow>();
     internal DbSet<JournalEntryRow> JournalEntries => Set<JournalEntryRow>();
     internal DbSet<JournalNotebookRow> JournalNotebooks => Set<JournalNotebookRow>();
     internal DbSet<JournalNoteRow> JournalNotes => Set<JournalNoteRow>();
@@ -29,6 +32,25 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<TaskBoardRow>(entity =>
+        {
+            entity.HasIndex(b => new { b.UserId, b.NormalizedName }).IsUnique();
+            entity.Property(b => b.Revision).IsConcurrencyToken();
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(b => b.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<TaskColumnRow>(entity =>
+        {
+            entity.HasAlternateKey(c => new { c.BoardId, c.Id });
+            entity.HasIndex(c => new { c.BoardId, c.Position });
+            entity.HasOne(c => c.Board).WithMany().HasForeignKey(c => c.BoardId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<TaskCardRow>(entity =>
+        {
+            entity.HasIndex(c => new { c.BoardId, c.ColumnId, c.Position });
+            entity.HasOne(c => c.Board).WithMany().HasForeignKey(c => c.BoardId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(c => c.Column).WithMany().HasForeignKey(c => new { c.BoardId, c.ColumnId })
+                .HasPrincipalKey(c => new { c.BoardId, c.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
         builder.Entity<TherapyShareRow>(entity =>
         {
             entity.HasIndex(row => row.TokenHash).IsUnique();
@@ -77,6 +99,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         });
         builder.Entity<JournalVectorChunkRow>(entity =>
         {
+            entity.HasIndex(row => new { row.UserId, row.TaskId });
             entity.HasIndex(row => new { row.UserId, row.SourceId }).IsUnique();
             entity.HasIndex(row => new { row.UserId, row.CreatedUtc });
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
