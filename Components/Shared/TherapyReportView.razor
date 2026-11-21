@@ -53,6 +53,7 @@
                                         <figure><figcaption>@evidence.Label · @Date(evidence.CreatedUtc)</figcaption><blockquote class="preserved-text">@evidence.Excerpt</blockquote>
                                         @if (evidence.EntryId is { } id)
                                         { <a href="@($"/entrada/{id}?tema={section.Id}")" target="_blank" rel="noopener">Abrir entrada completa <Icon Name="arrow" Size="14" /></a> }
+                                        else if (evidence.TaskId is { } taskId) { <a href="@TaskContext.Url(taskId)" target="_blank" rel="noopener">Abrir tarjeta actual</a> }
                                         </figure>
                                     }
                                 </details>

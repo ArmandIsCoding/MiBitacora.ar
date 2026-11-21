@@ -2,6 +2,7 @@ namespace MiBitacora.Data;
 
 internal sealed class JournalMemoryRow
 {
+    public Guid? TaskId { get; set; }
     public string UserId { get; set; } = "";
     public string SourceId { get; set; } = "";
     public string SourceHash { get; set; } = "";

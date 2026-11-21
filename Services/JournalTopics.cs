@@ -1,11 +1,12 @@
 namespace MiBitacora.Services;
 
-public enum TopicSourceKind { Entry, Document, Note, Profile, Voice }
+public enum TopicSourceKind { Entry, Document, Note, Profile, Voice, Task }
 
 public sealed record TopicSource(string Id, Guid? EntryId, DateTime? CreatedUtc, string Label, string Text,
-    TopicSourceKind Kind = TopicSourceKind.Entry, Guid? NoteId = null);
+    TopicSourceKind Kind = TopicSourceKind.Entry, Guid? NoteId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? TaskId = null);
 public sealed record TopicEvidence(Guid? EntryId, DateTime? CreatedUtc, string Label, string Excerpt,
-    TopicSourceKind Kind = TopicSourceKind.Entry, Guid? NoteId = null);
+    TopicSourceKind Kind = TopicSourceKind.Entry, Guid? NoteId = null, Guid? TaskId = null);
 public sealed record TopicObservation(string TopicId, string NewTitle, string Observation, IReadOnlyList<TopicCitation> Evidence);
 public sealed record TopicCitation(string SourceId, string Quote);
 public sealed record TopicReading(string Overview, IReadOnlyList<string> Questions);

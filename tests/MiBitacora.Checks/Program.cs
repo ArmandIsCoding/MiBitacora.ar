@@ -23,6 +23,9 @@ void Check(bool success, string message)
     Console.WriteLine("OK: " + message);
 }
 
+if (args.Contains("--sharing-only")) { await TherapyShareChecks.RunAsync(Check); return; }
+if (args.Contains("--tasks-only")) { await TaskBoardChecks.RunAsync(Check); return; }
+if (args.Contains("--task-interactions-only")) { await TaskBoardInteractionChecks.RunAsync(Check); return; }
 if (args.Contains("--local-attachments-only") || args.Contains("--local-attachments-live"))
 {
     var endpoint = args.FirstOrDefault(a => a.StartsWith("--ollama-url=", StringComparison.Ordinal))?.Split('=', 2)[1]
@@ -143,6 +146,10 @@ await VectorMemoryChecks.RunAsync(Check, args.Contains("--live-embeddings"));
 await EntryEditingChecks.RunAsync(Check);
 await NotebookChecks.RunAsync(Check);
 await ThreadChecks.RunAsync(Check);
+await ThoughtMapChecks.RunAsync(Check);
+await TherapyShareChecks.RunAsync(Check);
+await TaskBoardChecks.RunAsync(Check);
+await TaskBoardInteractionChecks.RunAsync(Check);
 await AttachmentViewerChecks.RunAsync(Check);
 await ConversationDepthChecks.RunAsync(Check);
 await AudioConversationChecks.RunAsync(Check);

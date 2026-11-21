@@ -95,6 +95,7 @@
                                     {
                                         <a class="evidence-entry-link" href="@($"/entrada/{entryId}?tema={Uri.EscapeDataString(topic.Id)}")" target="_blank" rel="noopener">Abrir entrada completa <Icon Name="arrow" Size="15" /><span class="visually-hidden"> (en otra pestaña)</span></a>
                                     }
+                                    else if (evidence.TaskId is { } taskId) { <a href="@TaskContext.Url(taskId)" target="_blank" rel="noopener">Abrir tarjeta actual</a> }
                                 </figure>
                             }
                         </details>

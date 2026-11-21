@@ -95,6 +95,7 @@ public partial class Bitacora : IAsyncDisposable
     protected override async Task OnInitializedAsync()
     {
         if (InitialSection == "temas") _section = WorkspaceSection.Topics;
+        if (InitialSection == "notas") _section = WorkspaceSection.Notes;
         var state = await Auth.GetAuthenticationStateAsync();
         _userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         if (_userId.Length == 0)

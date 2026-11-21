@@ -9,7 +9,7 @@ namespace MiBitacora.Services;
 // Originals only: generated answers never become evidence or autobiographical memory.
 public sealed record JournalCorpus(IReadOnlyList<TopicSource> Sources, string Fingerprint,
     int EntryCount, int TextEntryCount, int DocumentCount, int UnreadAttachmentCount,
-    int NoteCount, bool HasPersonalContext, DateTime? FromUtc, DateTime? ThroughUtc);
+    int NoteCount, bool HasPersonalContext, DateTime? FromUtc, DateTime? ThroughUtc, int TaskCount = 0);
 
 public static class JournalCorpusReader
 {
@@ -29,6 +29,13 @@ public static class JournalCorpusReader
             .Select(p => p.PersonalContext).SingleOrDefaultAsync(ct) ?? "";
         // Undated present-day profile is not evidence about a historical entry.
         if (beforeUtc.HasValue && beforeUtc.Value.Date < DateTime.UtcNow.Date) profile = "";
+        // Boards describe present-day plans, not evidence of what happened in old diary entries.
+        var allowTasks = !beforeUtc.HasValue || beforeUtc.Value.Date >= DateTime.UtcNow.Date;
+        var tasks = await db.TaskCards.AsNoTracking().Where(c => c.Board.UserId == userId && allowTasks
+                && !c.Archived && !c.Board.Archived && c.Board.IncludeInContext
+                && (!beforeUtc.HasValue || c.UpdatedUtc <= beforeUtc.Value))
+            .OrderBy(c => c.Id).Select(c => new { c.Id, c.Title, c.Description, c.DueDate, c.UpdatedUtc,
+                Board = c.Board.Name, State = c.Column.Name, c.Column.IsDone }).ToArrayAsync(ct);
         var sources = new List<TopicSource>();
         var docs = 0; var unread = 0; var textEntries = 0;
         foreach (var e in entries)
@@ -48,18 +55,22 @@ public static class JournalCorpusReader
         }
         foreach (var n in notes) Add("n" + n.Id, n.Text, "Notita", TopicSourceKind.Note, null, n.CreatedUtc, n.Id);
         Add("perfil", profile, "Contexto personal del perfil", TopicSourceKind.Profile, null, null);
-        var fingerprint = Hash(JsonSerializer.Serialize(new { version = 1, entries, notes, profile }));
+        foreach (var task in tasks) Add("t" + task.Id,
+            TaskContext.Text(task.Board, task.State, task.IsDone, task.Title, task.Description, task.DueDate),
+            $"Tarjeta · {task.Board} · {task.State}", TopicSourceKind.Task, null, task.UpdatedUtc, taskId: task.Id);
+        var fingerprint = tasks.Length == 0 ? Hash(JsonSerializer.Serialize(new { version = 1, entries, notes, profile }))
+            : Hash(JsonSerializer.Serialize(new { version = 2, entries, notes, profile, tasks }));
         return new(sources, fingerprint, entries.Count, textEntries, docs, unread, notes.Count,
-            !string.IsNullOrWhiteSpace(profile), entries.FirstOrDefault()?.CreatedUtc, entries.LastOrDefault()?.CreatedUtc);
+            !string.IsNullOrWhiteSpace(profile), entries.FirstOrDefault()?.CreatedUtc, entries.LastOrDefault()?.CreatedUtc, tasks.Length);
 
-        void Add(string key, string text, string label, TopicSourceKind kind, Guid? entryId, DateTime? date, Guid? noteId = null)
+        void Add(string key, string text, string label, TopicSourceKind kind, Guid? entryId, DateTime? date, Guid? noteId = null, Guid? taskId = null)
         {
             for (var start = 0; start < text.Length;)
             {
                 var end = Math.Min(start + 2400, text.Length);
                 if (end < text.Length && char.IsHighSurrogate(text[end - 1])) end--;
                 var part = text[start..end];
-                if (!string.IsNullOrWhiteSpace(part)) sources.Add(new(key + ":" + start, entryId, date, label, part, kind, noteId));
+                if (!string.IsNullOrWhiteSpace(part)) sources.Add(new(key + ":" + start, entryId, date, label, part, kind, noteId, taskId));
                 start = end;
             }
         }

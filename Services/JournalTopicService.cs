@@ -57,7 +57,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 throw new JournalInputException("Todavía no hay texto para analizar. Escribí una entrada, una notita o tu contexto personal, o adjuntá un documento con texto legible.");
 
             var topics = new List<WorkingTopic>();
-            var contextSources = input.Sources.Where(s => s.Kind is TopicSourceKind.Note or TopicSourceKind.Profile).ToArray();
+            var contextSources = input.Sources.Where(s => s.Kind is TopicSourceKind.Note or TopicSourceKind.Profile or TopicSourceKind.Task).ToArray();
             progress?.Report("Preparando notitas y contexto personal…");
             var context = await CompressAsync("Contexto transversal: notitas y perfil",
                 contextSources.Select(s => JsonSerializer.Serialize(new { source = SourceLabel(s), text = s.Text }, Json)).ToList(),
@@ -87,7 +87,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                     foreach (var evidence in item.Evidence)
                     {
                         var source = batches[i].Single(s => s.Id == evidence.SourceId);
-                        topic.Evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, evidence.Quote, source.Kind, source.NoteId));
+                        topic.Evidence.Add(new(source.EntryId, source.CreatedUtc, source.Label, evidence.Quote, source.Kind, source.NoteId, source.TaskId));
                     }
                 }
             }
@@ -100,7 +100,7 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
                 // Only context explicitly linked as evidence belongs in this topic's final reading.
                 // Sending every note to every reading encourages repeated, unrelated closing remarks.
                 var relevantContext = contextSources.Where(source => topic.Evidence.Any(e =>
-                    e.Kind == source.Kind && e.NoteId == source.NoteId)).ToList();
+                    e.Kind == source.Kind && e.NoteId == source.NoteId && e.TaskId == source.TaskId)).ToList();
                 var topicContext = await CompressAsync("Contexto pertinente a " + topic.Title,
                     relevantContext.Select(s => JsonSerializer.Serialize(new { source = SourceLabel(s), text = s.Text }, Json)).ToList(),
                     ContextLength, ct);
@@ -111,13 +111,13 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
             ct.ThrowIfCancellationRequested();
             var snapshot = new JournalTopicSnapshot(DateTime.UtcNow, input.EntryCount, input.TextEntryCount,
                 input.DocumentCount, input.UnreadAttachmentCount, results, input.NoteCount, input.HasPersonalContext,
-                contextSources.GroupBy(s => (s.Kind, s.NoteId)).Select(g =>
+                contextSources.GroupBy(s => (s.Kind, s.NoteId, s.TaskId)).Select(g =>
                 {
                     var s = g.First();
                     var text = string.Concat(g.Select(part => part.Text));
                     var end = Math.Min(220, text.Length);
                     if (end < text.Length && char.IsHighSurrogate(text[end - 1])) end--;
-                    return new TopicEvidence(null, s.CreatedUtc, s.Label, text[..end], s.Kind, s.NoteId);
+                    return new TopicEvidence(null, s.CreatedUtc, s.Label, text[..end], s.Kind, s.NoteId, s.TaskId);
                 }).ToArray());
             await using (var db = await factory.CreateDbContextAsync(ct))
             {
@@ -172,9 +172,12 @@ public sealed class JournalTopicService(IDbContextFactory<ApplicationDbContext> 
             }
             if (hasText) textEntries++;
         }
+        var tasks = (await JournalCorpusReader.ReadAsync(db, userId, ct: ct)).Sources.Where(s => s.Kind == TopicSourceKind.Task).ToArray();
+        foreach (var task in tasks) sources.Add(task with { Id = $"s{sources.Count + 1}" });
         // The version also marks pre-context snapshots as outdated, without a database migration.
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             JsonSerializer.Serialize(new { version = 3, entries, notes, personalContext }, Json))));
+        if (tasks.Length > 0) fingerprint = JournalCorpusReader.Hash(fingerprint + JsonSerializer.Serialize(tasks, Json));
         return new(sources, fingerprint, entries.Count, textEntries, documents, unread,
             notes.Count(n => !string.IsNullOrWhiteSpace(n.Text)), !string.IsNullOrWhiteSpace(personalContext));
 

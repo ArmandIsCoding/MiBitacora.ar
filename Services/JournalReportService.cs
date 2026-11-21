@@ -41,7 +41,7 @@ public sealed class JournalReportService(IDbContextFactory<ApplicationDbContext>
             var recentSince = now.AddDays(-30);
             var recentCount = corpus.Sources.Where(s => s.EntryId.HasValue && s.CreatedUtc >= recentSince).Select(s => s.EntryId).Distinct().Count();
             var scope = $"Fecha de preparación: {now:yyyy-MM-dd}. Período registrado: {corpus.FromUtc:yyyy-MM-dd} a {corpus.ThroughUtc:yyyy-MM-dd}. " +
-                $"Entradas: {corpus.EntryCount}; con texto: {corpus.TextEntryCount}; documentos: {corpus.DocumentCount}; notitas: {corpus.NoteCount}. " +
+                $"Entradas: {corpus.EntryCount}; con texto: {corpus.TextEntryCount}; documentos: {corpus.DocumentCount}; notitas: {corpus.NoteCount}; tarjetas actuales como contexto: {corpus.TaskCount}. " +
                 $"Hay {recentCount} entradas con texto desde {recentSince:yyyy-MM-dd} (últimos 30 días). El estado de hoy no se puede deducir solo del pasado. " +
                 "No se analizaron las imágenes ni las respuestas previas de la IA para este informe.";
             foreach (var definition in JournalReportSections.All)

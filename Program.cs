@@ -35,11 +35,12 @@ builder.Services.AddRateLimiter(options => {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context => {
         var path = context.Request.Path.Value ?? "";
-        var limited = HttpMethods.IsPost(context.Request.Method) &&
+        var sharedView = context.Request.Path.StartsWithSegments("/compartido", StringComparison.OrdinalIgnoreCase);
+        var limited = sharedView || HttpMethods.IsPost(context.Request.Method) &&
             (path.StartsWith("/Account", StringComparison.OrdinalIgnoreCase) || path is "/baja" or "/arrepentimiento" or "/soporte" || path.StartsWith("/solicitud/", StringComparison.OrdinalIgnoreCase));
         return limited ? RateLimitPartition.GetFixedWindowLimiter(
-            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }) : RateLimitPartition.GetNoLimiter("other");
+            (sharedView ? "share:" : "account:") + (context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = sharedView ? 60 : 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }) : RateLimitPartition.GetNoLimiter("other");
     });
 });
 var protection = builder.Services.AddDataProtection().SetApplicationName("MiBitacora")
@@ -83,6 +84,11 @@ builder.Services.AddSingleton(provider => new UploadFileStore(
     Path.Combine(builder.Environment.ContentRootPath, "uploads"),
     provider.GetRequiredService<ILogger<UploadFileStore>>()));
 builder.Services.AddScoped<IJournalStore, JournalStore>();
+builder.Services.AddScoped<ThoughtMapService>();
+builder.Services.AddScoped<TaskBoardService>();
+builder.Services.AddScoped<TherapyShareBuilder>();
+builder.Services.AddScoped<TherapyShareService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HeicImageService>();
 builder.Services.AddSingleton(new AttachmentPreparationService(
     Path.Combine(dataDirectory, "media-staging"), Path.Combine(builder.Environment.ContentRootPath, "media-tools")));
@@ -241,9 +247,18 @@ app.Use(async (context, next) =>
         || context.Request.Path.StartsWithSegments("/admin")
         || context.Request.Path.StartsWithSegments("/entrada")
         || context.Request.Path.StartsWithSegments("/informe")
+        || context.Request.Path.StartsWithSegments("/mapa")
+        || context.Request.Path.StartsWithSegments("/pendientes")
+        || context.Request.Path.StartsWithSegments("/compartir-terapia")
+        || context.Request.Path.StartsWithSegments("/compartido")
         || context.Request.Path.StartsWithSegments("/adjuntos"))
     {
         context.Response.Headers.CacheControl = "private, no-store";
+    }
+    if (context.Request.Path.StartsWithSegments("/compartido") || context.Request.Path.StartsWithSegments("/compartir-terapia"))
+    {
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
+        context.Response.Headers.ContentSecurityPolicy = "frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
     }
     if (context.Request.Path.StartsWithSegments("/solicitud") || context.Request.Path is { Value: "/baja" or "/arrepentimiento" or "/soporte" }) {
         context.Response.Headers.CacheControl = "private, no-store";

@@ -10,7 +10,7 @@
 
 <PageTitle>Informe para terapia · Mi Bitácora</PageTitle>
 <main class="report-print-page">
-    <div class="report-print-tools"><Brand Href="/bitacora" /><a href="/bitacora?seccion=temas">Volver a Devolución</a>
+    <div class="report-print-tools"><Brand Href="/bitacora" /><a href="/bitacora?seccion=temas">Volver a Devolución</a><a href="/compartir-terapia">Compartir para terapia</a>
     <button type="button" class="btn btn-primary" @onclick="PrintAsync" disabled="@(!RendererInfo.IsInteractive || _state?.Snapshot?.Report is null)"><Icon Name="print" Size="18" /> Imprimir / guardar PDF</button></div>
     @if (_error is not null) { <p role="alert">@_error</p> }
     else if (_state?.Snapshot is { Report: not null } snapshot)

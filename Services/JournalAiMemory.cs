@@ -15,6 +15,8 @@ public abstract partial class JournalAiService : IJournalMemoryAnalyzer
         No diagnostiques ni agregues causas, emociones, nombres o motivos inferidos. Un documento puede
         hablar de terceros; nunca conviertas sus palabras en vivencias propias. Una notita no demuestra
         una frecuencia ni describe cada entrada. El perfil es actual y no prueba qué ocurría años atrás.
+        Las tarjetas son planes actuales y estados declarados; Hecho no verifica una experiencia,
+        ni una fecha objetivo pasada demuestra incumplimiento. Su modificación no fecha un episodio.
         La memoria sirve para encontrar fuentes; no es una evaluación de salud mental. Solo JSON.
         """;
 

@@ -64,7 +64,7 @@ public sealed class JournalMemoryService(IDbContextFactory<ApplicationDbContext>
                         throw new JournalInputException("Tu cuaderno cambió mientras preparábamos la memoria. Volvé a intentarlo.");
                     var digest = digests.Single(d => d.SourceId == source.Id);
                     var row = await db.JournalMemories.SingleOrDefaultAsync(m => m.UserId == userId && m.SourceId == source.Id, ct);
-                    if (row is null) { row = new() { UserId = userId, SourceId = source.Id, EntryId = source.EntryId, NoteId = source.NoteId }; db.JournalMemories.Add(row); }
+                    if (row is null) { row = new() { UserId = userId, SourceId = source.Id, EntryId = source.EntryId, NoteId = source.NoteId, TaskId = source.TaskId }; db.JournalMemories.Add(row); }
                     row.SourceHash = CacheHash(source);
                     row.DigestJson = JsonSerializer.Serialize(digest, Json);
                     ready[source.Id] = digest;

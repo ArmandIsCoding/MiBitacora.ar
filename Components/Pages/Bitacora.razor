@@ -59,6 +59,9 @@
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Topics ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Topics ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Topics)">
                         <Icon Name="spark" Size="20" /> <span>Mirada de Brisa</span>
                     </button>
+                    <a class="journal-tab" href="/mapa"><Icon Name="graph" Size="20" /> <span>Mapa de ideas</span></a>
+                    <a class="journal-tab" href="/compartir-terapia"><Icon Name="share" Size="20" /> <span>Compartir para terapia</span></a>
+                    <a class="journal-tab" href="/pendientes"><Icon Name="board" Size="20" /> <span>Pendientes</span></a>
                     <button type="button" class="journal-tab @(_section == WorkspaceSection.Notes ? "selected" : "")" aria-current="@(_section == WorkspaceSection.Notes ? "page" : null)" @onclick="() => ShowSection(WorkspaceSection.Notes)">
                         <Icon Name="note" Size="20" /> <span>Notitas</span>
                         @if (_notes.Count > 0) { <span class="tab-count">@_notes.Count</span> }

@@ -16,6 +16,19 @@
 .brisa-hero .hero-actions { gap: .5rem 1.2rem; }
 .brisa-hero .hero-secondary { font-size: .85rem; }
 .landing-plans { padding-block: 1.5rem 4rem; }
+.landing-thoughts { padding-block:1rem 4.5rem; }
+.thoughts-intro { display:grid; grid-template-columns:1.3fr 1fr; gap:2.5rem; align-items:center; margin-bottom:2rem; }
+.thoughts-intro .eyebrow { display:flex; align-items:center; gap:.5rem; }
+.thoughts-intro h2 { font-size:clamp(2.25rem,4vw,3.5rem); line-height:1.18; margin:.75rem 0 0; letter-spacing:-.035em; }
+.thoughts-intro h2 em { color:var(--olive); }
+.thoughts-intro > div > p:not(.eyebrow) { color:var(--muted); line-height:1.8; font-size:.92rem; }
+.thoughts-included { display:inline-flex; align-items:center; gap:.45rem; color:var(--olive-dark); font-size:.75rem; margin-top:1rem; }
+.thoughts-caption { display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; margin:1.2rem .25rem 0; }
+.thoughts-caption p { max-width:90ch; font-size:.72rem; color:var(--muted); line-height:1.8; }
+.thoughts-caption strong { font-weight:550; color:var(--olive-dark); }
+.thoughts-caption > a { white-space:nowrap; font-size:.78rem; margin-top:.25rem; }
+@media(max-width:880px) { .thoughts-intro { grid-template-columns:1fr; gap:1rem; } .thoughts-caption { flex-direction:column; gap:.5rem; } }
+@media(max-width:700px) { .landing-thoughts { padding-bottom:3rem; } .thoughts-intro { margin-bottom:1.4rem; } .landing-header .site-nav { flex-wrap:wrap; } }
 .section-heading { max-width: 44rem; margin: 0 auto 2rem; text-align: center; }
 .section-heading h2, .therapy-copy h2 { margin: .7rem 0 1rem; font-size: clamp(2.25rem, 4vw, 3.65rem); line-height: 1.16; }
 .section-heading h2 em, .therapy-copy h2 em { color: var(--olive); }

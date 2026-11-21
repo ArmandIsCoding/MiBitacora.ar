@@ -1,0 +1,102 @@
+@page "/compartir-terapia"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject AuthenticationStateProvider Auth
+@inject TherapyShareService Shares
+@inject JournalReportService Reports
+@inject IJournalReflector Reflector
+@inject Microsoft.Extensions.Options.IOptions<SubscriptionOptions> Plans
+@inject ILogger<CompartirTerapia> Logger
+
+<PageTitle>Compartir para terapia · Mi Bitácora</PageTitle>
+<header class="site-header wrap"><Brand Href="/bitacora" /><a class="btn btn-outline" href="/mapa"><Icon Name="graph" Size="18" /> Volver a mi mapa</a></header>
+<main class="therapy-sharing wrap">
+    <header class="therapy-sharing-intro"><p class="eyebrow">TU RECORRIDO, PARA LEER EN SESIÓN</p><h1>Compartir <em>para terapia.</em></h1><p>Prepará una copia completa de tu mapa y un informe para que tu psicóloga pueda explorarlos sin entrar a tu cuenta.</p></header>
+    <div class="therapy-share-explanation"><Icon Name="lock" Size="23" /><p><strong>Vos decidís cuándo compartir y cuándo actualizar.</strong> El enlace muestra una versión fija de tus registros, devoluciones de Brisa, notitas, contexto personal y textos disponibles de documentos. Cualquier persona que tenga el enlace podrá leerla y guardar el informe. Los archivos originales siguen privados.</p></div>
+    <p class="share-generation-note">Los tableros y las tarjetas originales siguen privados. Si los incluiste como contexto, las devoluciones y el informe de Brisa pueden mencionar sus datos: revisá también esas lecturas antes de compartir.</p>
+    @if (_error is not null) { <p class="journal-alert" role="alert">@_error</p> }
+    @if (_notice is not null) { <p class="journal-notice" role="status">@_notice</p> }
+    @if (_userId is null) { <p role="status">Abriendo tus opciones para compartir…</p> }
+    else
+    {
+        <section class="therapy-share-preparation">
+            <div class="share-preparation-heading"><span class="share-step">01</span><div><h2>@(_replacing is null ? "Prepará una versión" : "Prepará la actualización")</h2><p>@(_replacing is null ? "La vista previa es privada. Nada se publica hasta que lo confirmes." : $"El enlace «{_replacing.Title}» conservará su dirección. Su contenido cambiará sólo al confirmar esta actualización.")</p></div></div>
+            <label class="share-title-field">Título de esta versión<input type="text" @bind="_title" @bind:event="oninput" maxlength="100" disabled="@_busy" /></label>
+            <div class="share-preparation-actions"><button type="button" class="btn btn-primary" @onclick="PrepareAsync" disabled="@(_busy || !RendererInfo.IsInteractive)"><Icon Name="graph" Size="18" /> Preparar vista previa completa</button><button type="button" class="btn btn-outline" @onclick="GenerateReportAsync" disabled="@(_busy || !RendererInfo.IsInteractive)"><Icon Name="spark" Size="18" /> Preparar / actualizar informe con Brisa</button></div>
+            <p class="share-generation-note">La vista previa y el enlace no consumen créditos. Preparar el informe usa tu proveedor de IA elegido@(Reflector.UsesExternalProvider ? $" y consume {Plans.Value.ReportCredits} créditos si se completa" : ""). Reúne todo el recorrido en diez apartados, con registros, hipótesis y preguntas para terapia.</p>
+            @if (_busy) { <p class="share-progress" role="status" aria-live="polite"><span class="spinner"></span> @_progress</p> }
+            @if (_generating) { <button class="quiet-action" type="button" @onclick="CancelGeneration">Cancelar preparación del informe</button> }
+            @if (_replacing is not null) { <button type="button" class="quiet-action" disabled="@_busy" @onclick="CancelUpdate">Cancelar actualización y preparar un enlace nuevo</button> }
+        </section>
+        @if (_prepared is { } preview)
+        {
+            <section class="share-review"><div class="share-preparation-heading"><span class="share-step">02</span><div><h2>Revisá lo que vas a compartir</h2><p>@preview.Snapshot.Entries.Count entradas · @preview.Snapshot.Map.Nodes.Count puntos del mapa · @preview.Snapshot.Notes.Count notitas · @(preview.Snapshot.PersonalContext.Length > 0 ? "incluye contexto personal" : "sin contexto personal guardado"). No se aplica el límite de 120 entradas del mapa de trabajo.</p></div></div>
+                @if (preview.Snapshot.Report is null) { <p class="share-report-pending">@(preview.Snapshot.PreviousReportOutdated ? "El informe integral anterior quedó desactualizado y no se incluirá." : "Todavía no hay un informe integral actualizado.") La pestaña Informe reúne las devoluciones ya guardadas y todos los registros. Podés preparar el informe con Brisa antes de compartir para agregar los diez apartados.</p> }
+                <SharedTherapySpace @key="preview" Snapshot="preview.Snapshot" Preview="true" />
+                <div class="share-publication"><div><label>Vencimiento del enlace<select @bind="_days" disabled="@_busy">@if (_replacing is not null) { <option value="-1">Conservar vencimiento actual</option> }<option value="7">En 7 días</option><option value="30">En 30 días</option><option value="90">En 90 días</option><option value="365">En un año</option><option value="0">Sin vencimiento, hasta revocarlo</option></select></label><p>Editar o borrar un registro del cuaderno no modifica esta copia fija. Actualizá la versión o revocá el enlace para retirar su acceso. Las copias descargadas no se pueden retirar.</p></div>
+                    <label class="share-consent"><input type="checkbox" @bind="_consent" disabled="@_busy" /><span>Revisé el mapa y el informe, incluidas mis notas, mi contexto personal y las lecturas de Brisa. Quiero compartir esta versión mediante un enlace público que pueda enviar a mi psicóloga.</span></label>
+                    <button type="button" class="btn btn-primary" @onclick="PublishAsync" disabled="@(_busy || !_consent || _title.Trim() != preview.Snapshot.Title)"><Icon Name="share" Size="18" /> @(_replacing is null ? "Crear enlace público de esta versión" : "Actualizar versión de este enlace")</button>
+                    @if (_title.Trim() != preview.Snapshot.Title) { <p role="status">El título cambió: prepará otra vista previa antes de compartir.</p> }
+                </div>
+            </section>
+        }
+        <section class="therapy-share-links"><div class="share-preparation-heading"><span class="share-step">03</span><div><h2>Tus enlaces compartidos</h2><p>El mapa y el informe tienen accesos directos distintos dentro de la misma versión. Podés enviarlos juntos o abrirlos en pestañas separadas.</p></div></div>
+            @if (_links.Count == 0) { <p class="share-links-empty">Todavía no creaste enlaces. Tu cuaderno sigue privado.</p> }
+            @foreach (var link in _links) { <TherapyShareCard @key="link.Id" Link="link" Busy="_busy" Update="PrepareUpdate" Revoke="RevokeAsync" Notice="message => _notice = message" /> }
+        </section>
+    }
+</main>
+
+@code {
+    private string? _userId, _error, _notice;
+    private string _title = "Mi recorrido para terapia", _progress = "Reuniendo tu recorrido…";
+    private int _days = 30;
+    private bool _busy, _consent, _generating, _cancelled;
+    private CancellationTokenSource? _reportCancellation;
+    private PreparedTherapyShare? _prepared;
+    private TherapyShareInfo? _replacing;
+    private IReadOnlyList<TherapyShareInfo> _links = [];
+    private readonly CancellationTokenSource _lifetime = new();
+    protected override async Task OnInitializedAsync()
+    {
+        _userId = (await Auth.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (_userId is null) return;
+        try { if (Reflector is AccountJournalService account) await account.SelectAccountAsync(_userId, _lifetime.Token); _links = await Shares.ListAsync(_userId, _lifetime.Token); }
+        catch (Exception) { _error = "No pudimos abrir los enlaces. Volvé a intentar en un momento."; }
+    }
+    private async Task WorkAsync(Func<Task> work)
+    {
+        if (_busy || _userId is null) return;
+        _busy = true; _cancelled = false; _error = _notice = null;
+        try { await work(); }
+        catch (JournalInputException ex) { _error = ex.Message; }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested || _cancelled) { _notice = "Preparación cancelada. Los enlaces ya compartidos conservan su versión anterior."; }
+        catch (Exception) { Logger.LogWarning("No se pudo completar una operación de versiones para terapia."); _error = "No pudimos completar la operación. Tu cuaderno y los enlaces anteriores se conservan."; }
+        finally { _busy = false; }
+    }
+    private Task PrepareAsync() => WorkAsync(async () => { _progress = "Reuniendo todas las entradas y conexiones…"; _prepared = null; _consent = false; _prepared = await Shares.PrepareAsync(_userId!, _title, _lifetime.Token); });
+    private Task GenerateReportAsync() => WorkAsync(async () =>
+    {
+        _prepared = null; _consent = false; _progress = "Brisa está preparando el informe integral…";
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _reportCancellation = operation; _generating = true;
+        try {
+            await Reports.GenerateAsync(_userId!, new Progress<string>(message => { if (!_lifetime.IsCancellationRequested) _ = InvokeAsync(() => { _progress = message; StateHasChanged(); }); }), operation.Token);
+            _prepared = await Shares.PrepareAsync(_userId!, _title, operation.Token); _notice = "Informe preparado. Revisá la vista previa antes de compartir.";
+        } finally { _generating = false; _reportCancellation = null; }
+    });
+    private Task PublishAsync() => WorkAsync(async () =>
+    {
+        if (_prepared is null || _title.Trim() != _prepared.Snapshot.Title) throw new JournalInputException("Prepará una vista previa de esta versión.");
+        _progress = "Guardando la versión que revisaste…";
+        await Shares.PublishAsync(_userId!, _prepared, _consent, _days, _replacing?.Id, _replacing?.Revision, _lifetime.Token);
+        _prepared = null; _consent = false; _replacing = null; _days = 30; _links = await Shares.ListAsync(_userId!, _lifetime.Token); _notice = "La versión está disponible. Copiá el enlace al mapa o al informe para enviárselo a tu psicóloga.";
+    });
+    private void PrepareUpdate(TherapyShareInfo link) { _replacing = link; _title = link.Title; _days = -1; _prepared = null; _consent = false; _notice = "Prepará y revisá una vista previa nueva. El enlace actual todavía muestra la versión anterior."; }
+    private void CancelUpdate() { _replacing = null; _days = 30; _prepared = null; _consent = false; }
+    private void CancelGeneration() { _cancelled = true; _reportCancellation?.Cancel(); }
+    private Task RevokeAsync(TherapyShareInfo link) => WorkAsync(async () => { await Shares.RevokeAsync(_userId!, link.Id, _lifetime.Token); _links = await Shares.ListAsync(_userId!, _lifetime.Token); if (_replacing?.Id == link.Id) CancelUpdate(); _notice = "Enlace revocado. Ya no se puede abrir; las vistas que estaban abiertas comprobarán su disponibilidad."; });
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

@@ -56,8 +56,8 @@
     [SupplyParameterFromQuery(Name = "origen")] public string? Origin { get; set; }
     private string NotebookUrl => _entry?.NotebookId is { } id ? $"/bitacora?diario={id:D}" : "/bitacora";
     private string ThreadUrl => NotebookUrl + (_entry?.NotebookId is null ? "?" : "&") + $"hilo={EntryId:D}";
-    private string ReturnUrl => Origin == "chat" ? (_entry?.ReplyToEntryId is not null ? ThreadUrl : NotebookUrl) : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
-    private string ReturnLabel => Origin == "chat" ? "Volver a la conversación" : "Volver a la devolución";
+    private string ReturnUrl => Origin == "mapa" ? $"/mapa?entrada={EntryId:D}" : Origin == "chat" ? (_entry?.ReplyToEntryId is not null ? ThreadUrl : NotebookUrl) : "/bitacora?seccion=temas" + (string.IsNullOrEmpty(TopicId) ? "" : "#tema-" + Uri.EscapeDataString(TopicId));
+    private string ReturnLabel => Origin == "mapa" ? "Volver a mi mapa" : Origin == "chat" ? "Volver a la conversación" : "Volver a la devolución";
     private DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZone);
     private void OpenThread(JournalEntry entry) => Navigation.NavigateTo($"{NotebookUrl}{(entry.NotebookId.HasValue ? "&" : "?")}hilo={entry.Id:D}&responder={entry.Id:D}");
     protected override async Task OnParametersSetAsync()
