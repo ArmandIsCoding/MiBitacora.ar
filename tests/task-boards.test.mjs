@@ -33,7 +33,7 @@ function fixture() {
     globalThis.requestAnimationFrame = cb => { const id = ++sequence; frames.set(id, cb); return id; }; globalThis.cancelAnimationFrame = id => frames.delete(id);
     const bridge = { invokeMethodAsync: (...args) => { calls.push(args); return Promise.resolve(); } };
     const control = create(host, bridge);
-    return { host, left, right, listA, listB, a, b, grip, calls, body, window, frames, control,
+    return { host, left, right, listA, listB, a, b, grip, calls, body, window, frames, control, bridge,
         frame() { const [id, callback] = frames.entries().next().value; frames.delete(id); callback(); },
         cleanup() { control.dispose(); globalThis.document = original.document; globalThis.window = original.window; globalThis.requestAnimationFrame = original.raf; globalThis.cancelAnimationFrame = original.caf; } };
 }
@@ -83,4 +83,18 @@ test('un cambio a sólo lectura durante el arrastre impide enviar el movimiento'
     const f = fixture();
     try { const dataTransfer = transfer(); f.host.dispatch('dragstart', { target: f.a, dataTransfer }); f.host.dispatch('dragover', { target: f.b, dataTransfer, clientX: 150, clientY: 10 }); f.host.dataset.readonly = 'true'; f.host.dispatch('drop', { target: f.b, clientY: 10 }); assert.equal(f.calls.length, 0); assert(!f.a.classes.has('task-is-dragging')); }
     finally { f.cleanup(); }
+});
+test('espera la respuesta y usa la revisión renderizada en movimientos consecutivos', async () => {
+    const f = fixture(); let complete;
+    const pending = new Promise(resolve => { complete = resolve; });
+    f.bridge.invokeMethodAsync = (...args) => { f.calls.push(args); return pending; };
+    const move = () => { const dataTransfer = transfer(); f.host.dispatch('dragstart', { target: f.a, dataTransfer }); f.host.dispatch('dragover', { target: f.b, dataTransfer, clientX: 150, clientY: 10 }); f.host.dispatch('drop', { target: f.b, clientY: 10 }); };
+    try {
+        move(); assert.equal(f.calls.length, 1);
+        assert(f.host.dispatch('dragstart', { target: f.a, dataTransfer: transfer() }).prevented);
+        assert.equal(f.calls.length, 1);
+        f.host.dataset.revision = '18'; complete(); await Promise.resolve(); await Promise.resolve();
+        move(); await Promise.resolve();
+        assert.deepEqual(f.calls.map(call => call.at(-1)), [17, 18]);
+    } finally { complete(); f.cleanup(); }
 });

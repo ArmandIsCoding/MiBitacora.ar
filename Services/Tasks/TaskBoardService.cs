@@ -65,8 +65,10 @@ public sealed class TaskBoardService(IDbContextFactory<ApplicationDbContext> fac
             for (var i = 0; i < names.Length; i++) db.TaskColumns.Add(new() { Id = Guid.NewGuid(), BoardId = row.Id, Name = names[i], Position = i, IsDone = i == 2 });
         }
         else row.Revision++;
-        await SaveAsync(db, ct); await tx.CommitAsync(ct);
-        return (await GetAsync(userId, row.Id, ct))!;
+        await SaveAsync(db, ct);
+        var result = await ReadAsync(db, userId, row.Id, ct) ?? throw Unavailable();
+        await tx.CommitAsync(ct);
+        return result;
     }
     public Task<TaskBoard> ArchiveBoardAsync(string userId, Guid boardId, bool archived, int revision, CancellationToken ct = default) =>
         ChangeAsync(userId, boardId, revision, async (db, b) => { b.Archived = archived; await Task.CompletedTask; }, ct, true);
@@ -152,8 +154,10 @@ public sealed class TaskBoardService(IDbContextFactory<ApplicationDbContext> fac
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var board = await OwnedAsync(db, userId, id, revision, ct, allowArchived);
         await change(db, board); board.Revision++; board.UpdatedUtc = Now;
-        await SaveAsync(db, ct); await tx.CommitAsync(ct);
-        return (await GetAsync(userId, id, ct))!;
+        await SaveAsync(db, ct);
+        var result = await ReadAsync(db, userId, id, ct) ?? throw Unavailable();
+        await tx.CommitAsync(ct);
+        return result;
     }
     private static async Task<TaskBoardRow> OwnedAsync(ApplicationDbContext db, string userId, Guid id, int? revision, CancellationToken ct, bool archived = false)
     {

@@ -98,31 +98,44 @@ public partial class Pendientes
         BeginEditor("card", card?.Id); _draftTitle = card?.Title ?? ""; _draftDescription = card?.Description ?? "";
         _draftColor = card?.Color ?? "paper"; _draftDue = card?.DueDate; _draftColumn = column;
     }
-    private async Task CloseEditorAsync()
+    private Task CloseEditorAsync()
     {
-        if (_busy) return;
-        if (_module is not null && _editor is not null) await _module.InvokeVoidAsync("closeDialog", _dialog);
+        if (_busy) return Task.CompletedTask;
         _editor = null; _dialogPending = false; _dialogError = null;
+        return Task.CompletedTask;
     }
     private async Task WorkAsync(Func<Task<TaskBoard>> action, string notice, bool close = false)
     {
         if (_busy || _userId is null) return;
         _busy = true; _error = _dialogError = null;
+        StateHasChanged();
+        var saved = false;
         try
         {
             var createdBoard = _editor == "board" && _editingId is null;
             var result = await action();
+            saved = true;
             if (_board is null || _board.Summary.Id == result.Summary.Id || _editor == "board" && _editingId is null) _board = result;
-            _boards = await Tasks.ListAsync(_userId, _lifetime.Token); _notice = notice;
-            if (close) { if (_module is not null) await _module.InvokeVoidAsync("closeDialog", _dialog); _editor = null; _dialogPending = false; }
+            _boards = _boards.Any(b => b.Id == result.Summary.Id)
+                ? _boards.Select(b => b.Id == result.Summary.Id ? result.Summary : b).ToArray()
+                : [.. _boards, result.Summary];
+            _notice = notice;
+            // Removing the dialog in the render closes its native modal state. A browser
+            // callback or another query must not turn an already saved change into an error.
+            if (close) { _editor = null; _dialogPending = false; }
             if (_board?.Summary.Id == result.Summary.Id) _archivedBoards = result.Summary.Archived;
             if ((createdBoard || string.IsNullOrEmpty(BoardQuery) && string.IsNullOrEmpty(CardQuery)) && result.Summary.Id == _board?.Summary.Id)
                 Navigation.NavigateTo($"/pendientes?tablero={result.Summary.Id:D}", replace: true);
         }
         catch (JournalInputException ex) { _error = _dialogError = ex.Message; }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception) { _error = _dialogError = "No pudimos guardar el cambio. Conservamos lo que escribiste; recargá el tablero antes de reintentar."; Logger.LogWarning("No se pudo guardar un cambio de pendientes."); }
-        finally { _busy = false; }
+        catch (Exception ex)
+        {
+            if (saved) _notice = "El cambio se guardó. Si la pantalla perdió la conexión, recargá el tablero para verlo.";
+            else _error = _dialogError = "No pudimos guardar el cambio. Conservamos lo que escribiste; recargá el tablero antes de reintentar.";
+            Logger.LogWarning("No se pudo completar la operación de pendientes. Guardado: {Saved}; tipo: {FailureType}.", saved, ex.GetType().Name);
+        }
+        finally { _busy = false; if (!_lifetime.IsCancellationRequested) StateHasChanged(); }
     }
     private Task SaveEditorAsync()
     {
@@ -153,7 +166,7 @@ public partial class Pendientes
     [JSInvokable] public Task MoveTaskCard(string card, string column, string? before, int revision)
     {
         if (!Guid.TryParse(card, out var cid) || !Guid.TryParse(column, out var col) || before is not null && !Guid.TryParse(before, out _)) return Task.CompletedTask;
-        return MoveAsync(cid, col, before is null ? null : Guid.Parse(before), revision);
+        return InvokeAsync(() => MoveAsync(cid, col, before is null ? null : Guid.Parse(before), revision));
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

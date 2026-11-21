@@ -30,9 +30,14 @@ La migración `20261120142408_AddTaskBoards` agrega tres tablas y un identificad
 ```powershell
 dotnet build tests/MiBitacora.Checks -c Release
 dotnet tests/MiBitacora.Checks/bin/Release/net10.0/MiBitacora.Checks.dll --tasks-only
+dotnet tests/MiBitacora.Checks/bin/Release/net10.0/MiBitacora.Checks.dll --task-interactions-only
 node --test tests/task-boards.test.mjs
 ```
 
 Las pruebas usan datos ficticios en bases aisladas: aislamiento entre cuentas, validación, orden y movimiento, concurrencia, archivo/restauración, exclusión, recuperación de contexto sin Ollama, fuentes de una devolución, mapa, exportación y borrado. La revisión visual debe usar también una cuenta ficticia, sin enviar información real a modelos. OpenAI y el análisis local de adjuntos conservan su configuración de despliegue.
 
 Se comprobó la interfaz en escritorio y anchos de 390 y 320 px: creación de tablero y tarjeta, fecha y color, movimiento por selector y por arrastre desde el asa, archivo/restauración de ambos tipos, control de contexto y bienvenida de una cuenta vacía. El editor y el documento no presentan desbordamiento horizontal en esos anchos. Las pruebas de JavaScript cubren también el gesto táctil, cancelación, sólo lectura y liberación de observadores. Se verificó además que revertir y reaplicar la migración conserva el índice de texto anterior, y que cambiar tareas no publica tarjetas ni modifica copias fijas ya aprobadas para terapia.
+
+Las llamadas de arrastre llegan por `JSInvokable`, fuera del ciclo de eventos del DOM que provoca renderizados automáticos en Blazor. El componente entra explícitamente al dispatcher y renderiza tanto el bloqueo inicial como el resultado y los errores. El puente bloquea otro arrastre mientras espera la respuesta, y cada movimiento siguiente toma la revisión del DOM actualizado. La prueba de interacción reproduce el fallo anterior (el movimiento se guardaba pero no cambiaban la columna ni la revisión visibles) y verifica cuatro movimientos consecutivos, la visualización de conflictos y el guardado con sólo título.
+
+El resultado de cada escritura se lee en su misma transacción, antes de confirmar. Tras guardarlo, la página actualiza el tablero y su resumen con ese resultado y retira el editor mediante el render, sin otra consulta ni una llamada JavaScript de cierre que pueda presentar un guardado exitoso como error. No reescribe tarjetas existentes ni modifica el proveedor de IA.

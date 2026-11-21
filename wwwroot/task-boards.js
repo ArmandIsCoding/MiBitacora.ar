@@ -21,10 +21,10 @@ export function resolveDrop(host, target, y, movingId) {
 }
 
 export function create(host, bridge) {
-    let drag = null, ghost = null, pointer = null, frame = 0, suppressedUntil = 0, disposed = false;
+    let drag = null, ghost = null, pointer = null, frame = 0, suppressedUntil = 0, disposed = false, saving = false;
     const listeners = [];
     const listen = (element, event, handler, options) => { element.addEventListener(event, handler, options); listeners.push(() => element.removeEventListener(event, handler, options)); };
-    const locked = () => disposed || host.dataset.readonly === 'true' || host.querySelector('.tasks-search input')?.value?.length > 0;
+    const locked = () => disposed || saving || host.dataset.readonly === 'true' || host.querySelector('.tasks-search input')?.value?.length > 0;
     const clearMark = () => host.querySelectorAll('.task-drop-before,.task-drop-column').forEach(el => el.classList.remove('task-drop-before', 'task-drop-column'));
     const cleanup = () => {
         cancelAnimationFrame(frame); frame = 0; clearMark();
@@ -47,8 +47,10 @@ export function create(host, bridge) {
         const result = drag && { id: drag.id, revision: drag.revision, drop: drag.drop };
         suppressedUntil = performance.now() + 350; cleanup();
         if (!result?.drop || locked()) return;
+        saving = true;
         try { await bridge.invokeMethodAsync('MoveTaskCard', result.id, result.drop.column, result.drop.before, result.revision); }
         catch { /* A disconnected Blazor circuit displays its own reconnect control. */ }
+        finally { saving = false; }
     };
     const scrollAt = (x, y) => {
         const columns = host.querySelector('[data-task-columns]');
